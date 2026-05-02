@@ -92,13 +92,26 @@ socket.on('actualizar_publicas', (lista) => {
         return;
     }
     
+    let nombreInput = document.getElementById('nombre-jugador').value.trim();
+    let miNombreVisual = nombreInput !== "" ? nombreInput : "Jugador 1";
+
+
     lista.forEach(partida => {
         const tr = document.createElement('tr');
+
+        // Comprobamos si la sala la hemos creado nosotros para quitar el botón
+        let botonHTML = '';
+        if (partida.creador === miNombreVisual) {
+            botonHTML = `<span style="color: #a3be8c; font-size: 0.85em; font-weight: bold;">Tu sala</span>`;
+        } else {
+            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">Unirse</button>`;
+        }
+
         tr.innerHTML = `
             <td style="padding: 8px; border-bottom: 1px solid #4c566a; color: #ebcb8b;">${partida.creador}</td>
             <td style="padding: 8px; border-bottom: 1px solid #4c566a;">${partida.al_mejor_de}</td>
             <td style="padding: 8px; border-bottom: 1px solid #4c566a;">
-                <button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1;">Unirse</button>
+                ${botonHTML}
             </td>
         `;
         tbody.appendChild(tr);
@@ -536,22 +549,20 @@ document.getElementById('btn-submit-login').addEventListener('click', () => {
 
 
 // ==========================================
-// RESPUESTAS DEL SERVIDOR (LOGIN/REGISTRO)
+// 5. GESTIÓN DE SESIONES POR HTTP (FETCH)
 // ==========================================
 
-// Nada más entrar a la web, preguntamos a Python si tenemos la sesión abierta
-// Asegurarnos de que el socket está 100% conectado antes de pedir la sesión
-socket.on('connect', () => {
-    socket.emit('comprobar_sesion');
+// Comprobar la sesión nada más cargar la página
+fetch('/auth/sesion').then(res => res.json()).then(datos => {
+    if (datos.exito) actualizarInterfazLogueado(datos.usuario);
 });
 
-// Funciones para cambiar la interfaz visual
+// Funciones visuales
 function actualizarInterfazLogueado(usuario) {
     document.getElementById('user-buttons').classList.add('hidden');
     document.getElementById('user-info-logged').classList.remove('hidden');
     document.getElementById('txt-user-stats').innerText = `Hola, ${usuario.username} (Winrate: ${usuario.winrate}%)`;
 
-    // Bloqueamos el input de nombre y le ponemos el suyo
     let inNombre = document.getElementById('nombre-jugador');
     if (inNombre) {
         inNombre.value = usuario.username;
@@ -566,7 +577,6 @@ function actualizarInterfazDeslogueado() {
     document.getElementById('user-buttons').classList.remove('hidden');
     document.getElementById('user-info-logged').classList.add('hidden');
 
-    // Desbloqueamos el input de nombre para invitados
     let inNombre = document.getElementById('nombre-jugador');
     if (inNombre) {
         inNombre.value = "";
@@ -576,38 +586,73 @@ function actualizarInterfazDeslogueado() {
     }
 }
 
-// Escuchadores de eventos
-socket.on('registro_respuesta', (datos) => {
-    let msgEl = document.getElementById('msg-signup');
-    msgEl.innerText = datos.mensaje;
-    if (datos.exito) {
-        msgEl.style.color = "#a3be8c"; // Verde éxito
-        // Si sale bien, le cambiamos al modal de login tras 1.5 segundos
-        setTimeout(() => {
-            document.getElementById('btn-show-login').click();
-            document.getElementById('login-user').value = document.getElementById('signup-user').value;
-        }, 1500);
-    } else {
-        msgEl.style.color = "#bf616a"; // Rojo error
-    }
-});
+// REGISTRO VÍA FETCH
+if (document.getElementById('btn-submit-signup')) {
+    document.getElementById('btn-submit-signup').addEventListener('click', () => {
+        const user = document.getElementById('signup-user').value.trim();
+        const pass = document.getElementById('signup-pass').value;
+        const country = document.getElementById('signup-country').value.trim();
+        const birth = document.getElementById('signup-birth').value;
 
-socket.on('login_respuesta', (datos) => {
-    if (datos.exito) {
-        actualizarInterfazLogueado(datos.usuario);
-    } else {
-        document.getElementById('msg-login').innerText = datos.mensaje;
-    }
-});
+        if (!user || !pass || !country || !birth) {
+            document.getElementById('msg-signup').innerText = "Rellena todos los campos.";
+            return;
+        }
+        
+        document.getElementById('msg-signup').innerText = "Registrando...";
+        
+        fetch('/auth/registro', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass, country: country, birthdate: birth })
+        }).then(res => res.json()).then(datos => {
+            let msgEl = document.getElementById('msg-signup');
+            msgEl.innerText = datos.mensaje;
+            if (datos.exito) {
+                msgEl.style.color = "#a3be8c";
+                setTimeout(() => {
+                    document.getElementById('btn-show-login').click();
+                    document.getElementById('login-user').value = user;
+                }, 1500);
+            } else {
+                msgEl.style.color = "#bf616a";
+            }
+        });
+    });
+}
 
-socket.on('sesion_restaurada', (datos) => {
-    actualizarInterfazLogueado(datos.usuario);
-});
+// LOGIN VÍA FETCH
+if (document.getElementById('btn-submit-login')) {
+    document.getElementById('btn-submit-login').addEventListener('click', () => {
+        const user = document.getElementById('login-user').value.trim();
+        const pass = document.getElementById('login-pass').value;
+        const remember = document.getElementById('login-remember').checked;
 
-socket.on('sesion_cerrada', () => {
-    actualizarInterfazDeslogueado();
-});
+        if (!user || !pass) {
+            document.getElementById('msg-login').innerText = "Introduce usuario y contraseña.";
+            return;
+        }
 
+        document.getElementById('msg-login').innerText = "Comprobando...";
+        
+        fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass, remember: remember })
+        }).then(res => res.json()).then(datos => {
+            if (datos.exito) {
+                // Al loguear con éxito, recargamos la web para que SocketIO lea la nueva cookie
+                window.location.reload();
+            } else {
+                document.getElementById('msg-login').innerText = datos.mensaje;
+            }
+        });
+    });
+}
+
+// CERRAR SESIÓN VÍA FETCH
 document.getElementById('btn-logout').addEventListener('click', () => {
-    socket.emit('cerrar_sesion');
+    fetch('/auth/logout', { method: 'POST' }).then(() => {
+        window.location.reload();
+    });
 });

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, jsonify
 import base_datos
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
@@ -25,6 +25,45 @@ def generar_codigo():
 def index():
     return render_template('index.html')
 
+
+# ==========================================
+# GESTIÓN DE USUARIOS Y SESIONES (Vía HTTP)
+# ==========================================
+
+@app.route('/auth/registro', methods=['POST'])
+def auth_registro():
+    datos = request.json
+    exito, msg = base_datos.registrar_usuario(datos.get('username'), datos.get('password'), datos.get('country'), datos.get('birthdate'))
+    return jsonify({'exito': exito, 'mensaje': msg})
+
+@app.route('/auth/login', methods=['POST'])
+def auth_login():
+    datos = request.json
+    user = datos.get('username')
+    
+    if base_datos.verificar_login(user, datos.get('password')):
+        session.permanent = datos.get('remember', False)
+        session['username'] = user
+        return jsonify({'exito': True})
+        
+    return jsonify({'exito': False, 'mensaje': 'Usuario o contraseña incorrectos'})
+
+@app.route('/auth/sesion', methods=['GET'])
+def auth_sesion():
+    if 'username' in session:
+        user = session['username']
+        usuario_data = base_datos.obtener_usuario(user)
+        if usuario_data:
+            return jsonify({'exito': True, 'usuario': usuario_data})
+    return jsonify({'exito': False})
+
+@app.route('/auth/logout', methods=['POST'])
+def auth_logout():
+    session.pop('username', None)
+    return jsonify({'exito': True})
+
+
+
 # --- 1. GESTIÓN DE SALAS ---
 
 def emitir_lista_publicas():
@@ -46,49 +85,7 @@ def handle_pedir_publicas():
     emitir_lista_publicas()
 
 
-# ==========================================
-# GESTIÓN DE USUARIOS Y SESIONES
-# ==========================================
-
-@socketio.on('intento_registro')
-def handle_registro(datos):
-    user = datos.get('username')
-    passw = datos.get('password')
-    country = datos.get('country')
-    birth = datos.get('birthdate')
-    
-    exito, msg = base_datos.registrar_usuario(user, passw, country, birth)
-    emit('registro_respuesta', {'exito': exito, 'mensaje': msg})
-
-@socketio.on('intento_login')
-def handle_login(datos):
-    user = datos.get('username')
-    passw = datos.get('password')
-    remember = datos.get('remember', False)
-
-    if base_datos.verificar_login(user, passw):
-        # Configurar la persistencia de la sesión en Flask
-        session.permanent = remember 
-        session['username'] = user
-        
-        usuario_data = base_datos.obtener_usuario(user)
-        emit('login_respuesta', {'exito': True, 'usuario': usuario_data})
-    else:
-        emit('login_respuesta', {'exito': False, 'mensaje': 'Usuario o contraseña incorrectos'})
-
-@socketio.on('comprobar_sesion')
-def handle_comprobar_sesion():
-    # Cuando un jugador carga la página, miramos si su navegador tiene la cookie
-    if 'username' in session:
-        user = session['username']
-        usuario_data = base_datos.obtener_usuario(user)
-        if usuario_data:
-            emit('sesion_restaurada', {'usuario': usuario_data})
-
-@socketio.on('cerrar_sesion')
-def handle_cerrar_sesion():
-    session.pop('username', None) # Borramos la cookie
-    emit('sesion_cerrada')
+# aqui iba el anteriorgestion de usuarios y sesiones
 
 
 @socketio.on('crear_sala')
@@ -97,13 +94,17 @@ def handle_crear_sala(datos):
     nombre = datos.get('nombre', 'Jugador 1')
     es_publico = datos.get('publico', False)
     al_mejor_de_valor = datos.get('al_mejor_de', 3)
+    
+    # Como ya está importado en la línea 1, lo usamos directamente
     real_username = session.get('username')
+
     codigo = generar_codigo()
     while codigo in salas:
         codigo = generar_codigo()
         
-    jugadores[sid] = {'nombre': nombre, 'sala': codigo}
-    join_room(codigo) # Función nativa de SocketIO para aislar la comunicación
+    # AQUÍ ESTABA EL FALLO: Ahora sí guardamos tu username en tus datos de conexión
+    jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': real_username}
+    join_room(codigo) 
     
     salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor, 'publico': es_publico, 'username': real_username}
     
@@ -118,11 +119,28 @@ def handle_unirse_sala(datos):
     codigo = datos.get('codigo', '').upper()
     
     if codigo in salas and salas[codigo]['estado'] == 'esperando':
+        creador_sid = salas[codigo]['sids'][0]
+        
+        # Leemos los usernames sin importar nada nuevo
+        mi_username = session.get('username')
+        creador_username = salas[codigo].get('username') # Lo leemos de la sala directamente (más seguro)
+        
+        # --- BLOQUEO 1: Es la misma pestaña exacta (Mismo SID) ---
+        if sid == creador_sid:
+            emit('error_sala', {'mensaje': 'No puedes unirte a tu propia sala.'}, room=sid)
+            return
+            
+        # --- BLOQUEO 2: Es la misma cuenta logueada (En dos pestañas distintas) ---
+        if mi_username and creador_username and mi_username == creador_username:
+            emit('error_sala', {'mensaje': 'No puedes jugar contra ti mismo.'}, room=sid)
+            return
+
+        # Si supera los bloqueos, lo unimos con normalidad
         salas[codigo]['sids'].append(sid)
         salas[codigo]['estado'] = 'jugando'
         
-        real_username = session.get('username')
-        jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': real_username}
+        # Añadimos el username al que se une
+        jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': mi_username}
         join_room(codigo)
         
         print(f"👉 {nombre} se ha unido a la sala {codigo}. ¡Arrancamos!")
@@ -135,7 +153,6 @@ def handle_unirse_sala(datos):
         partida.iniciar_ronda()
         salas[codigo]['motor'] = partida
         
-        # Avisamos a los que están en la sala para que cambien de pantalla
         emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
         enviar_estado_a_jugadores(codigo)
         emitir_lista_publicas()
