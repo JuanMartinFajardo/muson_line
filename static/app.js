@@ -157,15 +157,21 @@ document.getElementById('btn-next-round').addEventListener('click', (e) => {
 socket.on('actualizar_mesa', (datos) => {
     faseJuego = datos.fase;
     
-    if (datos.fase !== 'recuento') {
-        const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
-        if (contenedorRival) contenedorRival.innerHTML = `
-                <div class="carta"><img src="/static/img/dorso.jpg"></div>
-                <div class="carta"><img src="/static/img/dorso.jpg"></div>
-                <div class="carta"><img src="/static/img/dorso.jpg"></div>
-                <div class="carta"><img src="/static/img/dorso.jpg"></div>
+    const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
+        if (contenedorRival) {
+            if (datos.fase === 'espera_reparto') {
+                // Si estamos esperando a repartir, dejamos el espacio vacío o con un texto
+                contenedorRival.innerHTML = '[Cartas sin repartir]';
+            } else if (datos.fase !== 'recuento') {
+                // Si ya hemos repartido y no estamos en el recuento, mostramos los dorsos
+                contenedorRival.innerHTML = `
+                <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
+                <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
+                <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
+                <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
             `;
-    }
+            }
+        }
 
     // PANEL DE APUESTAS
     const logDiv = document.getElementById('betting-log');
@@ -240,7 +246,7 @@ socket.on('actualizar_mesa', (datos) => {
         datos.mis_cartas.forEach((carta, index) => {
             const div = document.createElement('div');
             div.className = 'carta';
-            div.innerHTML = `<img src="${carta.img}" alt="${carta.texto}">`;
+            div.innerHTML = `<img src="${carta.img}" alt="${carta.texto}" draggable="false" oncontextmenu="return false;">`;
             
             div.onclick = () => {
                 if (datos.fase === 'descarte' && !datos.descartes_listos) {
@@ -357,7 +363,7 @@ function mostrarRecuentoEstatico(datos) {
             datos.cartas_rival.forEach(c => {
                 const d = document.createElement('div');
                 d.className = 'carta'; 
-                d.innerHTML = `<img src="${c.img}" alt="${c.texto}">`;
+                d.innerHTML = `<img src="${c.img}" alt="${c.texto}" draggable="false" oncontextmenu="return false;">`;
                 contenedorRival.appendChild(d);
             });
         }
