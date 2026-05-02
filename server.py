@@ -209,6 +209,23 @@ def enviar_estado_a_jugadores(codigo_sala):
             'match_finalizado': partida_actual.match_finalizado
         }, room=sid)
 
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    sid = request.sid
+    if sid in jugadores:
+        codigo = jugadores[sid]['sala']
+        nombre = jugadores[sid]['nombre']
+        
+        # Si la sala sigue existiendo, avisamos al que se ha quedado dentro
+        if codigo in salas:
+            print(f"❌ {nombre} se ha desconectado. Destruyendo sala {codigo}.")
+            emit('rival_desconectado', room=codigo)
+            del salas[codigo]  # Borramos la sala de la memoria
+            
+        del jugadores[sid]  # Borramos los datos del jugador
+
+
 if __name__ == '__main__':
     print("🚀 Servidor de Mus iniciado en http://localhost:5001")
     socketio.run(app, host='0.0.0.0', port=5001, debug=True)

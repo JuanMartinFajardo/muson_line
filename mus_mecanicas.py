@@ -6,8 +6,8 @@ import os
 # 1. BARAJA Y CARTAS
 # ==========================================
 
-Oros = 'Oros_btc'
-Copas = 'Copas_pirate'
+Oros = 'Oros' #Oros_btc
+Copas = 'Copas' #Copas_pirate
 Espadas = 'Espadas'
 Bastos = 'Bastos'
 

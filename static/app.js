@@ -1,10 +1,11 @@
-const socket = io();
+const socket = io({ closeOnBeforeunload: false });
 
 let miNombre = "";
 let faseJuego = 'espera';
 let cartasSeleccionadas = []; 
 let subfaseApuestasActual = "";
 let apuestavistaActual = 0;
+let enPartida = false;
 
 // PANTALLAS CORRECTAS
 const menuScreen = document.getElementById('menu-screen');
@@ -43,7 +44,16 @@ btnUnirse.addEventListener('click', () => {
 });
 
 document.getElementById('btn-volver-menu').addEventListener('click', () => {
+    enPartida = false;
     window.location.reload(); 
+});
+
+window.addEventListener('beforeunload', (e) => {
+    if (enPartida) {
+        // Estas dos líneas son la forma estándar de decirle al navegador que muestre su aviso
+        e.preventDefault();
+        e.returnValue = ''; 
+    }
 });
 
 socket.on('sala_creada', (datos) => {
@@ -62,6 +72,15 @@ socket.on('error_sala', (datos) => {
 socket.on('iniciar_partida', (datos) => {
     menuScreen.classList.add('hidden');
     gameScreen.classList.remove('hidden');
+    enPartida = true;
+});
+
+socket.on('rival_desconectado', () => {
+    if (enPartida) {
+        alert("Tu rival se ha desconectado o ha abandonado la partida. Volviendo al menú principal.");
+        enPartida = false; // Apagamos el escudo anti-recarga
+        window.location.reload(); // Recargamos para limpiar todo
+    }
 });
 
 // ==========================================
