@@ -12,6 +12,8 @@ const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
 const gameLog = document.getElementById('game-log');
 
+
+
 // ==========================================
 // 1. LÓGICA DEL MENÚ Y SALAS
 // ==========================================
@@ -22,6 +24,8 @@ const inCodigo = document.getElementById('in-codigo');
 const menuMsg = document.getElementById('menu-msg');
 
 socket.emit('pedir_publicas');
+
+
 
 
 btnCrear.addEventListener('click', () => {
@@ -453,3 +457,152 @@ function mostrarRecuentoEstatico(datos) {
         mostrarBotones(['btn-next-round']);
     }
 }
+
+// ==========================================
+// LÓGICA DE USUARIOS Y MODALES
+// ==========================================
+
+const modalOverlay = document.getElementById('modal-overlay');
+const modalLogin = document.getElementById('modal-login');
+const modalSignup = document.getElementById('modal-signup');
+
+// Mostrar modal Iniciar Sesión
+document.getElementById('btn-show-login').addEventListener('click', () => {
+    modalOverlay.style.display = 'flex'; 
+    modalOverlay.classList.remove('hidden');
+    modalSignup.classList.add('hidden');
+    modalLogin.classList.remove('hidden');
+    document.getElementById('msg-login').innerText = "";
+});
+
+// Mostrar modal Registro
+document.getElementById('btn-show-signup').addEventListener('click', () => {
+    modalOverlay.style.display = 'flex';
+    modalOverlay.classList.remove('hidden');
+    modalLogin.classList.add('hidden');
+    modalSignup.classList.remove('hidden');
+    document.getElementById('msg-signup').innerText = "";
+});
+
+// Cerrar modales con la X
+document.querySelectorAll('.btn-cerrar-modal').forEach(btn => {
+    btn.addEventListener('click', cerrarModales);
+});
+
+// Cerrar modales pinchando fuera de la ventana
+modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) cerrarModales();
+});
+
+function cerrarModales() {
+    modalOverlay.style.display = 'none';
+    modalOverlay.classList.add('hidden');
+    modalLogin.classList.add('hidden');
+    modalSignup.classList.add('hidden');
+}
+
+// Recoger datos de Registro
+document.getElementById('btn-submit-signup').addEventListener('click', () => {
+    const user = document.getElementById('signup-user').value.trim();
+    const pass = document.getElementById('signup-pass').value;
+    const country = document.getElementById('signup-country').value.trim();
+    const birth = document.getElementById('signup-birth').value;
+
+    if (!user || !pass || !country || !birth) {
+        document.getElementById('msg-signup').innerText = "Por favor, rellena todos los campos.";
+        return;
+    }
+    
+    document.getElementById('msg-signup').innerText = "Registrando...";
+    socket.emit('intento_registro', { username: user, password: pass, country: country, birthdate: birth });
+});
+
+// Recoger datos de Login
+document.getElementById('btn-submit-login').addEventListener('click', () => {
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value;
+    const remember = document.getElementById('login-remember').checked;
+
+    if (!user || !pass) {
+        document.getElementById('msg-login').innerText = "Introduce usuario y contraseña.";
+        return;
+    }
+
+    document.getElementById('msg-login').innerText = "Comprobando...";
+    socket.emit('intento_login', { username: user, password: pass, remember: remember });
+});
+
+
+// ==========================================
+// RESPUESTAS DEL SERVIDOR (LOGIN/REGISTRO)
+// ==========================================
+
+// Nada más entrar a la web, preguntamos a Python si tenemos la sesión abierta
+socket.emit('comprobar_sesion');
+
+// Funciones para cambiar la interfaz visual
+function actualizarInterfazLogueado(usuario) {
+    document.getElementById('user-buttons').classList.add('hidden');
+    document.getElementById('user-info-logged').classList.remove('hidden');
+    document.getElementById('txt-user-stats').innerText = `Hola, ${usuario.username} (Winrate: ${usuario.winrate}%)`;
+
+    // Bloqueamos el input de nombre y le ponemos el suyo
+    let inNombre = document.getElementById('nombre-jugador');
+    if (inNombre) {
+        inNombre.value = usuario.username;
+        inNombre.disabled = true;
+        inNombre.style.backgroundColor = '#3b4252';
+        inNombre.style.color = '#a3be8c';
+    }
+    cerrarModales();
+}
+
+function actualizarInterfazDeslogueado() {
+    document.getElementById('user-buttons').classList.remove('hidden');
+    document.getElementById('user-info-logged').classList.add('hidden');
+
+    // Desbloqueamos el input de nombre para invitados
+    let inNombre = document.getElementById('nombre-jugador');
+    if (inNombre) {
+        inNombre.value = "";
+        inNombre.disabled = false;
+        inNombre.style.backgroundColor = '';
+        inNombre.style.color = '';
+    }
+}
+
+// Escuchadores de eventos
+socket.on('registro_respuesta', (datos) => {
+    let msgEl = document.getElementById('msg-signup');
+    msgEl.innerText = datos.mensaje;
+    if (datos.exito) {
+        msgEl.style.color = "#a3be8c"; // Verde éxito
+        // Si sale bien, le cambiamos al modal de login tras 1.5 segundos
+        setTimeout(() => {
+            document.getElementById('btn-show-login').click();
+            document.getElementById('login-user').value = document.getElementById('signup-user').value;
+        }, 1500);
+    } else {
+        msgEl.style.color = "#bf616a"; // Rojo error
+    }
+});
+
+socket.on('login_respuesta', (datos) => {
+    if (datos.exito) {
+        actualizarInterfazLogueado(datos.usuario);
+    } else {
+        document.getElementById('msg-login').innerText = datos.mensaje;
+    }
+});
+
+socket.on('sesion_restaurada', (datos) => {
+    actualizarInterfazLogueado(datos.usuario);
+});
+
+socket.on('sesion_cerrada', () => {
+    actualizarInterfazDeslogueado();
+});
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+    socket.emit('cerrar_sesion');
+});

@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
+import base_datos
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 import string
@@ -44,6 +45,50 @@ def emitir_lista_publicas():
 def handle_pedir_publicas():
     emitir_lista_publicas()
 
+
+# ==========================================
+# GESTIÓN DE USUARIOS Y SESIONES
+# ==========================================
+
+@socketio.on('intento_registro')
+def handle_registro(datos):
+    user = datos.get('username')
+    passw = datos.get('password')
+    country = datos.get('country')
+    birth = datos.get('birthdate')
+    
+    exito, msg = base_datos.registrar_usuario(user, passw, country, birth)
+    emit('registro_respuesta', {'exito': exito, 'mensaje': msg})
+
+@socketio.on('intento_login')
+def handle_login(datos):
+    user = datos.get('username')
+    passw = datos.get('password')
+    remember = datos.get('remember', False)
+
+    if base_datos.verificar_login(user, passw):
+        # Configurar la persistencia de la sesión en Flask
+        session.permanent = remember 
+        session['username'] = user
+        
+        usuario_data = base_datos.obtener_usuario(user)
+        emit('login_respuesta', {'exito': True, 'usuario': usuario_data})
+    else:
+        emit('login_respuesta', {'exito': False, 'mensaje': 'Usuario o contraseña incorrectos'})
+
+@socketio.on('comprobar_sesion')
+def handle_comprobar_sesion():
+    # Cuando un jugador carga la página, miramos si su navegador tiene la cookie
+    if 'username' in session:
+        user = session['username']
+        usuario_data = base_datos.obtener_usuario(user)
+        if usuario_data:
+            emit('sesion_restaurada', {'usuario': usuario_data})
+
+@socketio.on('cerrar_sesion')
+def handle_cerrar_sesion():
+    session.pop('username', None) # Borramos la cookie
+    emit('sesion_cerrada')
 
 
 @socketio.on('crear_sala')

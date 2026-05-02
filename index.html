@@ -10,12 +10,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
-
-    <!-- ========================================= -->
+   <!-- ========================================= -->
     <!-- 1. PANTALLA PRINCIPAL (MENÚ LOBBY)        -->
     <!-- ========================================= -->
     <div id="menu-screen" class="screen">
-        <h1>🎴 Mus Online</h1>
+        
+        <!-- BARRA SUPERIOR DE USUARIO (Centrada y encima del título) -->
+        <div id="user-bar" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 10px; margin-top: 20px;">
+            <div id="user-buttons" style="display: flex; gap: 15px;">
+                <button id="btn-show-login" style="background-color: transparent; border: 1px solid #88c0d0; color: #88c0d0; padding: 8px 20px; font-size: 1em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Iniciar Sesión</button>
+                <button id="btn-show-signup" style="background-color: transparent; border: 1px solid #a3be8c; color: #a3be8c; padding: 8px 20px; font-size: 1em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Registrarse</button>
+            </div>
+            
+            <!-- Este panel reemplazará a los botones cuando estemos logueados -->
+            <div id="user-info-logged" class="hidden" style="color: #eceff4; display: flex; align-items: center; gap: 15px;">
+                <span id="txt-user-stats" style="font-weight: bold; color: #ebcb8b; font-size: 1.1em;"></span>
+                <button id="btn-logout" style="background-color: transparent; border: 1px solid #bf616a; color: #bf616a; padding: 5px 15px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <h1 style="margin-top: 0;">🎴 Mus Online</h1>
+
+
         <div class="panel">
             <input type="text" id="nombre-jugador" placeholder="Tu nombre..." style="margin-bottom: 20px; width: 90%; font-size: 1.1em; padding: 8px;">
             
@@ -128,6 +144,56 @@
 
     <div class="watermark">Created by Juan Martin Fajardo</div>
     <!-- Tu código de la lógica del juego -->
-    <script src="/static/app.js"></script>
+
+    <!-- ========================================= -->
+    <!-- VENTANAS FLOTANTES (MODALES LOGIN/SIGNUP) -->
+    <!-- ========================================= -->
+    
+    <!-- Fondo oscuro que cubre toda la pantalla -->
+    <div id="modal-overlay" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 999; justify-content: center; align-items: center; backdrop-filter: blur(3px);">
+        
+        <!-- Modal Iniciar Sesión -->
+        <div id="modal-login" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 300px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
+            <!-- La X a la izquierda como pediste -->
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            
+            <h2 style="color: #88c0d0; margin-top: 5px; margin-bottom: 20px;">Iniciar Sesión</h2>
+            
+            <input type="text" id="login-user" placeholder="Usuario" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            <input type="password" id="login-pass" placeholder="Contraseña" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            
+            <div style="margin-bottom: 20px; text-align: left; padding-left: 5%; display: flex; align-items: center;">
+                <input type="checkbox" id="login-remember" style="transform: scale(1.2); margin-right: 10px;">
+                <label for="login-remember" style="color: #eceff4; font-size: 0.95em; cursor: pointer;">Mantener la sesión iniciada</label>
+            </div>
+            
+            <button id="btn-submit-login" style="width: 90%; background-color: #81a1c1; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;">Entrar</button>
+            <p id="msg-login" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
+        </div>
+
+        <!-- Modal Registrarse -->
+        <div id="modal-signup" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
+            <!-- La X a la izquierda -->
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            
+            <h2 style="color: #a3be8c; margin-top: 5px; margin-bottom: 20px;">Registrarse</h2>
+            
+            <input type="text" id="signup-user" placeholder="Nombre de usuario" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            <input type="password" id="signup-pass" placeholder="Contraseña" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            <input type="text" id="signup-country" placeholder="País de nacimiento" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            
+            <div style="margin-bottom: 20px; text-align: left; padding-left: 5%;">
+                <label for="signup-birth" style="color: #eceff4; font-size: 0.9em; display: block; margin-bottom: 5px;">Fecha de nacimiento:</label>
+                <!-- Usamos color-scheme: dark para que el calendario se vea bien en fondo oscuro -->
+                <input type="date" id="signup-birth" style="width: 90%; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box; color-scheme: dark;">
+            </div>
+            
+            <button id="btn-submit-signup" style="width: 90%; background-color: #a3be8c; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;">Crear cuenta</button>
+            <p id="msg-signup" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=5"></script>
+
 </body>
 </html>
