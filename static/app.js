@@ -15,16 +15,22 @@ const gameLog = document.getElementById('game-log');
 // ==========================================
 // 1. LÓGICA DEL MENÚ Y SALAS
 // ==========================================
+
 const btnCrear = document.getElementById('btn-crear');
 const btnUnirse = document.getElementById('btn-unirse');
 const inCodigo = document.getElementById('in-codigo');
 const menuMsg = document.getElementById('menu-msg');
 
+socket.emit('pedir_publicas');
+
+
 btnCrear.addEventListener('click', () => {
     miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 1";
     let mejorDe = parseInt(document.getElementById('in-mejor-de').value) || 3;
+    let checkboxPublico = document.getElementById('in-publico');
+    let esPublico = document.getElementById('in-publico').checked;
     // Lo enviamos a Python dentro de los datos
-    socket.emit('crear_sala', { nombre: miNombre, al_mejor_de: mejorDe });
+    socket.emit('crear_sala', { nombre: miNombre, al_mejor_de: mejorDe, publico: esPublico});
     btnCrear.disabled = true;
     btnUnirse.disabled = true;
     menuMsg.innerText = "Creando sala...";
@@ -67,6 +73,43 @@ socket.on('error_sala', (datos) => {
     btnCrear.disabled = false;
     btnUnirse.disabled = false;
 });
+
+// Dibujar la tabla de partidas públicas
+socket.on('actualizar_publicas', (lista) => {
+    const tbody = document.getElementById('lista-partidas-publicas');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;">No hay partidas públicas ahora mismo. ¡Crea tú una!</td></tr>';
+        return;
+    }
+    
+    lista.forEach(partida => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding: 8px; border-bottom: 1px solid #4c566a; color: #ebcb8b;">${partida.creador}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #4c566a;">${partida.al_mejor_de}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #4c566a;">
+                <button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1;">Unirse</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Darle funcionalidad a los botones generados
+    document.querySelectorAll('.btn-unirse-publica').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            let cod = e.target.getAttribute('data-codigo');
+            miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 2";
+            socket.emit('unirse_sala', { nombre: miNombre, codigo: cod });
+            menuMsg.innerText = "Conectando...";
+        });
+    });
+});
+
+
 
 // AQUI ESTABA EL FALLO PRINCIPAL: Oculta el menuScreen
 socket.on('iniciar_partida', (datos) => {

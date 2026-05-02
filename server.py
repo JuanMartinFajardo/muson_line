@@ -26,11 +26,31 @@ def index():
 
 # --- 1. GESTIÓN DE SALAS ---
 
+def emitir_lista_publicas():
+    """Recopila las salas públicas que están esperando y las manda a todos los conectados"""
+    lista = []
+    for cod, info in salas.items():
+        if info['estado'] == 'esperando' and info.get('publico', False):
+            creador_sid = info['sids'][0] if info['sids'] else None
+            nombre = jugadores[creador_sid]['nombre'] if creador_sid in jugadores else "Desconocido"
+            lista.append({
+                'codigo': cod,
+                'creador': nombre,
+                'al_mejor_de': info.get('al_mejor_de', 3)
+            })
+    socketio.emit('actualizar_publicas', lista)
+
+@socketio.on('pedir_publicas')
+def handle_pedir_publicas():
+    emitir_lista_publicas()
+
+
+
 @socketio.on('crear_sala')
 def handle_crear_sala(datos):
     sid = request.sid
     nombre = datos.get('nombre', 'Jugador 1')
-    
+    es_publico = datos.get('publico', False)
     al_mejor_de_valor = datos.get('al_mejor_de', 3)
 
     codigo = generar_codigo()
@@ -40,10 +60,11 @@ def handle_crear_sala(datos):
     jugadores[sid] = {'nombre': nombre, 'sala': codigo}
     join_room(codigo) # Función nativa de SocketIO para aislar la comunicación
     
-    salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor}
+    salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor, 'publico': es_publico}
     
-    print(f"👉 {nombre} ha creado la sala {codigo}")
+    print(f"👉 {nombre} ha creado la sala {codigo} (Pública: {es_publico})")
     emit('sala_creada', {'codigo': codigo}, room=sid)
+    emitir_lista_publicas()
 
 @socketio.on('unirse_sala')
 def handle_unirse_sala(datos):
@@ -71,6 +92,7 @@ def handle_unirse_sala(datos):
         # Avisamos a los que están en la sala para que cambien de pantalla
         emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
         enviar_estado_a_jugadores(codigo)
+        emitir_lista_publicas()
     else:
         emit('error_sala', {'mensaje': 'El código no existe o la sala está llena.'}, room=sid)
 
@@ -222,6 +244,7 @@ def handle_disconnect():
             print(f"❌ {nombre} se ha desconectado. Destruyendo sala {codigo}.")
             emit('rival_desconectado', room=codigo)
             del salas[codigo]  # Borramos la sala de la memoria
+            emitir_lista_publicas()
             
         del jugadores[sid]  # Borramos los datos del jugador
 
