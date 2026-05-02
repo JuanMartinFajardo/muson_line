@@ -42,6 +42,10 @@ btnUnirse.addEventListener('click', () => {
     menuMsg.innerText = "Conectando...";
 });
 
+document.getElementById('btn-volver-menu').addEventListener('click', () => {
+    window.location.reload(); 
+});
+
 socket.on('sala_creada', (datos) => {
     document.getElementById('codigo-creado').classList.remove('hidden');
     document.getElementById('txt-codigo').innerText = datos.codigo;
@@ -308,7 +312,7 @@ socket.on('actualizar_mesa', (datos) => {
 // ==========================================
 function mostrarBotones(ids) {
     const contenedor = document.getElementById('action-buttons');
-    const allIds = ['btn-deal', 'btn-pedrete', 'btn-mus', 'btn-nomus', 'btn-descartar', 'btn-next-round'];
+    const allIds = ['btn-deal', 'btn-pedrete', 'btn-mus', 'btn-nomus', 'btn-descartar', 'btn-next-round','btn-volver-menu'];
     allIds.forEach(id => {
         let el = document.getElementById(id);
         if(el) el.classList.add('hidden');
@@ -369,6 +373,7 @@ function mostrarRecuentoEstatico(datos) {
             const txtGlobal = datos.mis_puntos >= 40 ? "🏆 ¡HAS GANADO EL MATCH!" : "💀 ¡EL RIVAL HA GANADO EL MATCH!";
             htmlRecuento += `<br><strong style="font-size: 1.5em; color: #a3be8c;">${txtGlobal}</strong>`;
             gameLog.innerHTML = htmlRecuento;
+            mostrarBotones(['btn-volver-menu']);
         } else {
             gameLog.innerHTML = htmlRecuento;
             if (btnNext) btnNext.innerText = "Siguiente partida";
