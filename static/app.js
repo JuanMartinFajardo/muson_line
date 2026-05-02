@@ -3,6 +3,8 @@ const socket = io();
 let miNombre = "";
 let faseJuego = 'espera';
 let cartasSeleccionadas = []; 
+let subfaseApuestasActual = "";
+let apuestavistaActual = 0;
 
 // PANTALLAS CORRECTAS
 const menuScreen = document.getElementById('menu-screen');
@@ -19,11 +21,15 @@ const menuMsg = document.getElementById('menu-msg');
 
 btnCrear.addEventListener('click', () => {
     miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 1";
-    socket.emit('crear_sala', { nombre: miNombre });
+    let mejorDe = parseInt(document.getElementById('in-mejor-de').value) || 3;
+    // Lo enviamos a Python dentro de los datos
+    socket.emit('crear_sala', { nombre: miNombre, al_mejor_de: mejorDe });
     btnCrear.disabled = true;
     btnUnirse.disabled = true;
     menuMsg.innerText = "Creando sala...";
 });
+
+
 
 btnUnirse.addEventListener('click', () => {
     miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 2";
@@ -90,12 +96,20 @@ document.getElementById('btn-descartar').addEventListener('click', () => {
 document.getElementById('btn-envidar').addEventListener('click', () => {
     mostrarBotones([]);
     let cant = parseInt(document.getElementById('in-envidar').value) || 2;
+    let misPuntos = parseInt(document.getElementById('puntos-mios').innerText) || 0;
+    if (cant > 40 - misPuntos) cant = 40 - misPuntos;
     socket.emit('accion_juego', { accion: 'envidar', cantidad: cant });
 });
 
 document.getElementById('btn-subir').addEventListener('click', () => {
     mostrarBotones([]);
     let cant = parseInt(document.getElementById('in-subir').value) || 2;
+    let misPuntos = parseInt(document.getElementById('puntos-mios').innerText) || 0;
+    let tope = 40 - misPuntos - apuestaVistaActual;
+    if (cant > tope) cant = tope;
+    // Por seguridad, evitamos que la subida sea cero o negativa
+    if (cant < 1) cant = 1;
+    if (cant > 40 - misPuntos) cant = 40 - misPuntos;
     socket.emit('accion_juego', { accion: 'subir', cantidad: cant });
 });
 
@@ -136,6 +150,13 @@ socket.on('actualizar_mesa', (datos) => {
         logDiv.classList.remove('hidden');
     
         let fAct = datos.apuestas ? datos.apuestas.fase_actual : '';
+
+
+        if (datos.fase === 'apuestas' && fAct !== subfaseApuestasActual) {
+            subfaseApuestasActual = fAct;
+            document.getElementById('in-envidar').value = 2;
+            document.getElementById('in-subir').value = 2;
+        }
         
         let gStyle = fAct === 'Grande' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
         let cStyle = fAct === 'Chica' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
@@ -224,6 +245,20 @@ socket.on('actualizar_mesa', (datos) => {
     document.getElementById('mi-turno').classList.toggle('hidden', !datos.es_mi_turno);
     document.getElementById('turno-rival').classList.toggle('hidden', datos.es_mi_turno);
     
+    apuestaVistaActual = datos.apuestas ? datos.apuestas.apuesta_vista : 0;
+    
+    let maxApuesta = 40 - datos.mis_puntos;
+    let inEnvidar = document.getElementById('in-envidar');
+    let inSubir = document.getElementById('in-subir');
+    
+    if (inEnvidar) inEnvidar.max = maxApuesta;
+    if (inSubir) {
+        // Al subir, el máximo visual es lo que falta hasta 40 restando la apuesta actual
+        let topeSubida = maxApuesta - apuestaVistaActual;
+        inSubir.max = topeSubida > 0 ? topeSubida : 1;
+    }
+
+
     if(document.getElementById('partidas-mios')) {
         document.getElementById('partidas-mios').innerText = datos.mis_partidas;
         document.getElementById('partidas-rival').innerText = datos.partidas_rival;

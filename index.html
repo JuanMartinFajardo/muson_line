@@ -20,6 +20,14 @@
             <input type="text" id="nombre-jugador" placeholder="Tu nombre..." style="margin-bottom: 20px; width: 90%; font-size: 1.1em; padding: 8px;">
             
             <div style="padding: 15px; border: 1px solid #4c566a; border-radius: 8px; margin-bottom: 15px;">
+
+                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <label for="in-mejor-de" style="font-weight: bold; color: #eceff4;">Al mejor de:</label>
+                    <input type="number" id="in-mejor-de" value="3" min="1" max="21" step="2" style="width: 60px; text-align: center; font-size: 1.2em; padding: 5px;">
+                    <span style="font-size: 0.9em; opacity: 0.7;">partidas</span>
+                </div>
+
+
                 <button id="btn-crear">Crear partida nueva</button>
                 <div id="codigo-creado" class="hidden" style="margin-top: 10px;">
                     <p>Pásale este código a tu rival:</p>

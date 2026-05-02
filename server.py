@@ -31,6 +31,8 @@ def handle_crear_sala(datos):
     sid = request.sid
     nombre = datos.get('nombre', 'Jugador 1')
     
+    al_mejor_de_valor = datos.get('al_mejor_de', 3)
+
     codigo = generar_codigo()
     while codigo in salas:
         codigo = generar_codigo()
@@ -38,7 +40,7 @@ def handle_crear_sala(datos):
     jugadores[sid] = {'nombre': nombre, 'sala': codigo}
     join_room(codigo) # Función nativa de SocketIO para aislar la comunicación
     
-    salas[codigo] = {'estado': 'esperando', 'sids': [sid]}
+    salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor}
     
     print(f"👉 {nombre} ha creado la sala {codigo}")
     emit('sala_creada', {'codigo': codigo}, room=sid)
@@ -62,6 +64,7 @@ def handle_unirse_sala(datos):
         j1_sid = salas[codigo]['sids'][0]
         j2_sid = sid
         partida = PartidaMus(j1_sid, j2_sid)
+        partida.al_mejor_de = salas[codigo].get('al_mejor_de', 3)
         partida.iniciar_ronda()
         salas[codigo]['motor'] = partida
         
