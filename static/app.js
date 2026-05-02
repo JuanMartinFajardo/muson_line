@@ -55,7 +55,9 @@ btnUnirse.addEventListener('click', () => {
 
 document.getElementById('btn-volver-menu').addEventListener('click', () => {
     enPartida = false;
-    window.location.reload(); 
+    socket.emit('abandonar_sala_limpiamente');
+   // Damos 100 milisegundos de margen para que el mensaje llegue antes de recargar
+    setTimeout(() => { window.location.reload(); }, 100);
 });
 
 window.addEventListener('beforeunload', (e) => {
@@ -538,7 +540,10 @@ document.getElementById('btn-submit-login').addEventListener('click', () => {
 // ==========================================
 
 // Nada más entrar a la web, preguntamos a Python si tenemos la sesión abierta
-socket.emit('comprobar_sesion');
+// Asegurarnos de que el socket está 100% conectado antes de pedir la sesión
+socket.on('connect', () => {
+    socket.emit('comprobar_sesion');
+});
 
 // Funciones para cambiar la interfaz visual
 function actualizarInterfazLogueado(usuario) {

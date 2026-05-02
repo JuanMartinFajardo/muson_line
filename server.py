@@ -97,7 +97,7 @@ def handle_crear_sala(datos):
     nombre = datos.get('nombre', 'Jugador 1')
     es_publico = datos.get('publico', False)
     al_mejor_de_valor = datos.get('al_mejor_de', 3)
-
+    real_username = session.get('username')
     codigo = generar_codigo()
     while codigo in salas:
         codigo = generar_codigo()
@@ -105,7 +105,7 @@ def handle_crear_sala(datos):
     jugadores[sid] = {'nombre': nombre, 'sala': codigo}
     join_room(codigo) # Función nativa de SocketIO para aislar la comunicación
     
-    salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor, 'publico': es_publico}
+    salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor, 'publico': es_publico, 'username': real_username}
     
     print(f"👉 {nombre} ha creado la sala {codigo} (Pública: {es_publico})")
     emit('sala_creada', {'codigo': codigo}, room=sid)
@@ -121,7 +121,8 @@ def handle_unirse_sala(datos):
         salas[codigo]['sids'].append(sid)
         salas[codigo]['estado'] = 'jugando'
         
-        jugadores[sid] = {'nombre': nombre, 'sala': codigo}
+        real_username = session.get('username')
+        jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': real_username}
         join_room(codigo)
         
         print(f"👉 {nombre} se ha unido a la sala {codigo}. ¡Arrancamos!")
@@ -190,7 +191,8 @@ def handle_accion_juego(datos):
             
         if len(partida_actual.jugadores_listos) == 2:
             if partida_actual.estado[partida_actual.j1]['puntos'] >= 40 or partida_actual.estado[partida_actual.j2]['puntos'] >= 40:
-                partida_actual.reiniciar_partida() 
+                partida_actual.reiniciar_partida()
+                partida_actual.db_registrada = False
             else:
                 partida_actual.cambiar_roles() 
                 partida_actual.iniciar_ronda() 
@@ -243,6 +245,30 @@ def enviar_estado_a_jugadores(codigo_sala):
 
         if partida_actual.fase == 'recuento':
             pasos_crudos = partida_actual.calcular_recuento()
+
+            # Si alguien acaba de ganar la partida y aún no lo hemos registrado
+            if getattr(partida_actual, 'partida_sumada', False) and not getattr(partida_actual, 'db_registrada', False):
+                partida_actual.db_registrada = True # Ponemos el seguro para no sumar el premio dos veces
+                import base_datos
+                
+                # Detectamos quién es el ganador
+                if partida_actual.estado[partida_actual.j1]['puntos'] >= 40:
+                    ganador_sid, perdedor_sid = partida_actual.j1, partida_actual.j2
+                else:
+                    ganador_sid, perdedor_sid = partida_actual.j2, partida_actual.j1
+                    
+                # Si el ganador está logueado, sumamos victoria
+                u_ganador = jugadores.get(ganador_sid, {}).get('username')
+                if u_ganador:
+                    base_datos.registrar_resultado_partida(u_ganador, True)
+                    
+                # Si el perdedor está logueado, sumamos derrota
+                u_perdedor = jugadores.get(perdedor_sid, {}).get('username')
+                if u_perdedor:
+                    base_datos.registrar_resultado_partida(u_perdedor, False)
+            
+            # ... Y preparamos el recuento bonito para el cliente
+
             datos_recuento = []
             for paso in pasos_crudos:
                 gano_yo = (paso['ganador_sid'] == sid)
@@ -275,6 +301,16 @@ def enviar_estado_a_jugadores(codigo_sala):
             'al_mejor_de': partida_actual.al_mejor_de,
             'match_finalizado': partida_actual.match_finalizado
         }, room=sid)
+
+
+@socketio.on('abandonar_sala_limpiamente')
+def handle_abandonar_limpiamente():
+    sid = request.sid
+    if sid in jugadores:
+        codigo = jugadores[sid]['sala']
+        if codigo in salas:
+            del salas[codigo] # Destruimos la sala para que 'disconnect' no avise al rival
+            emitir_lista_publicas()
 
 
 @socketio.on('disconnect')
