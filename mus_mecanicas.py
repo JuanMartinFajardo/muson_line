@@ -1,7 +1,7 @@
 import random
 from collections import Counter
 import os
-
+import random, string
 # ==========================================
 # 1. BARAJA Y CARTAS
 # ==========================================
@@ -208,11 +208,57 @@ class PartidaMus:
             self.pasos_recuento = []
             self.jugadores_listos = []
 
+            # --- NUEVO: SISTEMA DE LOGS ---
+            import uuid
+            self.match_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6)) # ID único para todo el match
+            self.ronda_n = 0
+            self.historial_ia = []
+            self.nombres_ia = {} # Para guardar los nombres reales de los jugadores y que aparezcan en el log
+
+
             # --- SISTEMA DE PARTIDAS ---
             self.partidas_ganadas = {self.j1: 0, self.j2: 0}
             self.al_mejor_de = 3 
             self.partida_sumada = False
             self.match_finalizado = False
+
+
+    def registrar_movimiento_ia(self, jugador, accion, cantidad=0, detalles=None):
+            if not self.estado[jugador]['cartas']: return
+
+            rival = self.j2 if jugador == self.j1 else self.j1
+            es_mano = (jugador == self.id_mano)
+
+            # 1. FUERA PALOS: Guardamos solo los números
+            cartas_propias = [c['valor'] for c in self.estado[jugador]['cartas']]
+            cartas_rival = [c['valor'] for c in self.estado[rival]['cartas']]
+
+            fase_actual = self.fase
+            if self.fase == 'apuestas' and self.indice_fase < len(self.fases_apuesta):
+                fase_actual = self.fases_apuesta[self.indice_fase]
+
+            # 4. AÑADIMOS LOS NOMBRES
+            nombre_mio = getattr(self, 'nombres_ia', {}).get(jugador, "Invitado")
+            nombre_rival = getattr(self, 'nombres_ia', {}).get(rival, "Invitado")
+
+            estado_turno = {
+                "match_id": self.match_id,
+                "ronda_n": self.ronda_n,
+                "fase": fase_actual,
+                "jugador": nombre_mio,
+                "rival": nombre_rival,
+                "es_mano": es_mano,
+                "puntos_propios": self.estado[jugador]['puntos'],
+                "puntos_rival": self.estado[rival]['puntos'],
+                "cartas_propias": cartas_propias,
+                "cartas_rival": cartas_rival,
+                "accion": accion,
+                "cantidad": cantidad,
+                "detalles": detalles # 2. Aquí guardaremos las cartas descartadas
+            }
+            self.historial_ia.append(estado_turno)
+
+
         # --- 1. REPARTO Y GESTIÓN DE BARAJA ---
 
     def robar(self, cantidad):
@@ -231,6 +277,7 @@ class PartidaMus:
         self.baraja = []#crear_baraja()
         #random.shuffle(self.baraja)
         self.descartes = []
+        self.ronda_n += 1
         
         self.estado[self.j1]['cartas'] = []
         self.estado[self.j2]['cartas'] = []
@@ -248,6 +295,7 @@ class PartidaMus:
 
     def cantar_mus(self, jugador, quiere_mus):
         """Devuelve True si ambos han hablado y hay que cambiar de fase"""
+        self.registrar_movimiento_ia(jugador, 'mus' if quiere_mus else 'no_mus')
         self.estado[jugador]['quiere_mus'] = quiere_mus
         
         if not quiere_mus:
@@ -268,28 +316,33 @@ class PartidaMus:
             return 'descarte'
 
     def procesar_descarte(self, jugador, indices_cartas_a_tirar):
-        """Recibe una lista de índices (ej: [0, 2]) que el jugador quiere tirar"""
-        cartas_jugador = self.estado[jugador]['cartas']
-        
-        # Extraer las cartas a tirar de mayor a menor índice para no alterar la lista al borrar
-        cartas_tiradas = [cartas_jugador.pop(i) for i in sorted(indices_cartas_a_tirar, reverse=True)]
-        self.descartes.extend(cartas_tiradas)
-        self.estado[jugador]['descartes_hechos'] = len(indices_cartas_a_tirar)
-        # Robar nuevas
-        nuevas_cartas = self.robar(len(indices_cartas_a_tirar))
-        self.estado[jugador]['cartas'].extend(nuevas_cartas)
-        
-        self.estado[jugador]['descartes_listos'] = True
-        
-        # Si ambos se han descartado, volvemos a preguntar si hay mus
-        if self.estado[self.id_mano]['descartes_listos'] and self.estado[self.id_postre]['descartes_listos']:
-            self.fase = 'mus'
-            self.estado[self.j1]['quiere_mus'] = None
-            self.estado[self.j2]['quiere_mus'] = None
-            self.turno_de = self.id_mano
-            return 'nuevo_mus'
+            """Recibe una lista de índices (ej: [0, 2]) que el jugador quiere tirar"""
             
-        return 'esperando_rival'
+            # 3. GUARDAR EL DESCARTE EXACTO ANTES DE BORRARLO
+            valores_tirados = [self.estado[jugador]['cartas'][i]['valor'] for i in sorted(indices_cartas_a_tirar, reverse=True)]
+            self.registrar_movimiento_ia(jugador, 'descarte', detalles={"cartas_tiradas": valores_tirados})
+            
+            cartas_jugador = self.estado[jugador]['cartas']
+            
+            # Extraer las cartas a tirar de mayor a menor índice para no alterar la lista al borrar
+            cartas_tiradas = [cartas_jugador.pop(i) for i in sorted(indices_cartas_a_tirar, reverse=True)]
+            self.descartes.extend(cartas_tiradas)
+            self.estado[jugador]['descartes_hechos'] = len(indices_cartas_a_tirar)
+            
+            # Robar nuevas
+            nuevas_cartas = self.robar(len(indices_cartas_a_tirar))
+            self.estado[jugador]['cartas'].extend(nuevas_cartas)
+            
+            self.estado[jugador]['descartes_listos'] = True
+            
+            if self.estado[self.id_mano]['descartes_listos'] and self.estado[self.id_postre]['descartes_listos']:
+                self.fase = 'mus'
+                self.estado[self.j1]['quiere_mus'] = None
+                self.estado[self.j2]['quiere_mus'] = None
+                self.turno_de = self.id_mano
+                return 'nuevo_mus'
+                
+            return 'esperando_rival'
 
     # --- 3. MOTOR DE APUESTAS ---
 
@@ -352,6 +405,7 @@ class PartidaMus:
         self.preparar_subfase()
 
     def accion_apuesta(self, jugador, accion, cantidad=0):
+        self.registrar_movimiento_ia(jugador, accion, cantidad)
         nombre_fase = self.fases_apuesta[self.indice_fase]
         rival = self.id_postre if jugador == self.id_mano else self.id_mano
 
@@ -504,5 +558,39 @@ class PartidaMus:
                 if self.partidas_ganadas[self.id_mano] >= puntos_para_ganar or self.partidas_ganadas[self.id_postre] >= puntos_para_ganar:
                     self.match_finalizado = True
 
+        # ==================================================
+        # NUEVO: VOLCADO DE DATOS AL JSONL DE LA IA
+        # ==================================================
+        if getattr(self, 'partida_sumada', False) or (self.estado[self.id_mano]['puntos'] >= 40 or self.estado[self.id_postre]['puntos'] >= 40):
+            puntos_m = self.estado[self.id_mano]['puntos']
+            puntos_p = self.estado[self.id_postre]['puntos']
+            
+            for mov in self.historial_ia:
+                gano = (mov['es_mano'] and puntos_m >= puntos_p) or (not mov['es_mano'] and puntos_p >= puntos_m)
+                mov['puntos_finales_propios'] = puntos_m if mov['es_mano'] else puntos_p
+                mov['puntos_finales_rival'] = puntos_p if mov['es_mano'] else puntos_m
+                mov['gano_ronda'] = gano
+
+            import json
+            import os
+            
+            # 1. Nos aseguramos de que la carpeta existe para no ensuciar el directorio raíz
+            carpeta_logs = 'logs_ia'
+            if not os.path.exists(carpeta_logs):
+                os.makedirs(carpeta_logs)
+                
+            # 2. Creamos el nombre del archivo usando el match_id
+            nombre_archivo = os.path.join(carpeta_logs, f"{self.match_id}.jsonl")
+            
+            try:
+                with open(nombre_archivo, 'a', encoding='utf-8') as f:
+                    for mov in self.historial_ia:
+                        f.write(json.dumps(mov) + '\n')
+            except Exception as e:
+                print(f"Error guardando JSONL de IA en {nombre_archivo}:", e)
+                
+            self.historial_ia = [] 
+
         return self.pasos_recuento
+
        

@@ -156,6 +156,12 @@ def handle_unirse_sala(datos):
         j1_sid = salas[codigo]['sids'][0]
         j2_sid = sid
         partida = PartidaMus(j1_sid, j2_sid)
+
+        #Le pasamos los nombres reales para el log
+        partida.nombres_ia = {
+            j1_sid: creador_username if creador_username else jugadores[j1_sid]['nombre'],
+            j2_sid: mi_username if mi_username else jugadores[j2_sid]['nombre']
+        }
         partida.al_mejor_de = salas[codigo].get('al_mejor_de', 3)
         partida.iniciar_ronda()
         salas[codigo]['motor'] = partida
