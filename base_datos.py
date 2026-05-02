@@ -1,13 +1,14 @@
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
-# El archivo físico donde se guardará todo (se creará solo)
 DB_NAME = 'mus.db'
 
 def init_db():
     """Crea la base de datos y la tabla si es la primera vez que se ejecuta"""
     conexion = sqlite3.connect(DB_NAME)
     cursor = conexion.cursor()
+    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,9 +17,11 @@ def init_db():
             country TEXT,
             birthdate TEXT,
             victorias INTEGER DEFAULT 0,
-            derrotas INTEGER DEFAULT 0
+            derrotas INTEGER DEFAULT 0,
+            fecha_registro TEXT
         )
     ''')
+    
     conexion.commit()
     conexion.close()
 
@@ -27,19 +30,18 @@ def registrar_usuario(username, password, country, birthdate):
     conexion = sqlite3.connect(DB_NAME)
     cursor = conexion.cursor()
     
-    # TRITURADORA: Encriptamos la contraseña antes de guardarla
     hash_pass = generate_password_hash(password)
+    fecha_actual = datetime.now().strftime("%Y-%m-%d") 
     
     try:
         cursor.execute('''
-            INSERT INTO Usuarios (username, password_hash, country, birthdate)
-            VALUES (?, ?, ?, ?)
-        ''', (username, hash_pass, country, birthdate))
+            INSERT INTO Usuarios (username, password_hash, country, birthdate, fecha_registro)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (username, hash_pass, country, birthdate, fecha_actual))
         conexion.commit()
         exito = True
         mensaje = "Usuario registrado correctamente."
     except sqlite3.IntegrityError:
-        # SQLite lanza este error automáticamente si el 'username' ya existe (por el UNIQUE)
         exito = False
         mensaje = "El nombre de usuario ya está en uso."
     finally:
@@ -57,19 +59,19 @@ def verificar_login(username, password):
     conexion.close()
     
     if resultado is None:
-        return False # El usuario no existe
+        return False 
         
-    # Comparamos la contraseña escrita con el hash de la base de datos
     hash_guardado = resultado[0]
     return check_password_hash(hash_guardado, password)
 
 def obtener_usuario(username):
     """Devuelve los datos públicos del usuario y calcula su winrate al vuelo"""
     conexion = sqlite3.connect(DB_NAME)
-    conexion.row_factory = sqlite3.Row # Para acceder a las columnas por nombre
+    conexion.row_factory = sqlite3.Row 
     cursor = conexion.cursor()
     
-    cursor.execute('SELECT username, country, birthdate, victorias, derrotas FROM Usuarios WHERE username = ?', (username,))
+    # Añadimos también que extraiga la fecha_registro si nos hace falta en el futuro
+    cursor.execute('SELECT username, country, birthdate, victorias, derrotas, fecha_registro FROM Usuarios WHERE username = ?', (username,))
     fila = cursor.fetchone()
     conexion.close()
     
@@ -79,7 +81,6 @@ def obtener_usuario(username):
         d = usuario['derrotas']
         total = v + d
         
-        # Calculamos el porcentaje de victoria de forma segura
         if total > 0:
             usuario['winrate'] = round((v / total) * 100, 1)
         else:
@@ -101,5 +102,34 @@ def registrar_resultado_partida(username, es_victoria):
     conexion.commit()
     conexion.close()
 
-# Al importar este archivo, Python comprobará automáticamente si la DB existe, y si no, la crea.
+def obtener_leaderboard():
+    """Devuelve la lista de todos los usuarios con sus victorias y winrate"""
+    conexion = sqlite3.connect(DB_NAME)
+    conexion.row_factory = sqlite3.Row
+    cursor = conexion.cursor()
+    
+    cursor.execute('SELECT username, victorias, derrotas FROM Usuarios')
+    filas = cursor.fetchall()
+    conexion.close()
+    
+    leaderboard = []
+    for fila in filas:
+        usuario = dict(fila)
+        v = usuario['victorias']
+        d = usuario['derrotas']
+        total = v + d
+        
+        if total > 0:
+            winrate = round((v / total) * 100, 1)
+        else:
+            winrate = 0.0
+            
+        leaderboard.append({
+            'username': usuario['username'],
+            'victorias': v,
+            'winrate': winrate
+        })
+        
+    return leaderboard
+
 init_db()

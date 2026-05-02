@@ -486,6 +486,11 @@ document.getElementById('btn-show-login').addEventListener('click', () => {
     modalOverlay.style.display = 'flex'; 
     modalOverlay.classList.remove('hidden');
     modalSignup.classList.add('hidden');
+
+    //Apagamos el leaderboard por si estaba abierto o pre-cargado
+    const modalLeaderboard = document.getElementById('modal-leaderboard');
+    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');  
+
     modalLogin.classList.remove('hidden');
     document.getElementById('msg-login').innerText = "";
 });
@@ -495,6 +500,11 @@ document.getElementById('btn-show-signup').addEventListener('click', () => {
     modalOverlay.style.display = 'flex';
     modalOverlay.classList.remove('hidden');
     modalLogin.classList.add('hidden');
+
+    //Apagamos el leaderboard por si estaba abierto o pre-cargado
+    const modalLeaderboard = document.getElementById('modal-leaderboard');
+    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');    
+
     modalSignup.classList.remove('hidden');
     document.getElementById('msg-signup').innerText = "";
 });
@@ -655,4 +665,116 @@ document.getElementById('btn-logout').addEventListener('click', () => {
     fetch('/auth/logout', { method: 'POST' }).then(() => {
         window.location.reload();
     });
+});
+
+
+
+// ==========================================
+// 6. LÓGICA DE LA LEADERBOARD
+// ==========================================
+
+const modalLeaderboard = document.getElementById('modal-leaderboard');
+let leaderboardData = []; // Aquí guardaremos los datos descargados
+let currentSort = 'victorias'; // Por defecto ordenamos por victorias
+let sortDesc = true; // Por defecto de mayor a menor
+
+// Añadir la leaderboard al sistema de cerrado de modales
+const oldCerrarModales = cerrarModales; // Guardamos la función antigua
+cerrarModales = function() {
+    oldCerrarModales(); // Ejecutamos la antigua
+    if (modalLeaderboard) modalLeaderboard.classList.add('hidden'); // Añadimos la nueva
+};
+
+if (document.getElementById('btn-show-leaderboard')) {
+    document.getElementById('btn-show-leaderboard').addEventListener('click', () => {
+        modalOverlay.style.display = 'flex';
+        modalOverlay.classList.remove('hidden');
+        modalLogin.classList.add('hidden');
+        modalSignup.classList.add('hidden');
+        modalLeaderboard.classList.remove('hidden');
+        
+        cargarLeaderboard();
+    });
+}
+
+function cargarLeaderboard() {
+    document.getElementById('lista-leaderboard-body').innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;">Cargando jugadores...</td></tr>';
+    
+    fetch('/api/leaderboard').then(res => res.json()).then(datos => {
+        if (datos.exito) {
+            leaderboardData = datos.leaderboard;
+            // Forzamos ordenación inicial: Victorias, mayor a menor
+            currentSort = 'victorias';
+            sortDesc = true;
+            renderLeaderboard();
+        }
+    });
+}
+
+function renderLeaderboard() {
+    const tbody = document.getElementById('lista-leaderboard-body');
+    tbody.innerHTML = '';
+    
+    // Función de ordenación mágica
+    leaderboardData.sort((a, b) => {
+        let valA = a[currentSort];
+        let valB = b[currentSort];
+        
+        if (valA < valB) return sortDesc ? 1 : -1;
+        if (valA > valB) return sortDesc ? -1 : 1;
+        return 0; // Si empatan, se quedan como están
+    });
+    
+    // Actualizar las flechitas visuales de los títulos
+    document.getElementById('th-sort-wins').innerHTML = `Victorias ${currentSort === 'victorias' ? (sortDesc ? '🔽' : '🔼') : '↕️'}`;
+    document.getElementById('th-sort-wins').style.color = currentSort === 'victorias' ? '#a3be8c' : '#eceff4';
+    
+    document.getElementById('th-sort-winrate').innerHTML = `Winrate ${currentSort === 'winrate' ? (sortDesc ? '🔽' : '🔼') : '↕️'}`;
+    document.getElementById('th-sort-winrate').style.color = currentSort === 'winrate' ? '#a3be8c' : '#eceff4';
+
+    // Dibujar las filas
+    if (leaderboardData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;">No hay jugadores registrados todavía.</td></tr>';
+        return;
+    }
+    
+    leaderboardData.forEach((jugador, index) => {
+        const tr = document.createElement('tr');
+        
+        // Ponemos una medalla a los 3 primeros
+        let icono = "";
+        if (currentSort === 'victorias' && sortDesc) {
+            if (index === 0) icono = "🥇 ";
+            else if (index === 1) icono = "🥈 ";
+            else if (index === 2) icono = "🥉 ";
+        }
+        
+        tr.innerHTML = `
+            <td style="padding: 10px; border-bottom: 1px solid #4c566a; color: #ebcb8b; font-weight: bold;">${icono}${jugador.username}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #4c566a;">${jugador.victorias}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #4c566a;">${jugador.winrate}%</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Clics en los encabezados para ordenar
+document.getElementById('th-sort-wins').addEventListener('click', () => {
+    if (currentSort === 'victorias') {
+        sortDesc = !sortDesc; // Invertir orden
+    } else {
+        currentSort = 'victorias';
+        sortDesc = true; // Por defecto mayor a menor
+    }
+    renderLeaderboard();
+});
+
+document.getElementById('th-sort-winrate').addEventListener('click', () => {
+    if (currentSort === 'winrate') {
+        sortDesc = !sortDesc; // Invertir orden
+    } else {
+        currentSort = 'winrate';
+        sortDesc = true; // Por defecto mayor a menor
+    }
+    renderLeaderboard();
 });

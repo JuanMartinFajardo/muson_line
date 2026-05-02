@@ -30,6 +30,13 @@ def index():
 # GESTIÓN DE USUARIOS Y SESIONES (Vía HTTP)
 # ==========================================
 
+
+@app.route('/api/leaderboard', methods=['GET'])
+def api_leaderboard():
+    datos = base_datos.obtener_leaderboard()
+    return jsonify({'exito': True, 'leaderboard': datos})
+
+
 @app.route('/auth/registro', methods=['POST'])
 def auth_registro():
     datos = request.json

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mus Online</title>
+    <title>CallMus</title>
     <!-- Aquí es donde carga el diseño. Si esto falla, se ve todo blanco -->
     <link rel="stylesheet" href="/static/style.css">
     <!-- Librería de WebSockets (Actualizada a la v4.7.5) -->
@@ -29,7 +29,7 @@
             </div>
         </div>
 
-        <h1 style="margin-top: 0;">🎴 Mus Online</h1>
+        <h1 style="margin-top: 0;">🎴 CallMus</h1>
 
 
         <div class="panel">
@@ -80,6 +80,10 @@
                 </div>
             </div>
             
+            <!-- Botón de Leaderboard -->
+            <button id="btn-show-leaderboard" style="width: 100%; margin-top: 15px; background-color: #5e81ac; color: #eceff4; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1.1em; border: none; cursor: pointer; transition: 0.3s;">🏆 Ver Leaderboard</button>
+
+
             <p id="menu-msg" style="color: #bf616a; margin-top: 15px; font-weight: bold;"></p>
         </div>
     </div>
@@ -191,9 +195,35 @@
             <button id="btn-submit-signup" style="width: 90%; background-color: #a3be8c; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;">Crear cuenta</button>
             <p id="msg-signup" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
         </div>
+
+
+        <!-- Modal Leaderboard -->
+        <div id="modal-leaderboard" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-height: 80vh; display: flex; flex-direction: column;">
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            <h2 style="color: #ebcb8b; margin-top: 5px; margin-bottom: 20px;">🏆 Clasificación Mundial</h2>
+
+            <!-- Flex-grow y overflow-y permiten el scroll solo de la tabla si es muy larga -->
+            <div style="flex-grow: 1; overflow-y: auto; border: 1px solid #3b4252; border-radius: 4px;">
+                <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 0.95em; color: #eceff4;">
+                    <thead style="background-color: #3b4252; position: sticky; top: 0;">
+                        <tr>
+                            <th style="padding: 10px; border-bottom: 1px solid #4c566a;">Jugador</th>
+                            <!-- Añadimos cursor pointer para indicar que se pueden clicar -->
+                            <th id="th-sort-wins" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #a3be8c;">Victorias 🔽</th>
+                            <th id="th-sort-winrate" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none;">Winrate ↕️</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-leaderboard-body">
+                        <tr><td colspan="3" style="padding: 10px; opacity: 0.7;">Cargando jugadores...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?=v6"></script>
 
 </body>
 </html>
