@@ -39,26 +39,26 @@
 
 
         <div class="panel">
-            <input type="text" id="nombre-jugador" placeholder="Tu nombre..." style="margin-bottom: 20px; width: 90%; font-size: 1.1em; padding: 8px;">
+            <input type="text" id="nombre-jugador" placeholder="Tu nombre..." style="margin-bottom: 20px; width: 90%; font-size: 1.1em; padding: 8px;" data-i18n="tu_nombre">
             
             <div style="padding: 15px; border: 1px solid #4c566a; border-radius: 8px; margin-bottom: 15px;">
                 <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <label for="in-mejor-de" style="font-weight: bold; color: #eceff4;">Al mejor de:</label>
+                    <label for="in-mejor-de" data-i18n="al_mejor_de" style="font-weight: bold; color: #eceff4;">Al mejor de:</label>
                     <input type="number" id="in-mejor-de" value="3" min="1" max="21" step="2" style="width: 60px; text-align: center; font-size: 1.2em; padding: 5px;">
-                    <span style="font-size: 0.9em; opacity: 0.7;">partidas</span>
+                    <span style="font-size: 0.9em; opacity: 0.7;" data-i18n="partidas">partidas</span>
                 </div>
                 
                 <!-- NUEVO: Checkbox de partida pública -->
                 <div style="margin-bottom: 15px;">
                     <input type="checkbox" id="in-publico" checked style="transform: scale(1.3); margin-right: 5px;">
-                    <label for="in-publico" style="color: #eceff4; cursor: pointer;">Hacer pública (visible para todos)</label>
+                    <label for="in-publico" style="color: #eceff4; cursor: pointer;", data-i18n="in_publico">Hacer pública (visible para todos)</label>
                 </div>
 
-                <button id="btn-crear" data-i18n="btn_crear"></button>>Crear partida nueva</button>
+                <button id="btn-crear" data-i18n="btn_crear"></button>Crear partida nueva</button>
                 <div id="codigo-creado" class="hidden" style="margin-top: 10px;">
-                    <p>Código de tu sala:</p>
+                    <p data-i18n="codigo_sala">Código de tu sala:</p>
                     <h2 id="txt-codigo" style="color: #ebcb8b; letter-spacing: 3px; font-size: 2em; margin: 10px 0;"></h2>
-                    <p style="font-size: 0.9em; opacity: 0.8;" class="anim-parpadeo">Esperando a que se una el rival...</p>
+                    <p style="font-size: 0.9em; opacity: 0.8;" class="anim-parpadeo" data-i18n="esperando_rival">Esperando a que se una el rival...</p>
                 </div>
             </div>
 
@@ -69,14 +69,14 @@
             
             <!-- NUEVO: Tabla de partidas públicas con scroll -->
             <div style="padding: 10px; border: 1px solid #4c566a; border-radius: 8px; margin-top: 15px; background-color: #2e3440;">
-                <h3 style="margin-top: 0; color: #88c0d0; font-size: 1.1em;">🌐 Partidas Públicas</h3>
+                <h3 style="margin-top: 0; color: #88c0d0; font-size: 1.1em;" data-i18n="public_games">🌐 Partidas Públicas</h3>
                 <div style="max-height: 150px; overflow-y: auto; border: 1px solid #3b4252; border-radius: 4px;">
                     <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 0.9em;">
                         <thead style="background-color: #3b4252; position: sticky; top: 0;">
                             <tr>
-                                <th style="padding: 8px; border-bottom: 1px solid #4c566a;">Usuario</th>
-                                <th style="padding: 8px; border-bottom: 1px solid #4c566a;">Mejor de</th>
-                                <th style="padding: 8px; border-bottom: 1px solid #4c566a;">Acción</th>
+                                <th style="padding: 8px; border-bottom: 1px solid #4c566a;" data-i18n="user_colname">Usuario</th>
+                                <th style="padding: 8px; border-bottom: 1px solid #4c566a;" data-i18n="al_mejor_de_colname">Mejor de</th>
+                                <th style="padding: 8px; border-bottom: 1px solid #4c566a;" data-i18n="action_colname">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="lista-partidas-publicas">
@@ -100,12 +100,12 @@
     <!-- Empieza con la clase 'hidden' para no verse hasta que toque -->
     <div id="game-screen" class="screen hidden">
         
-        <div id="turno-rival" class="turno-indicador hidden">⚠️ El rival habla</div>
+        <div id="turno-rival" class="turno-indicador hidden" data-i18n="opponent_speaks">⚠️ El rival habla</div>
         
         <!-- ÁREA DEL RIVAL -->
         <div id="opponent-area" class="area">
             <p>Rival - Pts: <span id="puntos-rival" class="highlight">0</span>/40 | Partidas: <span id="partidas-rival" class="highlight">0</span> <span class="mejor-de-texto"></span></p>
-            <div class="cards-placeholder">[Cartas del rival ocultas]</div>
+            <div class="cards-placeholder" data-i18n="cartas_rival_ocultas">[Cartas del rival ocultas]</div>
         </div>
 
         <!-- MESA CENTRAL -->
@@ -140,19 +140,19 @@
             <div id="betting-log" class="hidden"></div>
         </div>
 
-        <div id="mi-turno" class="turno-indicador hidden">⚠️ Tú hablas</div>
+        <div id="mi-turno" class="turno-indicador hidden" data-i18n="mi_turno">⚠️ Tú hablas</div>
 
         <!-- TU ÁREA -->
         <div id="my-area" class="area">
             <p>Tú <span id="mi-rol" class="highlight"></span> - Pts: <span id="puntos-mios" class="highlight">0</span>/40 | Partidas: <span id="partidas-mios" class="highlight">0</span> <span class="mejor-de-texto"></span></p>
-            <div id="my-cards" class="cards-container">
+            <div id="my-cards" class="cards-container" data-i18n="my_cards">
                 Tus cartas aparecerán aquí
             </div>
         </div>
     </div>
 
 
-    <div class="watermark">Created by Juan Martin Fajardo</div>
+    <div class="watermark" data-i18n="watermark">Creado por Juan Martín Fajardo</div>
     <!-- Tu código de la lógica del juego -->
 
     <!-- ========================================= -->
@@ -167,17 +167,17 @@
             <!-- La X a la izquierda como pediste -->
             <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
             
-            <h2 style="color: #88c0d0; margin-top: 5px; margin-bottom: 20px;">Iniciar Sesión</h2>
+            <h2 style="color: #88c0d0; margin-top: 5px; margin-bottom: 20px;" data-i18n="btn_login">Iniciar Sesión</h2>
             
-            <input type="text" id="login-user" placeholder="Usuario" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
-            <input type="password" id="login-pass" placeholder="Contraseña" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            <input type="text" id="login-user" placeholder="Usuario" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="user_name">
+            <input type="password" id="login-pass" placeholder="Contraseña" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="password">
             
             <div style="margin-bottom: 20px; text-align: left; padding-left: 5%; display: flex; align-items: center;">
                 <input type="checkbox" id="login-remember" style="transform: scale(1.2); margin-right: 10px;">
-                <label for="login-remember" style="color: #eceff4; font-size: 0.95em; cursor: pointer;">Mantener la sesión iniciada</label>
+                <label for="login-remember" style="color: #eceff4; font-size: 0.95em; cursor: pointer;" data-i18n="login_remember">Mantener la sesión iniciada</label>
             </div>
             
-            <button id="btn-submit-login" style="width: 90%; background-color: #81a1c1; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;">Entrar</button>
+            <button id="btn-submit-login" style="width: 90%; background-color: #81a1c1; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;" data-i18n="btn_login">Entrar</button>
             <p id="msg-login" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
         </div>
 
@@ -186,19 +186,19 @@
             <!-- La X a la izquierda -->
             <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
             
-            <h2 style="color: #a3be8c; margin-top: 5px; margin-bottom: 20px;">Registrarse</h2>
+            <h2 style="color: #a3be8c; margin-top: 5px; margin-bottom: 20px;" data-i18n="btn_signup">Registrarse</h2>
             
-            <input type="text" id="signup-user" placeholder="Nombre de usuario" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            <input type="text" id="signup-user" placeholder="Nombre de usuario" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="user_name">
             <input type="password" id="signup-pass" placeholder="Contraseña" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
-            <input type="text" id="signup-country" placeholder="País de nacimiento" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            <input type="text" id="signup-country" placeholder="País de nacimiento" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="pais_nacimiento">
             
             <div style="margin-bottom: 20px; text-align: left; padding-left: 5%;">
-                <label for="signup-birth" style="color: #eceff4; font-size: 0.9em; display: block; margin-bottom: 5px;">Fecha de nacimiento:</label>
+                <label for="signup-birth" style="color: #eceff4; font-size: 0.9em; display: block; margin-bottom: 5px;" data-i18n="signup_birth" data-i18n="signup_birth">Fecha de nacimiento:</label>
                 <!-- Usamos color-scheme: dark para que el calendario se vea bien en fondo oscuro -->
                 <input type="date" id="signup-birth" style="width: 90%; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box; color-scheme: dark;">
             </div>
             
-            <button id="btn-submit-signup" style="width: 90%; background-color: #a3be8c; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;">Crear cuenta</button>
+            <button id="btn-submit-signup" style="width: 90%; background-color: #a3be8c; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;" data-i18n="btn_cuenta">Crear cuenta</button>
             <p id="msg-signup" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
         </div>
 
@@ -206,22 +206,22 @@
         <!-- Modal Leaderboard -->
         <div id="modal-leaderboard" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-height: 80vh; display: flex; flex-direction: column;">
             <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
-            <h2 style="color: #ebcb8b; margin-top: 5px; margin-bottom: 20px;">🏆 Clasificación Mundial</h2>
+            <h2 style="color: #ebcb8b; margin-top: 5px; margin-bottom: 20px;" data-i18n="leaderboard_title">🏆 Clasificación Mundial</h2>
 
             <!-- Flex-grow y overflow-y permiten el scroll solo de la tabla si es muy larga -->
             <div style="flex-grow: 1; overflow-y: auto; border: 1px solid #3b4252; border-radius: 4px;">
                 <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 0.95em; color: #eceff4;">
                     <thead style="background-color: #3b4252; position: sticky; top: 0;">
                         <tr>
-                            <th style="padding: 10px; border-bottom: 1px solid #4c566a;">Jugador</th>
+                            <th style="padding: 10px; border-bottom: 1px solid #4c566a;" data-i18n="user_colname">Jugador</th>
                             <!-- NUEVO: ELO pasa a ser el principal -->
-                            <th id="th-sort-elo" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #a3be8c;">ELO 🔽</th>
-                            <th id="th-sort-wins" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #eceff4;">Victorias ↕️</th>
-                            <th id="th-sort-winrate" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #eceff4;">Winrate ↕️</th>
+                            <th id="th-sort-elo" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #a3be8c;" data-i18n="elo_colname">ELO 🔽</th>
+                            <th id="th-sort-wins" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #eceff4;" data-i18n="wins_colname">Victorias ↕️</th>
+                            <th id="th-sort-winrate" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #eceff4;" data-i18n="winrate_colname">Winrate ↕️</th>
                         </tr>
                     </thead>
                     <tbody id="lista-leaderboard-body">
-                        <tr><td colspan="4" style="padding: 10px; opacity: 0.7;">Cargando jugadores...</td></tr>
+                        <tr><td colspan="4" style="padding: 10px; opacity: 0.7;" data-i18n="loading_players">Cargando jugadores...</td></tr>
                     </tbody>
                 </table>
             </div>
