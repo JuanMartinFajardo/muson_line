@@ -294,6 +294,7 @@ class PartidaMus:
         self.turno_de = self.id_postre # o postre
         self.estado[self.j1]['descartes_hechos'] = 0
         self.estado[self.j2]['descartes_hechos'] = 0
+        self.quien_corta_mus = None
 
     # --- 2. FASE DE MUS Y DESCARTES ---
 
@@ -304,6 +305,7 @@ class PartidaMus:
         
         if not quiere_mus:
             # Si alguien corta el mus, pasamos directamente a apuestas
+            self.quien_corta_mus = jugador
             self.iniciar_fase_apuestas()
             return 'apuestas'
             
@@ -371,7 +373,11 @@ class PartidaMus:
         self.subida_pendiente = 0
         self.quien_sube = None
         self.pases_consecutivos = 0
-        self.turno_de = self.id_mano
+
+        if nombre_fase == 'Grande' and getattr(self, 'quien_corta_mus', None):
+            self.turno_de = self.quien_corta_mus
+        else:
+            self.turno_de = self.id_mano
 
         if nombre_fase == 'Pares':
             m_tiene = tiene_pares(self.estado[self.id_mano]['cartas'])
@@ -541,7 +547,7 @@ class PartidaMus:
                 texto_final = f"(Alguien no quiso ver en {n_log})"
             else:
                 prep = "a la" if n_log in ['Grande', 'Chica'] else "por" if n_log == 'Pares' else "por el"
-                texto_final = f"ha ganado {pts_total} {prep} {n_log.lower()}"
+                texto_final = f"ganado {pts_total} {prep} {n_log.lower()}"
                 
             self.pasos_recuento.append({
                 'ganador_sid': ganador_sid,
