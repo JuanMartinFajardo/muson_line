@@ -154,3 +154,79 @@ input[type="number"] {
     pointer-events: none; /* Permite hacer clics a través del texto por si pisa un botón */
     z-index: 9999;
 }
+
+/* ========================================= */
+/* LAYOUT Y RESPONSIVO (Móvil y Escritorio)  */
+/* ========================================= */
+
+body {
+    margin: 0 !important; /* CRÍTICO: Elimina el margen por defecto que corta la pantalla en PC */
+    padding: 0;
+    overscroll-behavior-y: none; 
+}
+
+#game-screen:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100vh;      
+    height: 100dvh;     
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: 10px; /* Margen interior seguro para que nada toque los bordes */
+}
+
+#opponent-area, #my-area {
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 800px;     
+    margin: 0 auto;       
+}
+
+#center-table {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; 
+    align-items: center;
+    min-height: 0; /* CRÍTICO: Permite que la tabla encoja en móviles y active el scroll interno */
+    overflow-y: auto; 
+    width: 100%;
+    padding: 10px 0;
+}
+
+/* Hacemos que los botones se adapten como un puzzle si no caben en una línea */
+#action-buttons, .panel-apuestas {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 600px;
+}
+
+.cards-placeholder, #my-cards {
+    display: flex !important;
+    justify-content: center;
+    flex-wrap: nowrap !important;
+    gap: 5px;
+    width: 100%;
+}
+
+.carta {
+    flex: 0 1 22%; 
+    min-width: 0;
+    max-width: 120px; /* Reducimos un poco para que no sean gigantes en PC */
+}
+
+.carta img {
+    width: 100%;
+    height: auto;
+    max-height: 20vh; /* Rebajado al 20% para dejar más espacio a las apuestas en el centro */
+    object-fit: contain;
+}
+
+#turno-rival.hidden, #mi-turno.hidden {
+    display: block !important;
+    visibility: hidden; 
+}

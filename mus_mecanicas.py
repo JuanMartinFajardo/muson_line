@@ -321,6 +321,35 @@ class PartidaMus:
             self.estado[self.j2]['descartes_listos'] = False
             return 'descarte'
 
+
+    def procesar_pedrete(self, jugador):
+            """Verifica si tiene pedrete, le da un punto y le renueva la mano."""
+            if self.fase not in ['mus', 'descarte']: return False
+            
+            # Comprobamos los valores reales (sin transformar los 3s y 2s)
+            valores = sorted([c['valor'] for c in self.estado[jugador]['cartas']])
+            if valores != [4, 5, 6, 7]: return False
+
+            # 1. Registramos en el log de la IA
+            self.registrar_movimiento_ia(jugador, 'pedrete')
+
+            # 2. Sumamos el premio inmediato
+            self.estado[jugador]['puntos'] += 1
+
+            # 3. Tiramos sus cartas y le damos 4 nuevas
+            cartas_viejas = self.estado[jugador]['cartas']
+            self.descartes.extend(cartas_viejas)
+            self.estado[jugador]['cartas'] = self.robar(4)
+
+            # 4. Si por un milagro este punto le hace ganar la partida:
+            if self.estado[jugador]['puntos'] >= 40:
+                self.fase = 'recuento'
+                self.recuento_calculado = True
+                self.pasos_recuento = [{'ganador_sid': jugador, 'texto_fase': 'ha ganado la partida con un ¡Pedrete!'}]
+
+            return True
+
+
     def procesar_descarte(self, jugador, indices_cartas_a_tirar):
             """Recibe una lista de índices (ej: [0, 2]) que el jugador quiere tirar"""
             

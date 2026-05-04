@@ -190,6 +190,12 @@ def handle_accion_juego(datos):
     partida_actual = salas[codigo]['motor']
     accion = datos.get('accion')
     
+    if accion == 'pedrete':
+        if partida_actual.procesar_pedrete(sid_jugador):
+            enviar_estado_a_jugadores(codigo)
+        return
+
+
     if sid_jugador == partida_actual.turno_de:
         if accion == 'repartir':
             partida_actual.repartir_inicial()
@@ -240,6 +246,7 @@ def handle_accion_juego(datos):
 # --- 3. REPARTO CIEGO POR SALA ---
 
 def enviar_estado_a_jugadores(codigo_sala):
+    puede_pedrete_ahora = False
     global show_global_log
     sala = salas.get(codigo_sala)
     if not sala: return
@@ -277,6 +284,13 @@ def enviar_estado_a_jugadores(codigo_sala):
         datos_recuento = None
         cartas_rival = partida_actual.estado[rival_sid]['cartas']
 
+        puede_pedrete_ahora = False
+        if partida_actual.fase == 'mus':
+            vals = sorted([c['valor'] for c in estado_del_jugador['cartas']])
+            if vals == [4, 5, 6, 7]:
+                puede_pedrete_ahora = True
+
+
         if partida_actual.fase == 'recuento':
             pasos_crudos = partida_actual.calcular_recuento()
 
@@ -312,6 +326,7 @@ def enviar_estado_a_jugadores(codigo_sala):
 
         emit('actualizar_mesa', {
             'fase': partida_actual.fase,
+            'puede_pedrete': puede_pedrete_ahora,
             'es_mi_turno': es_mi_turno,
             'soy_mano': soy_mano,
             'descartes_listos': estado_del_jugador.get('descartes_listos', False),

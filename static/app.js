@@ -141,6 +141,12 @@ document.getElementById('btn-deal').addEventListener('click', () => {
     socket.emit('accion_juego', { accion: 'repartir' });
 });
 
+document.getElementById('btn-pedrete').addEventListener('click', () => {
+    mostrarBotones([]);
+    socket.emit('accion_juego', { accion: 'pedrete' });
+});
+
+
 document.getElementById('btn-mus').addEventListener('click', () => {
     mostrarBotones([]);
     socket.emit('accion_juego', { accion: 'mus' });
@@ -349,14 +355,28 @@ socket.on('actualizar_mesa', (datos) => {
     document.getElementById('apuesta-iniciar').classList.add('hidden');
     document.getElementById('apuesta-responder').classList.add('hidden');
 
+    // Creamos una cesta de botones
+    let botonesActivos = [];
+
+    // 1. El pedrete es el rey. Si lo tienes, el botón aparece siempre, sea el turno que sea.
+    if (datos.puede_pedrete) {
+        botonesActivos.push('btn-pedrete');
+    }
+
+    // 2. Lógica normal del resto de fases
     if (datos.fase === 'descarte') {
-        if (!datos.descartes_listos) mostrarBotones(['btn-descartar']);
+        if (!datos.descartes_listos) {
+            botonesActivos.push('btn-descartar');
+        }
         document.getElementById('btn-descartar').disabled = true;
+        
     } else if (datos.es_mi_turno) {
         if (datos.fase === 'espera_reparto') {
-            mostrarBotones(['btn-deal']);
+            botonesActivos.push('btn-deal');
+            
         } else if (datos.fase === 'mus') {
-            mostrarBotones(['btn-mus', 'btn-nomus']);
+            botonesActivos.push('btn-mus', 'btn-nomus');
+            
         } else if (datos.fase === 'apuestas') {
             document.getElementById('action-buttons').classList.remove('hidden');
 
@@ -371,6 +391,11 @@ socket.on('actualizar_mesa', (datos) => {
                 document.getElementById('btn-ordago-resp').classList.toggle('hidden', ocultarSubir);
             }
         }
+    }
+
+    // 3. Mostramos todos los botones de la cesta a la vez
+    if (botonesActivos.length > 0) {
+        mostrarBotones(botonesActivos);
     }
 });
 
