@@ -12,6 +12,83 @@ const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
 const gameLog = document.getElementById('game-log');
 
+
+// ==========================================
+// 0. MOTOR DE IDIOMAS (i18n)
+// ==========================================
+const dict = {
+    es: {
+        btn_login: "Iniciar Sesión",
+        btn_signup: "Registrarse",
+        btn_logout: "Cerrar Sesión",
+        btn_crear: "Crear partida nueva",
+        btn_unirse: "Unirse con código",
+        btn_show_leaderboard: "Ver Leaderboard",
+        btn_deal: "Repartir Cartas",
+        btn_nomus: "Corto",
+        btn_descartar: "Descartar",
+        btn_next_round: "Siguiente ronda",
+        btn_volver_menu: "Volver al Menú",
+        btn_envidar: "Envidar",
+        btn_pasar: "Pasar",
+        btn_ordago: "Órdago",
+        btn_ver: "Ver",
+        btn_subir: "Subir",
+        btn_nover: "No ver",
+        btn_ordago_resp: "Órdago"
+
+    },
+    en: {
+        btn_login: "Log In",
+        btn_signup: "Sign Up",
+        btn_logout: "Log Out",
+        btn_crear: "Create new game",
+        btn_unirse: "Join with code",
+        btn_show_leaderboard: "View Leaderboard",
+        btn_deal: "Deal Cards",
+        btn_nomus: "Cut",
+        btn_descartar: "Discard",
+        btn_next_round: "Next round",
+        btn_volver_menu: "Return to Menu",
+        btn_envidar: "Bid",
+        btn_pasar: "Pass",
+        btn_ordago: "Órdago",
+        btn_ver: "See",
+        btn_subir: "Raise",
+        btn_nover: "Don't see",
+        btn_ordago_resp: "Órdago"
+    }
+};
+
+// Recuperar idioma guardado o usar español por defecto
+let langActual = localStorage.getItem('callmus_lang') || 'es';
+
+function aplicarTraduccion() {
+    // 1. Traducir todos los elementos estáticos que tengan data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        let clave = el.getAttribute('data-i18n');
+        if (dict[langActual] && dict[langActual][clave]) {
+            el.innerText = dict[langActual][clave];
+        }
+    });
+    
+    // 2. Cambiar el texto del botón de idioma para mostrar la alternativa
+    const btnLang = document.getElementById('btn-lang');
+    if(btnLang) btnLang.innerText = langActual === 'es' ? 'EN' : 'ES';
+}
+
+// Escuchador del botón para alternar
+document.getElementById('btn-lang').addEventListener('click', () => {
+    langActual = langActual === 'es' ? 'en' : 'es';
+    localStorage.setItem('callmus_lang', langActual); // Guardar preferencia
+    aplicarTraduccion(); // Traducir todo al vuelo
+});
+
+// Ejecutar la primera vez que carga la web
+aplicarTraduccion();
+
+
+
 // ==========================================
 // 1. LÓGICA DEL MENÚ Y SALAS
 // ==========================================

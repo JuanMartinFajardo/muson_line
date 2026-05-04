@@ -17,16 +17,22 @@
         
         <!-- BARRA SUPERIOR DE USUARIO (Centrada y encima del título) -->
         <div id="user-bar" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 10px; margin-top: 20px;">
+
+            <!-- NUEVO: Selector de idioma -->
+            <div style="position: absolute; right: 20px; top: 0;">
+                <button id="btn-lang" style="background: transparent; border: 1px solid #d8dee9; color: #d8dee9; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">EN</button>
+            </div>
+
             <div id="user-buttons" style="display: flex; gap: 15px;">
-                <button id="btn-show-login" style="background-color: transparent; border: 1px solid #88c0d0; color: #88c0d0; padding: 8px 20px; font-size: 1em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Iniciar Sesión</button>
-                <button id="btn-show-signup" style="background-color: transparent; border: 1px solid #a3be8c; color: #a3be8c; padding: 8px 20px; font-size: 1em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Registrarse</button>
+                <button id="btn-show-login" data-i18n="btn_login" style="background-color: transparent; border: 1px solid #88c0d0; color: #88c0d0; padding: 8px 20px; font-size: 1em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Iniciar Sesión</button>
+                <button id="btn-show-signup" data-i18n="btn_signup" style="background-color: transparent; border: 1px solid #a3be8c; color: #a3be8c; padding: 8px 20px; font-size: 1em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Registrarse</button>
             </div>
             
-            <!-- Este panel reemplazará a los botones cuando estemos logueados -->
             <div id="user-info-logged" class="hidden" style="color: #eceff4; display: flex; align-items: center; gap: 15px;">
                 <span id="txt-user-stats" style="font-weight: bold; color: #ebcb8b; font-size: 1.1em;"></span>
-                <button id="btn-logout" style="background-color: transparent; border: 1px solid #bf616a; color: #bf616a; padding: 5px 15px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">Cerrar Sesión</button>
+                <button id="btn-logout" data-i18n="btn_logout" style="background-color: transparent; border: 1px solid #bf616a; color: #bf616a; padding: 5px 15px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">Cerrar Sesión</button>
             </div>
+
         </div>
 
         <h1 style="margin-top: 0;">🎴 CallMus</h1>
@@ -48,7 +54,7 @@
                     <label for="in-publico" style="color: #eceff4; cursor: pointer;">Hacer pública (visible para todos)</label>
                 </div>
 
-                <button id="btn-crear">Crear partida nueva</button>
+                <button id="btn-crear" data-i18n="btn_crear"></button>>Crear partida nueva</button>
                 <div id="codigo-creado" class="hidden" style="margin-top: 10px;">
                     <p>Código de tu sala:</p>
                     <h2 id="txt-codigo" style="color: #ebcb8b; letter-spacing: 3px; font-size: 2em; margin: 10px 0;"></h2>
@@ -58,7 +64,7 @@
 
             <div style="padding: 15px; border: 1px solid #4c566a; border-radius: 8px;">
                 <input type="text" id="in-codigo" placeholder="Código de sala..." style="width: 60%; text-transform: uppercase; font-size: 1.1em; padding: 6px; text-align: center;">
-                <button id="btn-unirse">Unirse con código</button>
+                <button id="btn-unirse" data-i18n="btn_unirse">Unirse con código</button>
             </div>
             
             <!-- NUEVO: Tabla de partidas públicas con scroll -->
@@ -81,7 +87,7 @@
             </div>
             
             <!-- Botón de Leaderboard -->
-            <button id="btn-show-leaderboard" style="width: 100%; margin-top: 15px; background-color: #5e81ac; color: #eceff4; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1.1em; border: none; cursor: pointer; transition: 0.3s;">🏆 Ver Leaderboard</button>
+            <button id="btn-show-leaderboard" data-i18n="btn_show_leaderboard" style="width: 100%; margin-top: 15px; background-color: #5e81ac; color: #eceff4; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1.1em; border: none; cursor: pointer; transition: 0.3s;">🏆 Ver Leaderboard</button>
 
 
             <p id="menu-msg" style="color: #bf616a; margin-top: 15px; font-weight: bold;"></p>
@@ -107,28 +113,28 @@
             <p id="game-log">Esperando para repartir...</p>
             
             <div id="action-buttons" class="hidden">
-                <button id="btn-deal">Repartir Cartas</button>
+                <button id="btn-deal" data-i18n="btn_deal">Repartir Cartas</button>
                 <button id="btn-pedrete" class="hidden">¡Pedrete!</button>
                 <button id="btn-mus" class="hidden">Mus</button>
-                <button id="btn-nomus" class="hidden">Corto</button>
-                <button id="btn-descartar" class="hidden">Descartar (0)</button>
-                <button id="btn-next-round" class="hidden">Siguiente ronda</button>
-                <button id="btn-volver-menu" class="hidden" style="background-color: #bf616a;">Volver al Menú</button>
+                <button id="btn-nomus" data-i18n="btn_nomus" class="hidden">Corto</button>
+                <button id="btn-descartar"  data-i18n="btn_descartar" class="hidden">Descartar (0)</button>
+                <button id="btn-next-round" data-i18n="btn_next_round" class="hidden">Siguiente ronda</button>
+                <button id="btn-volver-menu" data-i18n="btn_volver_menu" class="hidden" style="background-color: #bf616a;">Volver al Menú</button>
             </div>
 
             <div id="apuesta-iniciar" class="hidden panel-apuestas">
                 <input type="number" id="in-envidar" value="2" min="2" max="40" style="width:50px;">
-                <button id="btn-envidar">Envidar</button>
-                <button id="btn-pasar">Pasar</button>
-                <button id="btn-ordago">Órdago</button>
+                <button id="btn-envidar" data-i18n="btn_envidar">Envidar</button>
+                <button id="btn-pasar" data-i18n="btn_pasar">Pasar</button>
+                <button id="btn-ordago" data-i18n="btn_ordago">Órdago</button>
             </div>
 
             <div id="apuesta-responder" class="hidden panel-apuestas">
-                <button id="btn-ver">Ver</button>
+                <button id="btn-ver" data-i18n="btn_ver">Ver</button>
                 <input type="number" id="in-subir" value="2" min="2" max="40" style="width:50px;">
-                <button id="btn-subir">Subir</button>
-                <button id="btn-nover">No ver</button>
-                <button id="btn-ordago-resp">Órdago</button>
+                <button id="btn-subir" data-i18n="btn_subir">Subir</button>
+                <button id="btn-nover" data-i18n="btn_nover">No ver</button>
+                <button id="btn-ordago-resp" data-i18n="btn_ordago_resp">Órdago</button>
             </div>
 
             <div id="betting-log" class="hidden"></div>
