@@ -314,13 +314,13 @@ def enviar_estado_a_jugadores(codigo_sala):
 
             datos_recuento = []
             for paso in pasos_crudos:
-                gano_yo = (paso['ganador_sid'] == sid)
-                sujeto = "Has" if gano_yo else "El rival ha"
-                if paso['texto_fase'].startswith('('):
-                    datos_recuento.append(f"<i>{paso['texto_fase']}</i>")
-                else:
-                    datos_recuento.append(f"<b>{sujeto}</b> {paso['texto_fase']}")
-
+                # Pasamos los datos puros y una bandera booleana para saber si el premio es nuestro
+                paso_limpio = {
+                    'gano_yo': (paso['ganador_sid'] == sid),
+                    'datos': paso['datos']
+                }
+                datos_recuento.append(paso_limpio)
+                
         if show_global_log:
             print(f"📤 [SALA {codigo_sala}] Estado a {jugadores[sid]['nombre']}: Fase {partida_actual.fase}")
 

@@ -99,7 +99,23 @@ const dict = {
         msg_fase_descarte: "Fase: DESCARTE. Selecciona qué cartas quieres tirar.",
         msg_fase_apuestas: "Fase de {fase}. Turno de: {jugador}",
         msg_fase_recuento: "Fase de RECUENTO...",
-        msg_fase_general: "Fase: {fase}. Turno de: {jugador}"
+        msg_fase_general: "Fase: {fase}. Turno de: {jugador}",
+        msg_resultados: "Resultados de la ronda:",
+        msg_recuento_nover: "(Alguient no quiso ver en {fase})",
+        msg_recuento_gana_yo: "<b> Has </b> ganado {puntos} en {fase}.",
+        msg_recuento_gana_rival: "<b>El rival ha</b> ganado {puntos} puntos en {fase}.",
+        msg_recuento_pedrete_win_yo: "<b>Has</b> ganado la partida con un ¡Pedrete!",
+        msg_recuento_pedrete_win_rival: "<b>El rival ha</b> ganado la partida con un ¡Pedrete!",
+        msg_error_ronda: "<em>(Hubo un error o la ronda no tuvo apuestas válidas)</em>",
+        msg_gana_partida_yo: "🏆 ¡HAS GANADO ESTA PARTIDA!",
+        msg_gana_partida_rival: "💀 ¡EL RIVAL HA GANADO ESTA PARTIDA!",
+        msg_gana_match_yo: "🏆 ¡HAS GANADO EL MATCH!",
+        msg_gana_match_rival: "💀 ¡EL RIVAL HA GANADO EL MATCH!",
+        msg_fase_espera_reparto: "Esperando el reparto...",
+        txt_tu_sala: "Tu sala",
+        btn_unirse_publica: "Unirse",
+        msg_no_publicas: "No hay partidas públicas ahora mismo. ¡Crea tú una!",
+        txt_cartas_sin_repartir: "[Cartas sin repartir]"
 
     },
     en: {
@@ -183,8 +199,25 @@ const dict = {
         msg_no_juego: "The {rol} doesn't have Game.",
         msg_fase_descarte: "Phase: DISCARD. Select which cards to throw.",
         msg_fase_apuestas: "Phase {fase}. {jugador}'s turn",
+        msg_fase_espera_reparto: "Waiting for the deal...",
         msg_fase_recuento: "Phase COUNTING...",
-        msg_fase_general: "Phase: {fase}. {jugador}'s turn"
+        msg_fase_general: "Phase: {fase}. {jugador}'s turn",
+        msg_resultados: "Results of the round:",
+        msg_recuento_nover: "(Someone didn't want to see in {fase})",
+        msg_recuento_gana_yo: "<b> You </b> won {puntos} points in {fase}.",
+        msg_recuento_gana_rival: "<b>The opponent</b> won {puntos} points in {fase}.",
+        msg_recuento_pedrete_win_yo: "<b>You</b> won the match with a ¡Pedrete!",
+        msg_recuento_pedrete_win_rival: "<b>The opponent</b> won the match with a ¡Pedrete!",
+        msg_error_ronda: "<em>(There was an error or the round had no valid bets)</em>",
+        msg_gana_partida_yo: "🏆 YOU WON THIS GAME!",
+        msg_gana_partida_rival: "💀 THE OPPONENT WON THIS GAME!",
+        msg_gana_match_yo: "🏆 YOU WON THE MATCH!",
+        msg_gana_match_rival: "💀 THE OPPONENT WON THE MATCH!",
+        txt_tu_sala: "Your room",
+        btn_unirse_publica: "Join",
+        msg_no_publicas: "There are no public games right now. Create one!",
+        txt_cartas_sin_repartir: "[Cards not dealt yet]"
+
     }
 };
 
@@ -302,8 +335,7 @@ socket.on('actualizar_publicas', (lista) => {
     tbody.innerHTML = '';
 
     if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;">No hay partidas públicas ahora mismo. ¡Crea tú una!</td></tr>';
-        return;
+        tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;">' + t('msg_no_publicas') + '</td></tr>';        return;
     }
 
     lista.forEach(partida => {
@@ -317,9 +349,9 @@ socket.on('actualizar_publicas', (lista) => {
 
         let botonHTML = '';
         if (esMiSala) {
-            botonHTML = `<span style="color: #a3be8c; font-size: 0.85em; font-weight: bold;">Tu sala</span>`;
+            botonHTML = `<span style="color: #a3be8c; font-size: 0.85em; font-weight: bold;">${t("txt_tu_sala")}</span>`;
         } else {
-            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">Unirse</button>`;
+            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">${t("btn_unirse_publica")}</button>`;
         }
 
         tr.innerHTML = `
@@ -439,7 +471,7 @@ socket.on('actualizar_mesa', (datos) => {
     const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
     if (contenedorRival) {
         if (datos.fase === 'espera_reparto') {
-            contenedorRival.innerHTML = t("cartas_sin_repartir");
+            contenedorRival.innerHTML = t('txt_cartas_sin_repartir');
         } else if (datos.fase !== 'recuento') {
             contenedorRival.innerHTML = `
             <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
@@ -462,17 +494,17 @@ socket.on('actualizar_mesa', (datos) => {
             document.getElementById('in-subir').value = 2;
         }
 
-        let gStyle = fAct === 'Grande' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
-        let cStyle = fAct === 'Chica' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
-        let pStyle = fAct === 'Pares' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
-        let jStyle = fAct === 'Juego' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
+        let gStyle = fAct === t('fase_grande') ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
+        let cStyle = fAct === t('fase_chica') ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
+        let pStyle = fAct === t('fase_pares') ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
+        let jStyle = fAct === t('fase_juego') ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
 
         let htmlBotes = `
             <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
-                <p style="${gStyle}">Grande: ${datos.apuestas.botes.Grande}</p>
-                <p style="${cStyle}">Chica: ${datos.apuestas.botes.Chica}</p>
-                <p style="${pStyle}">Pares: ${datos.apuestas.botes.Pares}</p>
-                <p style="${jStyle}">Juego / Punto: ${datos.apuestas.botes.Juego}</p>
+                <p style="${gStyle}">${t('fase_grande')}: ${datos.apuestas.botes.Grande}</p>
+                <p style="${cStyle}">${t('fase_chica')}: ${datos.apuestas.botes.Chica}</p>
+                <p style="${pStyle}">${t('fase_pares')}: ${datos.apuestas.botes.Pares}</p>
+                <p style="${jStyle}">${t('fase_juego')}: ${datos.apuestas.botes.Juego}</p>
             </div>
         `;
 
@@ -690,36 +722,51 @@ function mostrarRecuentoEstatico(datos) {
         document.getElementById('partidas-rival').innerText = datos.partidas_rival;
     }
 
-    const gameLog = document.getElementById('game-log');
-    let htmlRecuento = `<strong style='font-size: 1.2em; color: #88c0d0;'>${t('resultados_ronda')}:</strong><br><br>`;
+const gameLog = document.getElementById('game-log');
+    let htmlRecuento = `<strong style='font-size: 1.2em; color: #88c0d0;'>${t('msg_resultados')}</strong><br><br>`;
 
     if (datos.recuento && datos.recuento.length > 0) {
         for (let paso of datos.recuento) {
-            htmlRecuento += `${paso}<br>`
+            let code = paso.datos.code;
+            
+            if (code === 'recuento_nover') {
+                let nombreFase = t('fase_' + paso.datos.fase.toLowerCase());
+                htmlRecuento += `<i>${t_dinamico('msg_recuento_nover', {fase: nombreFase})}</i><br>`;
+                
+            } else if (code === 'recuento_gana') {
+                let nombreFase = t('fase_' + paso.datos.fase.toLowerCase());
+                let claveGana = paso.gano_yo ? 'msg_recuento_gana_yo' : 'msg_recuento_gana_rival';
+                htmlRecuento += `${t_dinamico(claveGana, {puntos: paso.datos.puntos, fase: nombreFase})}<br>`;
+                
+            } else if (code === 'recuento_pedrete_win') {
+                let claveGana = paso.gano_yo ? 'msg_recuento_pedrete_win_yo' : 'msg_recuento_pedrete_win_rival';
+                htmlRecuento += `${t(claveGana)}<br>`;
+            }
         }
     } else {
-        htmlRecuento += "<em>(Hubo un error o la ronda no tuvo apuestas válidas)</em><br>";
+        htmlRecuento += `${t('msg_error_ronda')}<br>`;
     }
 
     let btnNext = document.getElementById('btn-next-round');
 
+    // Comprobar victorias de partida o match
     if (datos.mis_puntos >= 40 || datos.puntos_rival >= 40) {
-        const txt = datos.mis_puntos >= 40 ? t('has_ganado_partida') : t('el_rival_ganado_partida');
+        const txt = datos.mis_puntos >= 40 ? t('msg_gana_partida_yo') : t('msg_gana_partida_rival');
         htmlRecuento += `<br><strong style="font-size: 1.5em; color: #a3be8c;">${txt}</strong>`;
-
+        
         if (datos.match_finalizado) {
-            const txtGlobal = datos.mis_puntos >= 40 ? t('has_ganado_match') : t('el_rival_ganado_match');
+            const txtGlobal = datos.mis_puntos >= 40 ? t('msg_gana_match_yo') : t('msg_gana_match_rival');
             htmlRecuento += `<br><strong style="font-size: 1.5em; color: #a3be8c;">${txtGlobal}</strong>`;
             gameLog.innerHTML = htmlRecuento;
             mostrarBotones(['btn-volver-menu']);
         } else {
             gameLog.innerHTML = htmlRecuento;
-            if (btnNext) btnNext.innerText = t('btn_next_game'); //"Siguiente partida";
+            if (btnNext) btnNext.innerText = t("btn_next_game"); 
             mostrarBotones(['btn-next-round']);
         }
     } else {
         gameLog.innerHTML = htmlRecuento;
-        if (btnNext) btnNext.innerText = t('btn_next_round'); // "Siguiente ronda";
+        if (btnNext) btnNext.innerText = t("btn_next_round");
         mostrarBotones(['btn-next-round']);
     }
 }

@@ -345,7 +345,7 @@ class PartidaMus:
             if self.estado[jugador]['puntos'] >= 40:
                 self.fase = 'recuento'
                 self.recuento_calculado = True
-                self.pasos_recuento = [{'ganador_sid': jugador, 'texto_fase': 'ha ganado la partida con un ¡Pedrete!'}]
+                self.pasos_recuento = [{'ganador_sid': jugador, 'datos': 'recuento_pedrete_win'}]
 
             return True
 
@@ -573,14 +573,13 @@ class PartidaMus:
                 
             # Construimos el texto exacto para enviarlo al navegador
             if self.ganadores_fase.get(fase) is not None and pts_total == 0:
-                texto_final = f"(Alguien no quiso ver en {n_log})"
+                datos_paso = {'code': 'recuento_nover', 'fase': n_log}
             else:
-                prep = "a la" if n_log in ['Grande', 'Chica'] else "por" if n_log == 'Pares' else "por el"
-                texto_final = f"ganado {pts_total} {prep} {n_log.lower()}"
+               datos_paso = {'code': 'recuento_gana', 'puntos': pts_total, 'fase': n_log}
                 
             self.pasos_recuento.append({
                 'ganador_sid': ganador_sid,
-                'texto_fase': texto_final
+                'datos': datos_paso
             })
         
         if not getattr(self, 'partida_sumada', False):
