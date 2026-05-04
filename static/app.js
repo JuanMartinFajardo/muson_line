@@ -67,7 +67,24 @@ const dict = {
         txt_partidas: "Partidas:",
         txt_rival: "Rival",
         codigo_placeholder: "Código de sala...",
-        btn_next_game: "Siguiente partida"
+        btn_next_game: "Siguiente partida",
+        info_tus_cartas: "Tus cartas aparecerán aquí",
+        info_esperando_rival_descarte: "Esperando a que el rival se descarte...",
+        rival_siguiente_partida: "Esperando al rival para la siguiente partida...",
+        info_esperando_rival_listo: "Esperando a que el rival esté listo...",
+        info_rival_cambio: "El rival cambió ",
+        cartas: " cartas",
+        has_ganado_partida: "🏆 ¡HAS GANADO ESTA PARTIDA!",
+        el_rival_ganado_partida: "💀 ¡HAS PERDIDO ESTA PARTIDA!",
+        has_ganado_match: "🏆 ¡HAS GANADO EL MATCH!",
+        el_rival_ganado_match: "💀 ¡HAS PERDIDO EL MATCH!",
+        info_apuesta_vista: "Apuesta vista:",
+        cartas_sin_repartir: "[Cartas sin repartir]",
+        te_suben: "Te suben: ",
+        has_subido: "Has subido: ",
+        eres_mano: "(Eres Mano)",
+        eres_postre: "(Eres Postre)",
+        resultados_ronda: "Resultados de la ronda:"        
 
     },
     en: {
@@ -85,7 +102,7 @@ const dict = {
         btn_envidar: "Bid",
         btn_pasar: "Pass",
         btn_ordago: "Órdago",
-        btn_ver: "See",
+        btn_ver: "Call",
         btn_subir: "Raise",
         btn_nover: "Don't see",
         btn_ordago_resp: "Órdago",
@@ -120,7 +137,24 @@ const dict = {
         txt_partidas: "Games:",
         txt_rival: "Opponent",
         codigo_placeholder: "Room code...",
-        btn_next_game: "Next game"
+        btn_next_game: "Next game",
+        info_tus_cartas: "Your cards will appear here",
+        info_esperando_rival_descarte: "Waiting for opponent to discard...",
+        info_esperando_rival_listo: "Waiting for opponent to be ready...",
+        rival_siguiente_partida: "Waiting for opponent for the next game...",
+        info_rival_cambio: "Opponent changed ",
+        cartas: " cards",
+        has_ganado_partida: "🏆 YOU WON THIS GAME!",
+        el_rival_ganado_partida: "💀 YOU LOST THIS GAME!",
+        has_ganado_match: "🏆 YOU WON THE MATCH!",
+        el_rival_ganado_match: "💀 YOU LOST THE MATCH!",
+        info_apuesta_vista: "Bet seen:",
+        cartas_sin_repartir: "[Cards not dealt]",
+        te_suben: "You are raised: ",
+        has_subido: "You raised: ",
+        eres_mano: "(You are Mano)",
+        eres_postre: "(You are Postre)",
+        resultados_ronda: "Results of the round:"        
     }
 };
 
@@ -348,8 +382,8 @@ document.getElementById('btn-next-round').addEventListener('click', (e) => {
     if (contenedorRival) contenedorRival.innerHTML = '';
 
     let textoEspera = e.target.innerText === "Siguiente partida"
-        ? "Esperando al rival para la siguiente partida..."
-        : "Esperando a que el rival esté listo...";
+        ? `${t('rival_siguiente_partida')}`
+        : `${t('info_esperando_rival_listo')}`;
 
     gameLog.innerHTML = `<strong style='font-size: 1.2em; color: #ebcb8b;'>${textoEspera}</strong>`;
     socket.emit('accion_juego', { accion: 'listo_siguiente_ronda' });
@@ -365,7 +399,7 @@ socket.on('actualizar_mesa', (datos) => {
     const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
     if (contenedorRival) {
         if (datos.fase === 'espera_reparto') {
-            contenedorRival.innerHTML = '[Cartas sin repartir]';
+            contenedorRival.innerHTML = t("cartas_sin_repartir");
         } else if (datos.fase !== 'recuento') {
             contenedorRival.innerHTML = `
             <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
@@ -404,12 +438,12 @@ socket.on('actualizar_mesa', (datos) => {
 
         if (datos.apuestas && (datos.apuestas.subida > 0 || datos.apuestas.subida === 'ÓRDAGO')) {
             const cantidadStr = datos.apuestas.subida === 'ÓRDAGO' ? 'un ÓRDAGO' : datos.apuestas.subida;
-            const textoSube = datos.apuestas.soy_quien_sube ? `Has subido: ${cantidadStr}` : `Te suben: ${cantidadStr}`;
+            const textoSube = datos.apuestas.soy_quien_sube ? t('has_subido') + cantidadStr : t('te_suben') + cantidadStr;
             const colorSube = datos.apuestas.soy_quien_sube ? `#ebcb8b` : `#bf616a`;
 
             htmlBotes += `
             <div id="caja-en-aire" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #88c0d0;">
-                <p style="font-size: 1.1em; margin-bottom: 5px;">Apuesta vista: <span class="highlight">${datos.apuestas.apuesta_vista}</span></p>
+                <p style="font-size: 1.1em; margin-bottom: 5px;" data-i18n="info_apuesta_vista">Apuesta vista: <span class="highlight">${datos.apuestas.apuesta_vista}</span></p>
                 <p style="font-size: 1.2em; font-weight: bold; color: ${colorSube}; margin: 0;">${textoSube}</p>
             </div>`;
         }
@@ -466,12 +500,12 @@ socket.on('actualizar_mesa', (datos) => {
             contenedorCartas.appendChild(div);
         });
     } else {
-        contenedorCartas.innerHTML = 'Tus cartas aparecerán aquí';
+        contenedorCartas.innerHTML = `${t('info_tus_cartas')}`;
     }
 
     document.getElementById('puntos-mios').innerText = datos.mis_puntos;
     document.getElementById('puntos-rival').innerText = datos.puntos_rival;
-    document.getElementById('mi-rol').innerText = datos.soy_mano ? "(Eres Mano)" : "(Eres Postre)";
+    document.getElementById('mi-rol').innerText = datos.soy_mano ? t('eres_mano') : t('eres_postre');
     document.getElementById('mi-turno').classList.toggle('hidden', !datos.es_mi_turno);
     document.getElementById('turno-rival').classList.toggle('hidden', datos.es_mi_turno);
 
@@ -490,15 +524,15 @@ socket.on('actualizar_mesa', (datos) => {
     if(document.getElementById('partidas-mios')) {
         document.getElementById('partidas-mios').innerText = datos.mis_partidas;
         document.getElementById('partidas-rival').innerText = datos.partidas_rival;
-        document.querySelectorAll('.mejor-de-texto').forEach(el => el.innerText = `(Al mejor de ${datos.al_mejor_de})`);
+        document.querySelectorAll('.mejor-de-texto').forEach(el => el.innerText = t('al_mejor_de', { cantidad: datos.al_mejor_de }));
     }
 
     if (datos.fase === 'descarte' && datos.descartes_listos) {
-        gameLog.innerText = "Esperando a que el rival se descarte...";
+        gameLog.innerText = `${t('info_esperando_rival_descarte')}`;
     } else {
         gameLog.innerText = datos.mensaje;
         if (datos.descartes_rival > 0 && datos.fase === 'mus') {
-            gameLog.innerHTML += `<br><span style="color:#a3be8c; font-size:0.9em;">(El rival cambió ${datos.descartes_rival} cartas)</span>`;
+            gameLog.innerHTML += `<br><span style="color:#a3be8c; font-size:0.9em;">(${t('info_rival_cambio')} ${datos.descartes_rival} ${t('cartas')})</span>`;
         }
     }
 
@@ -596,7 +630,7 @@ function mostrarRecuentoEstatico(datos) {
     }
 
     const gameLog = document.getElementById('game-log');
-    let htmlRecuento = "<strong style='font-size: 1.2em; color: #88c0d0;'>Resultados de la ronda:</strong><br><br>";
+    let htmlRecuento = `<strong style='font-size: 1.2em; color: #88c0d0;'>${t('resultados_ronda')}:</strong><br><br>`;
 
     if (datos.recuento && datos.recuento.length > 0) {
         for (let paso of datos.recuento) {
@@ -609,11 +643,11 @@ function mostrarRecuentoEstatico(datos) {
     let btnNext = document.getElementById('btn-next-round');
 
     if (datos.mis_puntos >= 40 || datos.puntos_rival >= 40) {
-        const txt = datos.mis_puntos >= 40 ? "🏆 ¡HAS GANADO ESTA PARTIDA!" : "💀 ¡EL RIVAL HA GANADO ESTA PARTIDA!";
+        const txt = datos.mis_puntos >= 40 ? t('has_ganado_partida') : t('el_rival_ganado_partida');
         htmlRecuento += `<br><strong style="font-size: 1.5em; color: #a3be8c;">${txt}</strong>`;
 
         if (datos.match_finalizado) {
-            const txtGlobal = datos.mis_puntos >= 40 ? "🏆 ¡HAS GANADO EL MATCH!" : "💀 ¡EL RIVAL HA GANADO EL MATCH!";
+            const txtGlobal = datos.mis_puntos >= 40 ? t('has_ganado_match') : t('el_rival_ganado_match');
             htmlRecuento += `<br><strong style="font-size: 1.5em; color: #a3be8c;">${txtGlobal}</strong>`;
             gameLog.innerHTML = htmlRecuento;
             mostrarBotones(['btn-volver-menu']);
