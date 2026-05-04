@@ -80,9 +80,13 @@ def emitir_lista_publicas():
         if info['estado'] == 'esperando' and info.get('publico', False):
             creador_sid = info['sids'][0] if info['sids'] else None
             nombre = jugadores[creador_sid]['nombre'] if creador_sid in jugadores else "Desconocido"
+            creador_username = info.get('username')
+
             lista.append({
                 'codigo': cod,
                 'creador': nombre,
+                'creador_sid': creador_sid,
+                'creador_username': creador_username,
                 'al_mejor_de': info.get('al_mejor_de', 3)
             })
     socketio.emit('actualizar_publicas', lista)
@@ -287,16 +291,11 @@ def enviar_estado_a_jugadores(codigo_sala):
                 else:
                     ganador_sid, perdedor_sid = partida_actual.j2, partida_actual.j1
                     
-                # Si el ganador está logueado, sumamos victoria
                 u_ganador = jugadores.get(ganador_sid, {}).get('username')
-                if u_ganador:
-                    base_datos.registrar_resultado_partida(u_ganador, True)
-                    
-                # Si el perdedor está logueado, sumamos derrota
                 u_perdedor = jugadores.get(perdedor_sid, {}).get('username')
-                if u_perdedor:
-                    base_datos.registrar_resultado_partida(u_perdedor, False)
-            
+                if u_ganador or u_perdedor:
+                    base_datos.registrar_partida_completa(u_ganador, u_perdedor)
+
             # ... Y preparamos el recuento bonito para el cliente
 
             datos_recuento = []

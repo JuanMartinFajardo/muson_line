@@ -2,17 +2,15 @@ const socket = io({ closeOnBeforeunload: false });
 
 let miNombre = "";
 let faseJuego = 'espera';
-let cartasSeleccionadas = []; 
+let cartasSeleccionadas = [];
 let subfaseApuestasActual = "";
-let apuestavistaActual = 0;
+let apuestaVistaActual = 0; // CORREGIDO: V mayúscula
 let enPartida = false;
 
 // PANTALLAS CORRECTAS
 const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
 const gameLog = document.getElementById('game-log');
-
-
 
 // ==========================================
 // 1. LÓGICA DEL MENÚ Y SALAS
@@ -25,22 +23,15 @@ const menuMsg = document.getElementById('menu-msg');
 
 socket.emit('pedir_publicas');
 
-
-
-
 btnCrear.addEventListener('click', () => {
     miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 1";
     let mejorDe = parseInt(document.getElementById('in-mejor-de').value) || 3;
-    let checkboxPublico = document.getElementById('in-publico');
     let esPublico = document.getElementById('in-publico').checked;
-    // Lo enviamos a Python dentro de los datos
     socket.emit('crear_sala', { nombre: miNombre, al_mejor_de: mejorDe, publico: esPublico});
     btnCrear.disabled = true;
     btnUnirse.disabled = true;
     menuMsg.innerText = "Creando sala...";
 });
-
-
 
 btnUnirse.addEventListener('click', () => {
     miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 2";
@@ -56,15 +47,13 @@ btnUnirse.addEventListener('click', () => {
 document.getElementById('btn-volver-menu').addEventListener('click', () => {
     enPartida = false;
     socket.emit('abandonar_sala_limpiamente');
-   // Damos 100 milisegundos de margen para que el mensaje llegue antes de recargar
     setTimeout(() => { window.location.reload(); }, 100);
 });
 
 window.addEventListener('beforeunload', (e) => {
     if (enPartida) {
-        // Estas dos líneas son la forma estándar de decirle al navegador que muestre su aviso
         e.preventDefault();
-        e.returnValue = ''; 
+        e.returnValue = '';
     }
 });
 
@@ -84,24 +73,25 @@ socket.on('error_sala', (datos) => {
 socket.on('actualizar_publicas', (lista) => {
     const tbody = document.getElementById('lista-partidas-publicas');
     if (!tbody) return;
-    
+
     tbody.innerHTML = '';
-    
+
     if (lista.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;">No hay partidas públicas ahora mismo. ¡Crea tú una!</td></tr>';
         return;
     }
-    
-    let nombreInput = document.getElementById('nombre-jugador').value.trim();
-    let miNombreVisual = nombreInput !== "" ? nombreInput : "Jugador 1";
-
 
     lista.forEach(partida => {
         const tr = document.createElement('tr');
+        
+        // SISTEMA ROBUSTO: Es nuestra sala si el ID de conexión es el nuestro, 
+        // o si estamos logueados y la sala pertenece a nuestra misma cuenta.
+        let esMiSala = false;
+        if (partida.creador_sid === socket.id) esMiSala = true;
+        if (miUsernameLogueado && partida.creador_username === miUsernameLogueado) esMiSala = true;
 
-        // Comprobamos si la sala la hemos creado nosotros para quitar el botón
         let botonHTML = '';
-        if (partida.creador === miNombreVisual) {
+        if (esMiSala) {
             botonHTML = `<span style="color: #a3be8c; font-size: 0.85em; font-weight: bold;">Tu sala</span>`;
         } else {
             botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">Unirse</button>`;
@@ -128,9 +118,6 @@ socket.on('actualizar_publicas', (lista) => {
     });
 });
 
-
-
-// AQUI ESTABA EL FALLO PRINCIPAL: Oculta el menuScreen
 socket.on('iniciar_partida', (datos) => {
     menuScreen.classList.add('hidden');
     gameScreen.classList.remove('hidden');
@@ -140,8 +127,8 @@ socket.on('iniciar_partida', (datos) => {
 socket.on('rival_desconectado', () => {
     if (enPartida) {
         alert("Tu rival se ha desconectado o ha abandonado la partida. Volviendo al menú principal.");
-        enPartida = false; // Apagamos el escudo anti-recarga
-        window.location.reload(); // Recargamos para limpiar todo
+        enPartida = false;
+        window.location.reload();
     }
 });
 
@@ -150,7 +137,7 @@ socket.on('rival_desconectado', () => {
 // ==========================================
 
 document.getElementById('btn-deal').addEventListener('click', () => {
-    mostrarBotones([]); 
+    mostrarBotones([]);
     socket.emit('accion_juego', { accion: 'repartir' });
 });
 
@@ -192,7 +179,6 @@ document.getElementById('btn-subir').addEventListener('click', () => {
     let misPuntos = parseInt(document.getElementById('puntos-mios').innerText) || 0;
     let tope = 40 - misPuntos - apuestaVistaActual;
     if (cant > tope) cant = tope;
-    // Por seguridad, evitamos que la subida sea cero o negativa
     if (cant < 1) cant = 1;
     if (cant > 40 - misPuntos) cant = 40 - misPuntos;
     socket.emit('accion_juego', { accion: 'subir', cantidad: cant });
@@ -203,9 +189,9 @@ document.getElementById('btn-next-round').addEventListener('click', (e) => {
     document.getElementById('my-cards').innerHTML = '';
     const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
     if (contenedorRival) contenedorRival.innerHTML = '';
-    
-    let textoEspera = e.target.innerText === "Siguiente partida" 
-        ? "Esperando al rival para la siguiente partida..." 
+
+    let textoEspera = e.target.innerText === "Siguiente partida"
+        ? "Esperando al rival para la siguiente partida..."
         : "Esperando a que el rival esté listo...";
 
     gameLog.innerHTML = `<strong style='font-size: 1.2em; color: #ebcb8b;'>${textoEspera}</strong>`;
@@ -218,42 +204,38 @@ document.getElementById('btn-next-round').addEventListener('click', (e) => {
 
 socket.on('actualizar_mesa', (datos) => {
     faseJuego = datos.fase;
-    
-    const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
-        if (contenedorRival) {
-            if (datos.fase === 'espera_reparto') {
-                // Si estamos esperando a repartir, dejamos el espacio vacío o con un texto
-                contenedorRival.innerHTML = '[Cartas sin repartir]';
-            } else if (datos.fase !== 'recuento') {
-                // Si ya hemos repartido y no estamos en el recuento, mostramos los dorsos
-                contenedorRival.innerHTML = `
-                <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
-                <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
-                <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
-                <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
-            `;
-            }
-        }
 
-    // PANEL DE APUESTAS
+    const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
+    if (contenedorRival) {
+        if (datos.fase === 'espera_reparto') {
+            contenedorRival.innerHTML = '[Cartas sin repartir]';
+        } else if (datos.fase !== 'recuento') {
+            contenedorRival.innerHTML = `
+            <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
+            <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
+            <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
+            <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
+            `;
+        }
+    }
+
     const logDiv = document.getElementById('betting-log');
     if (datos.fase === 'apuestas' || datos.fase === 'recuento') {
         logDiv.classList.remove('hidden');
-    
-        let fAct = datos.apuestas ? datos.apuestas.fase_actual : '';
 
+        let fAct = datos.apuestas ? datos.apuestas.fase_actual : '';
 
         if (datos.fase === 'apuestas' && fAct !== subfaseApuestasActual) {
             subfaseApuestasActual = fAct;
             document.getElementById('in-envidar').value = 2;
             document.getElementById('in-subir').value = 2;
         }
-        
+
         let gStyle = fAct === 'Grande' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
         let cStyle = fAct === 'Chica' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
         let pStyle = fAct === 'Pares' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
         let jStyle = fAct === 'Juego' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
-    
+
         let htmlBotes = `
             <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
                 <p style="${gStyle}">Grande: ${datos.apuestas.botes.Grande}</p>
@@ -262,12 +244,12 @@ socket.on('actualizar_mesa', (datos) => {
                 <p style="${jStyle}">Juego / Punto: ${datos.apuestas.botes.Juego}</p>
             </div>
         `;
-        
+
         if (datos.apuestas && (datos.apuestas.subida > 0 || datos.apuestas.subida === 'ÓRDAGO')) {
             const cantidadStr = datos.apuestas.subida === 'ÓRDAGO' ? 'un ÓRDAGO' : datos.apuestas.subida;
             const textoSube = datos.apuestas.soy_quien_sube ? `Has subido: ${cantidadStr}` : `Te suben: ${cantidadStr}`;
-            const colorSube = datos.apuestas.soy_quien_sube ? `#ebcb8b` : `#bf616a`; 
-            
+            const colorSube = datos.apuestas.soy_quien_sube ? `#ebcb8b` : `#bf616a`;
+
             htmlBotes += `
             <div id="caja-en-aire" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #88c0d0;">
                 <p style="font-size: 1.1em; margin-bottom: 5px;">Apuesta vista: <span class="highlight">${datos.apuestas.apuesta_vista}</span></p>
@@ -294,22 +276,22 @@ socket.on('actualizar_mesa', (datos) => {
         const cajaEnAire = document.getElementById('caja-en-aire');
         if (cajaEnAire) cajaEnAire.classList.add('hidden');
         mostrarRecuentoEstatico(datos);
-        return; 
+        return;
     }
 
     cartasSeleccionadas = [];
     const btnDescartar = document.getElementById('btn-descartar');
     if(btnDescartar) btnDescartar.innerText = 'Descartar (0)';
-    
+
     const contenedorCartas = document.getElementById('my-cards');
-    contenedorCartas.innerHTML = ''; 
-    
+    contenedorCartas.innerHTML = '';
+
     if (datos.mis_cartas && datos.mis_cartas.length > 0) {
         datos.mis_cartas.forEach((carta, index) => {
             const div = document.createElement('div');
             div.className = 'carta';
             div.innerHTML = `<img src="${carta.img}" alt="${carta.texto}" draggable="false" oncontextmenu="return false;">`;
-            
+
             div.onclick = () => {
                 if (datos.fase === 'descarte' && !datos.descartes_listos) {
                     const pos = cartasSeleccionadas.indexOf(index);
@@ -335,20 +317,18 @@ socket.on('actualizar_mesa', (datos) => {
     document.getElementById('mi-rol').innerText = datos.soy_mano ? "(Eres Mano)" : "(Eres Postre)";
     document.getElementById('mi-turno').classList.toggle('hidden', !datos.es_mi_turno);
     document.getElementById('turno-rival').classList.toggle('hidden', datos.es_mi_turno);
-    
+
     apuestaVistaActual = datos.apuestas ? datos.apuestas.apuesta_vista : 0;
-    
+
     let maxApuesta = 40 - datos.mis_puntos;
     let inEnvidar = document.getElementById('in-envidar');
     let inSubir = document.getElementById('in-subir');
-    
+
     if (inEnvidar) inEnvidar.max = maxApuesta;
     if (inSubir) {
-        // Al subir, el máximo visual es lo que falta hasta 40 restando la apuesta actual
         let topeSubida = maxApuesta - apuestaVistaActual;
         inSubir.max = topeSubida > 0 ? topeSubida : 1;
     }
-
 
     if(document.getElementById('partidas-mios')) {
         document.getElementById('partidas-mios').innerText = datos.mis_partidas;
@@ -365,7 +345,7 @@ socket.on('actualizar_mesa', (datos) => {
         }
     }
 
-    mostrarBotones([]); 
+    mostrarBotones([]);
     document.getElementById('apuesta-iniciar').classList.add('hidden');
     document.getElementById('apuesta-responder').classList.add('hidden');
 
@@ -379,12 +359,12 @@ socket.on('actualizar_mesa', (datos) => {
             mostrarBotones(['btn-mus', 'btn-nomus']);
         } else if (datos.fase === 'apuestas') {
             document.getElementById('action-buttons').classList.remove('hidden');
-            
+
             if (datos.apuestas && datos.apuestas.subida === 0) {
                 document.getElementById('apuesta-iniciar').classList.remove('hidden');
             } else if (datos.apuestas) {
                 document.getElementById('apuesta-responder').classList.remove('hidden');
-                
+
                 let ocultarSubir = datos.apuestas.subida === 'ÓRDAGO';
                 document.getElementById('in-subir').classList.toggle('hidden', ocultarSubir);
                 document.getElementById('btn-subir').classList.toggle('hidden', ocultarSubir);
@@ -403,7 +383,7 @@ function mostrarBotones(ids) {
     allIds.forEach(id => {
         let el = document.getElementById(id);
         if(el) el.classList.add('hidden');
-    });    
+    });
     if (ids.length > 0) {
         contenedor.classList.remove('hidden');
         ids.forEach(id => {
@@ -417,14 +397,14 @@ function mostrarBotones(ids) {
 
 function mostrarRecuentoEstatico(datos) {
     mostrarBotones([]);
-    
+
     const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
     if (contenedorRival) {
         contenedorRival.innerHTML = '';
         if (datos.cartas_rival) {
             datos.cartas_rival.forEach(c => {
                 const d = document.createElement('div');
-                d.className = 'carta'; 
+                d.className = 'carta';
                 d.innerHTML = `<img src="${c.img}" alt="${c.texto}" draggable="false" oncontextmenu="return false;">`;
                 contenedorRival.appendChild(d);
             });
@@ -433,7 +413,7 @@ function mostrarRecuentoEstatico(datos) {
 
     document.getElementById('puntos-mios').innerText = datos.mis_puntos;
     document.getElementById('puntos-rival').innerText = datos.puntos_rival;
-    
+
     if(document.getElementById('partidas-mios')) {
         document.getElementById('partidas-mios').innerText = datos.mis_partidas;
         document.getElementById('partidas-rival').innerText = datos.partidas_rival;
@@ -455,7 +435,7 @@ function mostrarRecuentoEstatico(datos) {
     if (datos.mis_puntos >= 40 || datos.puntos_rival >= 40) {
         const txt = datos.mis_puntos >= 40 ? "🏆 ¡HAS GANADO ESTA PARTIDA!" : "💀 ¡EL RIVAL HA GANADO ESTA PARTIDA!";
         htmlRecuento += `<br><strong style="font-size: 1.5em; color: #a3be8c;">${txt}</strong>`;
-        
+
         if (datos.match_finalizado) {
             const txtGlobal = datos.mis_puntos >= 40 ? "🏆 ¡HAS GANADO EL MATCH!" : "💀 ¡EL RIVAL HA GANADO EL MATCH!";
             htmlRecuento += `<br><strong style="font-size: 1.5em; color: #a3be8c;">${txtGlobal}</strong>`;
@@ -474,47 +454,41 @@ function mostrarRecuentoEstatico(datos) {
 }
 
 // ==========================================
-// LÓGICA DE USUARIOS Y MODALES
+// 5. USUARIOS, MODALES Y FETCH
 // ==========================================
 
 const modalOverlay = document.getElementById('modal-overlay');
 const modalLogin = document.getElementById('modal-login');
 const modalSignup = document.getElementById('modal-signup');
 
-// Mostrar modal Iniciar Sesión
 document.getElementById('btn-show-login').addEventListener('click', () => {
-    modalOverlay.style.display = 'flex'; 
+    modalOverlay.style.display = 'flex';
     modalOverlay.classList.remove('hidden');
     modalSignup.classList.add('hidden');
 
-    //Apagamos el leaderboard por si estaba abierto o pre-cargado
     const modalLeaderboard = document.getElementById('modal-leaderboard');
-    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');  
+    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');
 
     modalLogin.classList.remove('hidden');
     document.getElementById('msg-login').innerText = "";
 });
 
-// Mostrar modal Registro
 document.getElementById('btn-show-signup').addEventListener('click', () => {
     modalOverlay.style.display = 'flex';
     modalOverlay.classList.remove('hidden');
     modalLogin.classList.add('hidden');
 
-    //Apagamos el leaderboard por si estaba abierto o pre-cargado
     const modalLeaderboard = document.getElementById('modal-leaderboard');
-    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');    
+    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');
 
     modalSignup.classList.remove('hidden');
     document.getElementById('msg-signup').innerText = "";
 });
 
-// Cerrar modales con la X
 document.querySelectorAll('.btn-cerrar-modal').forEach(btn => {
     btn.addEventListener('click', cerrarModales);
 });
 
-// Cerrar modales pinchando fuera de la ventana
 modalOverlay.addEventListener('click', (e) => {
     if (e.target === modalOverlay) cerrarModales();
 });
@@ -524,50 +498,20 @@ function cerrarModales() {
     modalOverlay.classList.add('hidden');
     modalLogin.classList.add('hidden');
     modalSignup.classList.add('hidden');
+    const modalLeaderboard = document.getElementById('modal-leaderboard');
+    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');
 }
 
-// Recoger datos de Registro
-document.getElementById('btn-submit-signup').addEventListener('click', () => {
-    const user = document.getElementById('signup-user').value.trim();
-    const pass = document.getElementById('signup-pass').value;
-    const country = document.getElementById('signup-country').value.trim();
-    const birth = document.getElementById('signup-birth').value;
+let miUsernameLogueado = null; // NUEVO: Variable para recordar quiénes somos
 
-    if (!user || !pass || !country || !birth) {
-        document.getElementById('msg-signup').innerText = "Por favor, rellena todos los campos.";
-        return;
-    }
-    
-    document.getElementById('msg-signup').innerText = "Registrando...";
-    socket.emit('intento_registro', { username: user, password: pass, country: country, birthdate: birth });
-});
-
-// Recoger datos de Login
-document.getElementById('btn-submit-login').addEventListener('click', () => {
-    const user = document.getElementById('login-user').value.trim();
-    const pass = document.getElementById('login-pass').value;
-    const remember = document.getElementById('login-remember').checked;
-
-    if (!user || !pass) {
-        document.getElementById('msg-login').innerText = "Introduce usuario y contraseña.";
-        return;
-    }
-
-    document.getElementById('msg-login').innerText = "Comprobando...";
-    socket.emit('intento_login', { username: user, password: pass, remember: remember });
-});
-
-
-// ==========================================
-// 5. GESTIÓN DE SESIONES POR HTTP (FETCH)
-// ==========================================
-
-// Comprobar la sesión nada más cargar la página
 fetch('/auth/sesion').then(res => res.json()).then(datos => {
-    if (datos.exito) actualizarInterfazLogueado(datos.usuario);
+    if (datos.exito) {
+        miUsernameLogueado = datos.usuario.username; // Guardamos nuestro nombre real
+        actualizarInterfazLogueado(datos.usuario);
+    }
 });
 
-// Funciones visuales
+
 function actualizarInterfazLogueado(usuario) {
     document.getElementById('user-buttons').classList.add('hidden');
     document.getElementById('user-info-logged').classList.remove('hidden');
@@ -583,20 +527,6 @@ function actualizarInterfazLogueado(usuario) {
     cerrarModales();
 }
 
-function actualizarInterfazDeslogueado() {
-    document.getElementById('user-buttons').classList.remove('hidden');
-    document.getElementById('user-info-logged').classList.add('hidden');
-
-    let inNombre = document.getElementById('nombre-jugador');
-    if (inNombre) {
-        inNombre.value = "";
-        inNombre.disabled = false;
-        inNombre.style.backgroundColor = '';
-        inNombre.style.color = '';
-    }
-}
-
-// REGISTRO VÍA FETCH
 if (document.getElementById('btn-submit-signup')) {
     document.getElementById('btn-submit-signup').addEventListener('click', () => {
         const user = document.getElementById('signup-user').value.trim();
@@ -608,9 +538,9 @@ if (document.getElementById('btn-submit-signup')) {
             document.getElementById('msg-signup').innerText = "Rellena todos los campos.";
             return;
         }
-        
+
         document.getElementById('msg-signup').innerText = "Registrando...";
-        
+
         fetch('/auth/registro', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -631,7 +561,6 @@ if (document.getElementById('btn-submit-signup')) {
     });
 }
 
-// LOGIN VÍA FETCH
 if (document.getElementById('btn-submit-login')) {
     document.getElementById('btn-submit-login').addEventListener('click', () => {
         const user = document.getElementById('login-user').value.trim();
@@ -644,14 +573,13 @@ if (document.getElementById('btn-submit-login')) {
         }
 
         document.getElementById('msg-login').innerText = "Comprobando...";
-        
+
         fetch('/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: user, password: pass, remember: remember })
         }).then(res => res.json()).then(datos => {
             if (datos.exito) {
-                // Al loguear con éxito, recargamos la web para que SocketIO lea la nueva cookie
                 window.location.reload();
             } else {
                 document.getElementById('msg-login').innerText = datos.mensaje;
@@ -660,30 +588,20 @@ if (document.getElementById('btn-submit-login')) {
     });
 }
 
-// CERRAR SESIÓN VÍA FETCH
 document.getElementById('btn-logout').addEventListener('click', () => {
     fetch('/auth/logout', { method: 'POST' }).then(() => {
         window.location.reload();
     });
 });
 
-
-
 // ==========================================
 // 6. LÓGICA DE LA LEADERBOARD
 // ==========================================
 
 const modalLeaderboard = document.getElementById('modal-leaderboard');
-let leaderboardData = []; // Aquí guardaremos los datos descargados
-let currentSort = 'victorias'; // Por defecto ordenamos por victorias
-let sortDesc = true; // Por defecto de mayor a menor
-
-// Añadir la leaderboard al sistema de cerrado de modales
-const oldCerrarModales = cerrarModales; // Guardamos la función antigua
-cerrarModales = function() {
-    oldCerrarModales(); // Ejecutamos la antigua
-    if (modalLeaderboard) modalLeaderboard.classList.add('hidden'); // Añadimos la nueva
-};
+let leaderboardData = [];
+let currentSort = 'elo';
+let sortDesc = true;
 
 if (document.getElementById('btn-show-leaderboard')) {
     document.getElementById('btn-show-leaderboard').addEventListener('click', () => {
@@ -692,19 +610,18 @@ if (document.getElementById('btn-show-leaderboard')) {
         modalLogin.classList.add('hidden');
         modalSignup.classList.add('hidden');
         modalLeaderboard.classList.remove('hidden');
-        
+
         cargarLeaderboard();
     });
 }
 
 function cargarLeaderboard() {
-    document.getElementById('lista-leaderboard-body').innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;">Cargando jugadores...</td></tr>';
-    
+    document.getElementById('lista-leaderboard-body').innerHTML = '<tr><td colspan="4" style="padding: 10px; opacity: 0.7;">Cargando jugadores...</td></tr>';
+
     fetch('/api/leaderboard').then(res => res.json()).then(datos => {
         if (datos.exito) {
             leaderboardData = datos.leaderboard;
-            // Forzamos ordenación inicial: Victorias, mayor a menor
-            currentSort = 'victorias';
+            currentSort = 'elo';
             sortDesc = true;
             renderLeaderboard();
         }
@@ -714,43 +631,42 @@ function cargarLeaderboard() {
 function renderLeaderboard() {
     const tbody = document.getElementById('lista-leaderboard-body');
     tbody.innerHTML = '';
-    
-    // Función de ordenación mágica
+
     leaderboardData.sort((a, b) => {
         let valA = a[currentSort];
         let valB = b[currentSort];
-        
         if (valA < valB) return sortDesc ? 1 : -1;
         if (valA > valB) return sortDesc ? -1 : 1;
-        return 0; // Si empatan, se quedan como están
+        return 0;
     });
-    
-    // Actualizar las flechitas visuales de los títulos
+
+    document.getElementById('th-sort-elo').innerHTML = `ELO ${currentSort === 'elo' ? (sortDesc ? '🔽' : '🔼') : '↕️'}`;
+    document.getElementById('th-sort-elo').style.color = currentSort === 'elo' ? '#a3be8c' : '#eceff4';
+
     document.getElementById('th-sort-wins').innerHTML = `Victorias ${currentSort === 'victorias' ? (sortDesc ? '🔽' : '🔼') : '↕️'}`;
     document.getElementById('th-sort-wins').style.color = currentSort === 'victorias' ? '#a3be8c' : '#eceff4';
-    
+
     document.getElementById('th-sort-winrate').innerHTML = `Winrate ${currentSort === 'winrate' ? (sortDesc ? '🔽' : '🔼') : '↕️'}`;
     document.getElementById('th-sort-winrate').style.color = currentSort === 'winrate' ? '#a3be8c' : '#eceff4';
 
-    // Dibujar las filas
     if (leaderboardData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;">No hay jugadores registrados todavía.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="padding: 10px; opacity: 0.7;">No hay jugadores registrados todavía.</td></tr>';
         return;
     }
-    
+
     leaderboardData.forEach((jugador, index) => {
         const tr = document.createElement('tr');
-        
-        // Ponemos una medalla a los 3 primeros
+
         let icono = "";
-        if (currentSort === 'victorias' && sortDesc) {
+        if (currentSort === 'elo' && sortDesc) {
             if (index === 0) icono = "🥇 ";
             else if (index === 1) icono = "🥈 ";
             else if (index === 2) icono = "🥉 ";
         }
-        
+
         tr.innerHTML = `
             <td style="padding: 10px; border-bottom: 1px solid #4c566a; color: #ebcb8b; font-weight: bold;">${icono}${jugador.username}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #4c566a; color: #81a1c1; font-weight: bold;">${jugador.elo}</td>
             <td style="padding: 10px; border-bottom: 1px solid #4c566a;">${jugador.victorias}</td>
             <td style="padding: 10px; border-bottom: 1px solid #4c566a;">${jugador.winrate}%</td>
         `;
@@ -758,23 +674,20 @@ function renderLeaderboard() {
     });
 }
 
-// Clics en los encabezados para ordenar
+document.getElementById('th-sort-elo').addEventListener('click', () => {
+    if (currentSort === 'elo') sortDesc = !sortDesc;
+    else { currentSort = 'elo'; sortDesc = true; }
+    renderLeaderboard();
+});
+
 document.getElementById('th-sort-wins').addEventListener('click', () => {
-    if (currentSort === 'victorias') {
-        sortDesc = !sortDesc; // Invertir orden
-    } else {
-        currentSort = 'victorias';
-        sortDesc = true; // Por defecto mayor a menor
-    }
+    if (currentSort === 'victorias') sortDesc = !sortDesc;
+    else { currentSort = 'victorias'; sortDesc = true; }
     renderLeaderboard();
 });
 
 document.getElementById('th-sort-winrate').addEventListener('click', () => {
-    if (currentSort === 'winrate') {
-        sortDesc = !sortDesc; // Invertir orden
-    } else {
-        currentSort = 'winrate';
-        sortDesc = true; // Por defecto mayor a menor
-    }
+    if (currentSort === 'winrate') sortDesc = !sortDesc;
+    else { currentSort = 'winrate'; sortDesc = true; }
     renderLeaderboard();
 });

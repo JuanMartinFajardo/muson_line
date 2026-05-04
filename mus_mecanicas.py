@@ -2,6 +2,7 @@ import random
 from collections import Counter
 import os
 import random, string
+import datetime
 # ==========================================
 # 1. BARAJA Y CARTAS
 # ==========================================
@@ -241,7 +242,10 @@ class PartidaMus:
             nombre_mio = getattr(self, 'nombres_ia', {}).get(jugador, "Invitado")
             nombre_rival = getattr(self, 'nombres_ia', {}).get(rival, "Invitado")
 
+            hora_actual = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
             estado_turno = {
+                "timestamp": hora_actual,
                 "match_id": self.match_id,
                 "ronda_n": self.ronda_n,
                 "fase": fase_actual,
