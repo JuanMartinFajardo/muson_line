@@ -63,7 +63,7 @@
             </div>
 
             <div style="padding: 15px; border: 1px solid #4c566a; border-radius: 8px;">
-                <input type="text" id="in-codigo" placeholder="Código de sala..." style="width: 60%; text-transform: uppercase; font-size: 1.1em; padding: 6px; text-align: center;">
+                <input type="text" id="in-codigo" placeholder="Código de sala..." style="width: 60%; text-transform: uppercase; font-size: 1.1em; padding: 6px; text-align: center;" data-i18n="codigo_placeholder">
                 <button id="btn-unirse" data-i18n="btn_unirse">Unirse con código</button>
             </div>
             
@@ -104,7 +104,17 @@
         
         <!-- ÁREA DEL RIVAL -->
         <div id="opponent-area" class="area">
-            <p>Rival - Pts: <span id="puntos-rival" class="highlight">0</span>/40 | Partidas: <span id="partidas-rival" class="highlight">0</span> <span class="mejor-de-texto"></span></p>
+            <!-- <p>Rival - Pts: <span id="puntos-rival" class="highlight">0</span>/40 | Partidas: <span id="partidas-rival" class="highlight">0</span> <span class="mejor-de-texto"></span></p> -->
+            <p>
+                <span data-i18n="txt_rival">Rival</span> 
+                <span id="puntos-rival" class="highlight"></span> - 
+                <span data-i18n="txt_pts">Pts:</span> 
+                <span id="puntos-rival" class="highlight">0</span>/40 | 
+                <span data-i18n="txt_partidas">Partidas:</span> 
+                <span id="partidas-rival" class="highlight">0</span> 
+                <span class="mejor-de-texto"></span>
+            </p>
+            
             <div class="cards-placeholder" data-i18n="cartas_rival_ocultas">[Cartas del rival ocultas]</div>
         </div>
 
@@ -144,7 +154,15 @@
 
         <!-- TU ÁREA -->
         <div id="my-area" class="area">
-            <p>Tú <span id="mi-rol" class="highlight"></span> - Pts: <span id="puntos-mios" class="highlight">0</span>/40 | Partidas: <span id="partidas-mios" class="highlight">0</span> <span class="mejor-de-texto"></span></p>
+            <p>
+                <span data-i18n="txt_tu">Tú</span> 
+                <span id="mi-rol" class="highlight"></span> - 
+                <span data-i18n="txt_pts">Pts:</span> 
+                <span id="puntos-mios" class="highlight">0</span>/40 | 
+                <span data-i18n="txt_partidas">Partidas:</span> 
+                <span id="partidas-mios" class="highlight">0</span> 
+                <span class="mejor-de-texto"></span>
+            </p>
             <div id="my-cards" class="cards-container" data-i18n="my_cards">
                 Tus cartas aparecerán aquí
             </div>
@@ -153,7 +171,7 @@
 
 
     <div class="watermark" data-i18n="watermark">Creado por Juan Martín Fajardo</div>
-    <!-- Tu código de la lógica del juego -->
+    <!-- Código de la lógica del juego -->
 
     <!-- ========================================= -->
     <!-- VENTANAS FLOTANTES (MODALES LOGIN/SIGNUP) -->
@@ -164,7 +182,7 @@
         
         <!-- Modal Iniciar Sesión -->
         <div id="modal-login" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 300px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
-            <!-- La X a la izquierda como pediste -->
+            <!-- La X a la izquierda -->
             <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
             
             <h2 style="color: #88c0d0; margin-top: 5px; margin-bottom: 20px;" data-i18n="btn_login">Iniciar Sesión</h2>
@@ -189,7 +207,7 @@
             <h2 style="color: #a3be8c; margin-top: 5px; margin-bottom: 20px;" data-i18n="btn_signup">Registrarse</h2>
             
             <input type="text" id="signup-user" placeholder="Nombre de usuario" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="user_name">
-            <input type="password" id="signup-pass" placeholder="Contraseña" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            <input type="password" id="signup-pass" placeholder="Contraseña" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="password">
             <input type="text" id="signup-country" placeholder="País de nacimiento" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="pais_nacimiento">
             
             <div style="margin-bottom: 20px; text-align: left; padding-left: 5%;">

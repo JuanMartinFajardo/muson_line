@@ -61,7 +61,14 @@ const dict = {
         pais_nacimiento: "País de nacimiento",
         btn_cuenta: "Crear cuenta",
         opponent_speaks: "⚠️ El rival habla",
-        cartas_rival_ocultas: "[Cartas del rival ocultas]"
+        cartas_rival_ocultas: "[Cartas del rival ocultas]",
+        txt_tu: "Tú",
+        txt_pts: "Pts:",
+        txt_partidas: "Partidas:",
+        txt_rival: "Rival",
+        codigo_placeholder: "Código de sala...",
+        btn_next_game: "Siguiente partida"
+
     },
     en: {
         btn_login: "Log In",
@@ -107,19 +114,35 @@ const dict = {
         pais_nacimiento: "Country of birth",
         btn_cuenta: "Create account",
         opponent_speaks: "⚠️ Opponent speaks",
-        cartas_rival_ocultas: "[Opponent's cards hidden]"
+        cartas_rival_ocultas: "[Opponent's cards hidden]",
+        txt_tu: "You", 
+        txt_pts: "Pts:",
+        txt_partidas: "Games:",
+        txt_rival: "Opponent",
+        codigo_placeholder: "Room code...",
+        btn_next_game: "Next game"
     }
 };
 
 // Recuperar idioma guardado o usar español por defecto
 let langActual = localStorage.getItem('callmus_lang') || 'es';
 
+function t(clave) {
+    // Si la clave existe en el idioma actual, la devuelve. Si no, devuelve la propia clave para que te des cuenta del error.
+    return (dict[langActual] && dict[langActual][clave]) ? dict[langActual][clave] : clave;
+}
+
 function aplicarTraduccion() {
-    // 1. Traducir todos los elementos estáticos que tengan data-i18n
+// 1. Traducir todos los elementos estáticos que tengan data-i18n
     document.querySelectorAll('[data-i18n]').forEach(el => {
         let clave = el.getAttribute('data-i18n');
         if (dict[langActual] && dict[langActual][clave]) {
-            el.innerText = dict[langActual][clave];
+            // NUEVO: Si es un campo de texto, cambiamos el placeholder
+            if (el.tagName === 'INPUT') {
+                el.placeholder = dict[langActual][clave];
+            } else {
+                el.innerText = dict[langActual][clave];
+            }
         }
     });
     
@@ -415,7 +438,7 @@ socket.on('actualizar_mesa', (datos) => {
 
     cartasSeleccionadas = [];
     const btnDescartar = document.getElementById('btn-descartar');
-    if(btnDescartar) btnDescartar.innerText = 'Descartar (0)';
+    if(btnDescartar) btnDescartar.innerText = `${t('btn_descartar')} (0)`;
 
     const contenedorCartas = document.getElementById('my-cards');
     contenedorCartas.innerHTML = '';
@@ -436,7 +459,7 @@ socket.on('actualizar_mesa', (datos) => {
                         cartasSeleccionadas.splice(pos, 1);
                         div.classList.remove('seleccionada');
                     }
-                    btnDescartar.innerText = `Descartar (${cartasSeleccionadas.length})`;
+                    btnDescartar.innerText = `${t('btn_descartar')} (${cartasSeleccionadas.length})`;
                     btnDescartar.disabled = cartasSeleccionadas.length === 0;
                 }
             };
@@ -596,12 +619,12 @@ function mostrarRecuentoEstatico(datos) {
             mostrarBotones(['btn-volver-menu']);
         } else {
             gameLog.innerHTML = htmlRecuento;
-            if (btnNext) btnNext.innerText = "Siguiente partida";
+            if (btnNext) btnNext.innerText = t('btn_next_game'); //"Siguiente partida";
             mostrarBotones(['btn-next-round']);
         }
     } else {
         gameLog.innerHTML = htmlRecuento;
-        if (btnNext) btnNext.innerText = "Siguiente ronda";
+        if (btnNext) btnNext.innerText = t('btn_next_round'); // "Siguiente ronda";
         mostrarBotones(['btn-next-round']);
     }
 }
