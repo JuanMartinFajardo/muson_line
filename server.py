@@ -259,17 +259,17 @@ def enviar_estado_a_jugadores(codigo_sala):
         rival_sid = partida_actual.id_postre if sid == partida_actual.id_mano else partida_actual.id_mano
         
         if partida_actual.fase == 'descarte':
-            mensaje = "Fase: DESCARTE. Selecciona qué cartas quieres tirar."
+            mensaje = {'code': 'fase_descarte'}
         elif partida_actual.fase == 'apuestas':
             if partida_actual.indice_fase < len(partida_actual.fases_apuesta):
                 n_fase = partida_actual.fases_apuesta[partida_actual.indice_fase]
                 nombre_turno = jugadores[partida_actual.turno_de]['nombre']
-                mensaje = f"Fase de {n_fase.upper()}. Turno de: {nombre_turno}"
+                mensaje = {'code': 'fase_apuestas', 'fase': n_fase, 'jugador': nombre_turno}
             else:
-                mensaje = "Fase de RECUENTO..."
+                mensaje = {'code': 'fase_recuento'}
         else:
             nombre_turno = jugadores[partida_actual.turno_de]['nombre'] if partida_actual.turno_de else "..."
-            mensaje = f"Fase: {partida_actual.fase.upper()}. Turno de: {nombre_turno}"
+            mensaje = {'code': 'fase_general', 'fase': partida_actual.fase, 'jugador': nombre_turno}
         
         info_apuestas = {
             'fase_actual': '',

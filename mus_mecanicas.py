@@ -412,10 +412,10 @@ class PartidaMus:
             m_tiene = tiene_pares(self.estado[self.id_mano]['cartas'])
             p_tiene = tiene_pares(self.estado[self.id_postre]['cartas'])
             if not m_tiene or not p_tiene:
-                if not m_tiene and not p_tiene: self.mensaje_transicion = "Nadie tiene Pares."
-                elif m_tiene: self.mensaje_transicion = "El Postre no tiene Pares."
-                else: self.mensaje_transicion = "La Mano no tiene Pares."
-                # ¡NUEVO! Avanzamos la máquina de estados internamente antes del return
+                if not m_tiene and not p_tiene: self.mensaje_transicion = {'code': 'nadie_pares'}
+                elif m_tiene: self.mensaje_transicion = {'code': 'no_pares', 'rol': 'postre'}
+                else: self.mensaje_transicion = {'code': 'no_pares', 'rol': 'mano'}
+                # Avanzamos la máquina de estados internamente antes del return
                 self.indice_fase += 1 
                 return
                 
@@ -426,14 +426,14 @@ class PartidaMus:
             # ¡NUEVO! Si nadie tiene, mostramos el aviso pero NO saltamos la fase
             if not m_tiene and not p_tiene:
                 if not getattr(self, 'transicion_punto_mostrada', False):
-                    self.mensaje_transicion = "Nadie tiene Juego. Se juega al Punto."
+                    self.mensaje_transicion = {'code': 'juego_a_punto'}
                     self.transicion_punto_mostrada = True
                     return # Hace la pausa de 3s, luego volverá a entrar aquí y pasará de largo
             
             # Si solo uno tiene, mostramos el aviso y SÍ saltamos la fase
             elif m_tiene != p_tiene:
-                if m_tiene: self.mensaje_transicion = "El Postre no tiene Juego."
-                else: self.mensaje_transicion = "La Mano no tiene Juego."
+                if m_tiene: self.mensaje_transicion = {'code': 'no_juego', 'rol': 'postre'}
+                else: self.mensaje_transicion = {'code': 'no_juego', 'rol': 'mano'}
                 self.indice_fase += 1
                 return
 

@@ -84,7 +84,22 @@ const dict = {
         has_subido: "Has subido: ",
         eres_mano: "(Eres Mano)",
         eres_postre: "(Eres Postre)",
-        resultados_ronda: "Resultados de la ronda:"        
+        resultados_ronda: "Resultados de la ronda:",
+        txt_mano: "Mano",
+        txt_postre: "Postre",
+        fase_grande: "GRANDE",
+        fase_chica: "CHICA",
+        fase_pares: "PARES",
+        fase_juego: "JUEGO",
+        fase_mus: "MUS",
+        msg_nadie_pares: "Nadie tiene Pares.",
+        msg_no_pares: "El {rol} no tiene Pares.",
+        msg_juego_a_punto: "Nadie tiene Juego. Se juega al Punto.",
+        msg_no_juego: "El {rol} no tiene Juego.",
+        msg_fase_descarte: "Fase: DESCARTE. Selecciona qué cartas quieres tirar.",
+        msg_fase_apuestas: "Fase de {fase}. Turno de: {jugador}",
+        msg_fase_recuento: "Fase de RECUENTO...",
+        msg_fase_general: "Fase: {fase}. Turno de: {jugador}"
 
     },
     en: {
@@ -104,7 +119,7 @@ const dict = {
         btn_ordago: "Órdago",
         btn_ver: "Call",
         btn_subir: "Raise",
-        btn_nover: "Don't see",
+        btn_nover: "Fold",
         btn_ordago_resp: "Órdago",
         al_mejor_de: "Best of:",
         al_mejor_de_colname: "Best of",
@@ -154,7 +169,22 @@ const dict = {
         has_subido: "You raised: ",
         eres_mano: "(You are Mano)",
         eres_postre: "(You are Postre)",
-        resultados_ronda: "Results of the round:"        
+        resultados_ronda: "Results of the round:",
+        txt_mano: "Mano",
+        txt_postre: "Postre",
+        fase_grande: "HIGH",
+        fase_chica: "LOW",
+        fase_pares: "PAIRS",
+        fase_juego: "GAME",
+        fase_mus: "MUS",
+        msg_nadie_pares: "No one has Pairs.",
+        msg_no_pares: "The {rol} doesn't have Pairs.",
+        msg_juego_a_punto: "No one has Game. Playing for Point.",
+        msg_no_juego: "The {rol} doesn't have Game.",
+        msg_fase_descarte: "Phase: DISCARD. Select which cards to throw.",
+        msg_fase_apuestas: "Phase {fase}. {jugador}'s turn",
+        msg_fase_recuento: "Phase COUNTING...",
+        msg_fase_general: "Phase: {fase}. {jugador}'s turn"
     }
 };
 
@@ -165,6 +195,16 @@ function t(clave) {
     // Si la clave existe en el idioma actual, la devuelve. Si no, devuelve la propia clave para que te des cuenta del error.
     return (dict[langActual] && dict[langActual][clave]) ? dict[langActual][clave] : clave;
 }
+
+// Traduce e inyecta variables dinámicas en la frase
+function t_dinamico(clave, variables) {
+    let texto = t(clave);
+    for (let prop in variables) {
+        texto = texto.replace('{' + prop + '}', variables[prop]);
+    }
+    return texto;
+}
+
 
 function aplicarTraduccion() {
 // 1. Traducir todos los elementos estáticos que tengan data-i18n
@@ -443,7 +483,7 @@ socket.on('actualizar_mesa', (datos) => {
 
             htmlBotes += `
             <div id="caja-en-aire" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #88c0d0;">
-                <p style="font-size: 1.1em; margin-bottom: 5px;" data-i18n="info_apuesta_vista">Apuesta vista: <span class="highlight">${datos.apuestas.apuesta_vista}</span></p>
+                <p style="font-size: 1.1em; margin-bottom: 5px;">${t('info_apuesta_vista')} <span class="highlight">${datos.apuestas.apuesta_vista}</span></p>
                 <p style="font-size: 1.2em; font-weight: bold; color: ${colorSube}; margin: 0;">${textoSube}</p>
             </div>`;
         }
@@ -453,7 +493,16 @@ socket.on('actualizar_mesa', (datos) => {
     }
 
     if (datos.mensaje_transicion) {
-        gameLog.innerHTML = `<strong style="color:#ebcb8b; font-size: 1.2em;">${datos.mensaje_transicion}</strong>`;
+        // NUEVO: Traducir transición dinámica
+        let textoTrans = "";
+        if (datos.mensaje_transicion.code === 'no_pares' || datos.mensaje_transicion.code === 'no_juego') {
+            let rolTrad = datos.mensaje_transicion.rol === 'mano' ? t('txt_mano') : t('txt_postre');
+            textoTrans = t_dinamico('msg_' + datos.mensaje_transicion.code, { rol: rolTrad });
+        } else {
+            textoTrans = t('msg_' + datos.mensaje_transicion.code);
+        }
+        
+        gameLog.innerHTML = `<strong style="color:#ebcb8b; font-size: 1.2em;">${textoTrans}</strong>`;
         mostrarBotones([]);
         if (datos.es_mi_turno) {
             setTimeout(() => socket.emit('accion_juego', { accion: 'continuar_transicion' }), 3000);
@@ -524,13 +573,25 @@ socket.on('actualizar_mesa', (datos) => {
     if(document.getElementById('partidas-mios')) {
         document.getElementById('partidas-mios').innerText = datos.mis_partidas;
         document.getElementById('partidas-rival').innerText = datos.partidas_rival;
-        document.querySelectorAll('.mejor-de-texto').forEach(el => el.innerText = t('al_mejor_de', { cantidad: datos.al_mejor_de }));
+        document.querySelectorAll('.mejor-de-texto').forEach(el => el.innerText = `${t('al_mejor_de')} ${datos.al_mejor_de }`);
     }
 
     if (datos.fase === 'descarte' && datos.descartes_listos) {
         gameLog.innerText = `${t('info_esperando_rival_descarte')}`;
     } else {
-        gameLog.innerText = datos.mensaje;
+        
+        let textoMsg = "";
+        if (datos.mensaje) {
+            if (datos.mensaje.code === 'fase_apuestas' || datos.mensaje.code === 'fase_general') {
+                let nombreFaseTraducida = t('fase_' + datos.mensaje.fase.toLowerCase());
+                textoMsg = t_dinamico('msg_' + datos.mensaje.code, { fase: nombreFaseTraducida, jugador: datos.mensaje.jugador });
+            } else {
+                textoMsg = t('msg_' + datos.mensaje.code);
+            }
+        }
+        
+        gameLog.innerText = textoMsg;
+
         if (datos.descartes_rival > 0 && datos.fase === 'mus') {
             gameLog.innerHTML += `<br><span style="color:#a3be8c; font-size:0.9em;">(${t('info_rival_cambio')} ${datos.descartes_rival} ${t('cartas')})</span>`;
         }
