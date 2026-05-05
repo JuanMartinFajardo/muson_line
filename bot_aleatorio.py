@@ -3,6 +3,7 @@ import random
 class BotAleatorio:
     def __init__(self, sid="BOT_EASY"):
         self.sid = sid
+        #self.name = "RandomBot"
 
     def obtener_accion(self, partida):
         fase = partida.fase
