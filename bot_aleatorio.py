@@ -10,36 +10,40 @@ class BotAleatorio:
         cartas = estado['cartas']
 
         # 1. Comprobar Pedrete (Prioridad absoluta)
-        # Solo se puede cantar en fase de mus o descarte si se tienen 4,5,6,7
         if fase in ['mus', 'descarte'] and cartas:
             valores = sorted([c['valor'] for c in cartas])
             if valores == [4, 5, 6, 7]:
                 return {'accion': 'pedrete'}
 
-        # 2. Transiciones automáticas (Pausas de 3 segundos en el frontend)
+        # 2. Transiciones automáticas
         if partida.mensaje_transicion:
             return {'accion': 'continuar_transicion'}
 
-        # 3. Espera de reparto inicial
-        if fase == 'espera_reparto':
-            return {'accion': 'repartir'}
-
-        # 4. Fase de Recuento (Siguiente partida/juego)
+        # 3. Fase de Recuento
         if fase == 'recuento':
             return {'accion': 'listo_siguiente_ronda'}
 
-        # 5. Fase de Mus
-        if fase == 'mus':
-            if estado['quiere_mus'] is None:
-                return {'accion': random.choice(['mus', 'no_mus'])}
-
-        # 6. Fase de Descarte
+        # 4. Fase de Descarte (¡NUEVA POSICIÓN!)
+        # En el descarte no hay turnos, ambos tiran a la vez de forma asíncrona.
         if fase == 'descarte':
             if not estado['descartes_listos']:
-                # El bot elige tirar entre 0 y 4 cartas de forma aleatoria
                 num_descartes = random.randint(0, 4)
                 indices = random.sample(range(4), num_descartes)
                 return {'accion': 'descartar', 'indices': indices}
+
+        # --- BLOQUEO DE TURNO ---
+        # Si llegamos aquí y NO es el turno del bot, no debe hacer nada.
+        if partida.turno_de != self.sid:
+            return None
+
+        # 5. Espera de reparto inicial
+        if fase == 'espera_reparto':
+            return {'accion': 'repartir'}
+
+        # 6. Fase de Mus
+        if fase == 'mus':
+            if estado['quiere_mus'] is None:
+                return {'accion': random.choice(['mus', 'no_mus'])}
 
         # 7. Fase de Apuestas (Grande, Chica, Pares, Juego)
         if fase == 'apuestas':
@@ -48,18 +52,14 @@ class BotAleatorio:
             apuesta_vista = partida.apuesta_vista
             max_apuesta = 40 - puntos_bot
 
-            # Si no hay subida pendiente, el bot inicia la apuesta
             if subida == 0:
                 opciones = ['pasar', 'envidar', 'ordago']
                 eleccion = random.choice(opciones)
                 
                 if eleccion == 'envidar':
-                    # Envida entre 2 y 5 (o el máximo que pueda)
                     cant = random.randint(2, min(5, max_apuesta)) if max_apuesta >= 2 else 2
                     return {'accion': 'envidar', 'cantidad': cant}
                 return {'accion': eleccion}
-            
-            # Si hay subida pendiente, el bot tiene que responder
             else:
                 if subida == 'ÓRDAGO':
                     return {'accion': random.choice(['ver', 'nover'])}
@@ -76,4 +76,4 @@ class BotAleatorio:
                         return {'accion': 'subir', 'cantidad': cant}
                     return {'accion': eleccion}
 
-        return None # No debería llegar aquí si es su turno
+        return None

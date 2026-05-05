@@ -4,6 +4,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 import string
 from mus_mecanicas import PartidaMus
+from bot_aleatorio import BotAleatorio
 
 app = Flask(__name__, static_folder='static', template_folder='.')
 app.config['SECRET_KEY'] = 'clave_secreta_mus'
@@ -123,6 +124,53 @@ def handle_crear_sala(datos):
     emit('sala_creada', {'codigo': codigo}, room=sid)
     emitir_lista_publicas()
 
+
+@socketio.on('crear_partida_bot')
+def handle_crear_partida_bot(datos):
+    sid = request.sid
+    nombre = datos.get('nombre', 'Humano')
+    al_mejor_de_valor = datos.get('al_mejor_de', 3)
+    real_username = session.get('username')
+
+    codigo = generar_codigo()
+    while codigo in salas:
+        codigo = generar_codigo()
+        
+    # Creamos un SID falso para el bot
+    bot_sid = 'BOT_' + codigo
+
+    jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': real_username}
+    jugadores[bot_sid] = {'nombre': 'Bot IA', 'sala': codigo, 'username': 'Bot IA'}
+    
+    join_room(codigo) 
+    
+    # Creamos la sala directamente en estado 'jugando' e inyectamos la instancia del bot
+    salas[codigo] = {
+        'estado': 'jugando', 
+        'sids': [sid, bot_sid], 
+        'al_mejor_de': al_mejor_de_valor, 
+        'publico': False, 
+        'username': real_username,
+        'bot': BotAleatorio(bot_sid) 
+    }
+    
+    partida = PartidaMus(sid, bot_sid)
+    partida.nombres_ia = {
+        sid: real_username if real_username else nombre,
+        bot_sid: 'Bot IA'
+    }
+    partida.al_mejor_de = al_mejor_de_valor
+    partida.iniciar_ronda()
+    salas[codigo]['motor'] = partida
+    
+    print(f"🤖 {nombre} ha creado la sala {codigo} contra la IA")
+    emit('sala_creada', {'codigo': codigo}, room=sid)
+    emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
+    enviar_estado_a_jugadores(codigo)
+
+
+
+
 @socketio.on('unirse_sala')
 def handle_unirse_sala(datos):
     sid = request.sid
@@ -182,8 +230,11 @@ def handle_unirse_sala(datos):
 def handle_accion_juego(datos):
     sid_jugador = request.sid
     if sid_jugador not in jugadores: return
-    
     codigo = jugadores[sid_jugador]['sala']
+
+    procesar_accion_interna(sid_jugador, codigo, datos)
+
+def procesar_accion_interna(sid_jugador, codigo, datos):
     if codigo not in salas or salas[codigo]['estado'] != 'jugando': return
     
     # Extraemos el motor específico de la sala donde está este jugador
@@ -244,7 +295,6 @@ def handle_accion_juego(datos):
             enviar_estado_a_jugadores(codigo)
 
 # --- 3. REPARTO CIEGO POR SALA ---
-
 def enviar_estado_a_jugadores(codigo_sala):
     puede_pedrete_ahora = False
     global show_global_log
@@ -253,6 +303,7 @@ def enviar_estado_a_jugadores(codigo_sala):
     partida_actual = sala['motor']
         
     for sid in sala['sids']:
+        if sid.startswith('BOT_'): continue
         estado_del_jugador = partida_actual.estado[sid]
         es_mi_turno = (sid == partida_actual.turno_de)
         soy_mano = (sid == partida_actual.id_mano)
@@ -290,16 +341,13 @@ def enviar_estado_a_jugadores(codigo_sala):
             if vals == [4, 5, 6, 7]:
                 puede_pedrete_ahora = True
 
-
         if partida_actual.fase == 'recuento':
             pasos_crudos = partida_actual.calcular_recuento()
 
-            # Si alguien acaba de ganar la partida y aún no lo hemos registrado
             if getattr(partida_actual, 'partida_sumada', False) and not getattr(partida_actual, 'db_registrada', False):
-                partida_actual.db_registrada = True # Ponemos el seguro para no sumar el premio dos veces
+                partida_actual.db_registrada = True 
                 import base_datos
                 
-                # Detectamos quién es el ganador
                 if partida_actual.estado[partida_actual.j1]['puntos'] >= 40:
                     ganador_sid, perdedor_sid = partida_actual.j1, partida_actual.j2
                 else:
@@ -310,11 +358,8 @@ def enviar_estado_a_jugadores(codigo_sala):
                 if u_ganador or u_perdedor:
                     base_datos.registrar_partida_completa(u_ganador, u_perdedor)
 
-            # ... Y preparamos el recuento bonito para el cliente
-
             datos_recuento = []
             for paso in pasos_crudos:
-                # Pasamos los datos puros y una bandera booleana para saber si el premio es nuestro
                 paso_limpio = {
                     'gano_yo': (paso['ganador_sid'] == sid),
                     'datos': paso['datos']
@@ -324,7 +369,9 @@ def enviar_estado_a_jugadores(codigo_sala):
         if show_global_log:
             print(f"📤 [SALA {codigo_sala}] Estado a {jugadores[sid]['nombre']}: Fase {partida_actual.fase}")
 
-        emit('actualizar_mesa', {
+        # === EL ARREGLO ESTÁ AQUÍ ===
+        payload = {
+            'para_sid': sid,  # Añadimos a quién va dirigido
             'fase': partida_actual.fase,
             'puede_pedrete': puede_pedrete_ahora,
             'es_mi_turno': es_mi_turno,
@@ -344,8 +391,28 @@ def enviar_estado_a_jugadores(codigo_sala):
             'partidas_rival': partida_actual.partidas_ganadas[rival_sid],
             'al_mejor_de': partida_actual.al_mejor_de,
             'match_finalizado': partida_actual.match_finalizado
-        }, room=sid)
+        }
+        
+        # Disparamos el mensaje a la sala entera, porque sabemos que eso sí llega siempre
+        socketio.emit('actualizar_mesa', payload, room=codigo_sala) 
 
+    # --- LÓGICA DEL BOT ---
+    if sala['estado'] == 'jugando' and 'bot' in sala:
+        bot_instance = sala['bot']
+        accion_datos = bot_instance.obtener_accion(partida_actual)
+        
+        if accion_datos:
+            bot_sid = bot_instance.sid
+            
+            def bot_action_task():
+                socketio.sleep(1.5) 
+                if codigo_sala in salas and salas[codigo_sala]['estado'] == 'jugando':
+                    acc = bot_instance.obtener_accion(salas[codigo_sala]['motor'])
+                    if acc:
+                        print(f"🤖 Bot ejecuta en sala {codigo_sala}: {acc}")
+                        procesar_accion_interna(bot_sid, codigo_sala, acc)
+            
+            socketio.start_background_task(bot_action_task)
 
 @socketio.on('abandonar_sala_limpiamente')
 def handle_abandonar_limpiamente():

@@ -49,7 +49,6 @@ def crear_baraja():
             elif valor == 10: nombre = 'Sota'
             elif valor == 11: nombre = 'Caballo'
             elif valor == 12: nombre = 'Rey'
-            print(f"Creando carta: {valor}_{palo.lower()}")
             baraja.append({
                 'valor': valor, 
                 'palo': palo,
@@ -57,7 +56,6 @@ def crear_baraja():
                 'img': obtener_ruta_imagen(f"{valor}_{palo.lower()}"),
                 'texto': f"{nombre} de {palo}"
             })
-            print(baraja)
     return baraja
 
 def get_valores_mus(cartas):

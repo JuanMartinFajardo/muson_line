@@ -116,7 +116,10 @@ const dict = {
         btn_unirse_publica: "Unirse",
         msg_no_publicas: "No hay partidas públicas ahora mismo. ¡Crea tú una!",
         txt_cartas_sin_repartir: "[Cartas sin repartir]",
-        txt_hola: "Hola"
+        txt_hola: "Hola",
+        btn_jugar_bot: "Jugar contra bot",
+        txt_creando_partida_bot: "Creando partida contra un bot...",
+        fase_espera_reparto: "Esperando el reparto..."
 
     },
     en: {
@@ -218,8 +221,10 @@ const dict = {
         btn_unirse_publica: "Join",
         msg_no_publicas: "There are no public games right now. Create one!",
         txt_cartas_sin_repartir: "[Cards not dealt yet]",
-        txt_hola: "Hello"
-
+        txt_hola: "Hello",
+        btn_jugar_bot: "Play against bot",
+        txt_creando_partida_bot: "Creating game against a bot...",
+        fase_espera_reparto: "Waiting for the deal..."
     }
 };
 
@@ -292,6 +297,23 @@ btnCrear.addEventListener('click', () => {
     btnUnirse.disabled = true;
     menuMsg.innerText = "Creando sala...";
 });
+
+const btnJugarBot = document.getElementById('btn-jugar-bot');
+
+btnJugarBot.addEventListener('click', () => {
+    miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 1";
+    let mejorDe = parseInt(document.getElementById('in-mejor-de').value) || 3;
+    
+    // Emitimos un nuevo evento específico para el bot
+    socket.emit('crear_partida_bot', { nombre: miNombre, al_mejor_de: mejorDe });
+    
+    btnCrear.disabled = true;
+    btnUnirse.disabled = true;
+    btnJugarBot.disabled = true;
+    menuMsg.innerText = t('txt_creando_partida_bot');
+});
+
+
 
 btnUnirse.addEventListener('click', () => {
     miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 2";
@@ -468,6 +490,18 @@ document.getElementById('btn-next-round').addEventListener('click', (e) => {
 // ==========================================
 
 socket.on('actualizar_mesa', (datos) => {
+    // 1. FILTRO: Si el paquete no es para mí, lo ignoro
+    if (datos.para_sid !== socket.id) return;
+    
+    // 2. CHIVATO: Esto imprimirá los datos en la consola si por fin llegan
+    // console.log("📥 Datos recibidos del servidor:", datos);
+
+    if (!enPartida) {
+        document.getElementById('menu-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        enPartida = true;
+    }
+    
     faseJuego = datos.fase;
 
     const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');

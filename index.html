@@ -55,6 +55,10 @@
                 </div>
 
                 <button id="btn-crear" data-i18n="btn_crear">Crear partida nueva</button>
+                
+                <!-- NUEVO: Botón para jugar contra la IA -->
+                <button id="btn-jugar-bot" data-i18n="btn_jugar_bot" style="margin-left: 10px; background-color: #b48ead; border: none; color: #eceff4; font-weight: bold; padding: 10px 15px; border-radius: 4px; cursor: pointer; transition: 0.3s;">Jugar contra bot</button>
+                
                 <div id="codigo-creado" class="hidden" style="margin-top: 10px;">
                     <p data-i18n="codigo_sala">Código de tu sala:</p>
                     <h2 id="txt-codigo" style="color: #ebcb8b; letter-spacing: 3px; font-size: 2em; margin: 10px 0;"></h2>
@@ -66,6 +70,7 @@
                 <input type="text" id="in-codigo" placeholder="Código de sala..." style="width: 60%; text-transform: uppercase; font-size: 1.1em; padding: 6px; text-align: center;" data-i18n="codigo_placeholder">
                 <button id="btn-unirse" data-i18n="btn_unirse">Unirse con código</button>
             </div>
+
             
             <!-- NUEVO: Tabla de partidas públicas con scroll -->
             <div style="padding: 10px; border: 1px solid #4c566a; border-radius: 8px; margin-top: 15px; background-color: #2e3440;">
