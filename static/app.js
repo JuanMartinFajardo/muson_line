@@ -115,7 +115,8 @@ const dict = {
         txt_tu_sala: "Tu sala",
         btn_unirse_publica: "Unirse",
         msg_no_publicas: "No hay partidas públicas ahora mismo. ¡Crea tú una!",
-        txt_cartas_sin_repartir: "[Cartas sin repartir]"
+        txt_cartas_sin_repartir: "[Cartas sin repartir]",
+        txt_hola: "Hola"
 
     },
     en: {
@@ -216,7 +217,8 @@ const dict = {
         txt_tu_sala: "Your room",
         btn_unirse_publica: "Join",
         msg_no_publicas: "There are no public games right now. Create one!",
-        txt_cartas_sin_repartir: "[Cards not dealt yet]"
+        txt_cartas_sin_repartir: "[Cards not dealt yet]",
+        txt_hola: "Hello"
 
     }
 };
@@ -833,7 +835,7 @@ fetch('/auth/sesion').then(res => res.json()).then(datos => {
 function actualizarInterfazLogueado(usuario) {
     document.getElementById('user-buttons').classList.add('hidden');
     document.getElementById('user-info-logged').classList.remove('hidden');
-    document.getElementById('txt-user-stats').innerText = `Hola, ${usuario.username} (Winrate: ${usuario.winrate}%)`;
+    document.getElementById('txt-user-stats').innerText = t('txt_hola') + `, ${usuario.username}`;
 
     let inNombre = document.getElementById('nombre-jugador');
     if (inNombre) {
