@@ -4,7 +4,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 import string
 from mus_mecanicas import PartidaMus
-from bot_aleatorio import BotAleatorio
+from bot_ml import SmartBot
 
 app = Flask(__name__, static_folder='static', template_folder='.')
 app.config['SECRET_KEY'] = 'clave_secreta_mus'
@@ -151,7 +151,7 @@ def handle_crear_partida_bot(datos):
         'al_mejor_de': al_mejor_de_valor, 
         'publico': False, 
         'username': real_username,
-        'bot': BotAleatorio(bot_sid) 
+        'bot': SmartBot(bot_sid) 
     }
     
     partida = PartidaMus(sid, bot_sid)

@@ -9,20 +9,36 @@ from probability_calculator import (
     calcular_valor_juego   
 )
 
-def crear_dataset_definitivo(archivo_entrada, archivo_salida):
+def crear_dataset(archivo_entrada, archivo_salida):
     datos_procesados = []
     memoria_jugadores = {}
     
+    # Memoria global de la mesa para rastrear el dinero apostado
+    estado_ronda = {
+        'ronda': -1, 
+        'botes': {'Grande': 0, 'Chica': 0, 'Pares': 0, 'Juego': 0}, 
+        'subida_pendiente': 0, 
+        'apuesta_vista': 0
+    }
+
     with open(archivo_entrada, 'r', encoding='utf-8') as f:
         for linea in f:
             turno = json.loads(linea)
             jugador = turno['jugador']
-            rival = turno['rival'] # Identificamos al rival
+            rival = turno['rival']
             ronda_actual = turno['ronda_n']
             fase = turno['fase']
             cartas_propias = turno['cartas_propias']
             
-            # 1. INICIALIZAR MEMORIAS (Tanto la nuestra como la del rival)
+            # --- 1. GESTIÓN DE MEMORIA Y BOTES ---
+            if estado_ronda['ronda'] != ronda_actual:
+                estado_ronda = {
+                    'ronda': ronda_actual, 
+                    'botes': {'Grande': 0, 'Chica': 0, 'Pares': 0, 'Juego': 0}, 
+                    'subida_pendiente': 0, 
+                    'apuesta_vista': 0
+                }
+            
             if jugador not in memoria_jugadores or memoria_jugadores[jugador]['ronda'] != ronda_actual:
                 memoria_jugadores[jugador] = {'ronda': ronda_actual, 'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False}
                 
@@ -32,14 +48,13 @@ def crear_dataset_definitivo(archivo_entrada, archivo_salida):
             memoria = memoria_jugadores[jugador]
             if fase == 'Pares': memoria['hubo_fase_pares'] = True
             
-            # 2. NORMALIZACIÓN DE CARTAS Y EXTRACCIÓN DE VARIABLES
+            # --- 2. NORMALIZACIÓN Y DEDUCCIÓN LÓGICA ---
             cartas_norm = [12 if c == 3 else 1 if c == 2 else c for c in cartas_propias]
             cartas_ordenadas = sorted(cartas_norm, reverse=True)
             
             cat_pares, val_pares = evaluar_pares(cartas_norm)
             estado_juego = calcular_valor_juego(cartas_norm)
             
-            # Deducción lógica del rival
             rival_pares_asumido = 0 
             if fase == 'Pares':
                 rival_pares_asumido = 1
@@ -48,7 +63,7 @@ def crear_dataset_definitivo(archivo_entrada, archivo_salida):
                 elif cat_pares > 0: rival_pares_asumido = -1
                 else: rival_pares_asumido = 0
 
-            # 3. CÁLCULO DE PROBABILIDADES
+            # --- 3. CÁLCULO MATEMÁTICO ---
             try:
                 prob_grande = calcular_probabilidad_grande(cartas_propias, memoria['mis_descartes'], turno['es_mano']).get('prob_ganar', 0.0)
                 prob_chica = calcular_probabilidad_chica(cartas_propias, memoria['mis_descartes'], turno['es_mano']).get('prob_ganar', 0.0)
@@ -60,7 +75,7 @@ def crear_dataset_definitivo(archivo_entrada, archivo_salida):
             except:
                 prob_grande, prob_chica, prob_pares, prob_juego, es_juego_real = 0.0, 0.0, 0.0, 0.0, 0
 
-            # 4. CONSTRUIR LA FILA DEL DATASET
+            # --- 4. CONSTRUCCIÓN DE LA FILA ---
             fila = {
                 "match_id": turno['match_id'],
                 "ronda_n": turno['ronda_n'],
@@ -80,7 +95,6 @@ def crear_dataset_definitivo(archivo_entrada, archivo_salida):
                 "tengo_juego": 1 if estado_juego['tiene_juego'] else 0,
                 "suma_puntos": estado_juego['suma'],
                 
-                # ¡NUEVO! Cuántas cartas ha tirado el rival en esta ronda
                 "descartes_rival": memoria['descartes_rival'],
                 
                 "rival_pares_deducido": rival_pares_asumido,
@@ -90,29 +104,51 @@ def crear_dataset_definitivo(archivo_entrada, archivo_salida):
                 "prob_pares": prob_pares,
                 "prob_juego": prob_juego,
                 
+                # ¡NUEVO! Historia de la mesa
+                "bote_grande": estado_ronda['botes']['Grande'],
+                "bote_chica": estado_ronda['botes']['Chica'],
+                "bote_pares": estado_ronda['botes']['Pares'],
+                "subida_pendiente": estado_ronda['subida_pendiente'] if turno.get('cantidad') != 'ÓRDAGO' else 40,
+                
                 "accion_realizada": turno['accion'],
-                "cantidad_apostada": turno['cantidad'],
+                "cantidad_apostada": turno.get('cantidad', 0),
                 "gano_ronda": 1 if turno['gano_ronda'] else 0
             }
             datos_procesados.append(fila)
 
-            # 5. ACTUALIZAR MEMORIAS AL FINAL DEL TURNO
+            # --- 5. ACTUALIZAR ESTADO PARA LA SIGUIENTE LÍNEA ---
+            # 5a. Actualizar descartes
             if turno['accion'] == 'descarte' and turno['detalles'] and 'cartas_tiradas' in turno['detalles']:
                 cartas_tiradas = turno['detalles']['cartas_tiradas']
-                
-                # Yo recuerdo qué cartas exactas he tirado (para calcular mis probabilidades)
                 memoria_jugadores[jugador]['mis_descartes'].extend(cartas_tiradas)
-                
-                # ¡NUEVO! Le apunto al rival CUÁNTAS cartas he tirado (para que lo sepa en su turno)
                 memoria_jugadores[rival]['descartes_rival'] += len(cartas_tiradas)
+                
+            # 5b. Actualizar mesa de apuestas
+            accion = turno['accion']
+            cantidad_apuesta = 40 if accion == 'ordago' or turno.get('cantidad') == 'ÓRDAGO' else turno.get('cantidad', 0)
+            
+            if accion in ['envidar', 'subir', 'ordago']:
+                if accion == 'subir':
+                    estado_ronda['apuesta_vista'] += estado_ronda['subida_pendiente']
+                estado_ronda['subida_pendiente'] = cantidad_apuesta
+            elif accion == 'ver':
+                if fase in estado_ronda['botes']:
+                    estado_ronda['botes'][fase] += (estado_ronda['apuesta_vista'] + estado_ronda['subida_pendiente'])
+                estado_ronda['subida_pendiente'] = 0
+                estado_ronda['apuesta_vista'] = 0
+            elif accion in ['nover', 'pasar']:
+                estado_ronda['subida_pendiente'] = 0
+                estado_ronda['apuesta_vista'] = 0
 
     df = pd.DataFrame(datos_procesados)
     acciones_a_ignorar = ['repartir', 'continuar_transicion', 'listo_siguiente_ronda']
     df = df[~df['accion_realizada'].isin(acciones_a_ignorar)]
     
     df.to_csv(archivo_salida, index=False)
-    print(f"✅ Dataset con descartes del rival creado en {archivo_salida}")
+    print(f"✅ Dataset finalizado exportado a: {archivo_salida}")
     return df
 
 if __name__ == '__main__':
-    crear_dataset_definitivo('1C9OGW_2.jsonl', 'dataset_mus_mascado.csv')
+    # Sustituye por el nombre de tu archivo de entrada si haces una prueba aislada
+    filename = '1C9OGW' 
+    crear_dataset(f'{filename}.jsonl', f'{filename}_dataset.csv')

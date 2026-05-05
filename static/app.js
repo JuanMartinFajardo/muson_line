@@ -101,7 +101,7 @@ const dict = {
         msg_fase_recuento: "Fase de RECUENTO...",
         msg_fase_general: "Fase: {fase}. Turno de: {jugador}",
         msg_resultados: "Resultados de la ronda:",
-        msg_recuento_nover: "(Alguient no quiso ver en {fase})",
+        msg_recuento_nover: "(Alguien no quiso ver en {fase})",
         msg_recuento_gana_yo: "<b> Has </b> ganado {puntos} en {fase}.",
         msg_recuento_gana_rival: "<b>El rival ha</b> ganado {puntos} puntos en {fase}.",
         msg_recuento_pedrete_win_yo: "<b>Has</b> ganado la partida con un ¡Pedrete!",
@@ -494,7 +494,7 @@ socket.on('actualizar_mesa', (datos) => {
     if (datos.para_sid !== socket.id) return;
     
     // 2. CHIVATO: Esto imprimirá los datos en la consola si por fin llegan
-    // console.log("📥 Datos recibidos del servidor:", datos);
+     console.log("📥 Datos recibidos del servidor:", datos);
 
     if (!enPartida) {
         document.getElementById('menu-screen').classList.add('hidden');

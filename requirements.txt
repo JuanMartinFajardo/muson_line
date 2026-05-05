@@ -3,3 +3,5 @@ Flask-SocketIO
 eventlet
 gunicorn
 pandas
+scikit-learn
+joblib
