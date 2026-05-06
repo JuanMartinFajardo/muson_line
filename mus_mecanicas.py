@@ -611,7 +611,7 @@ class PartidaMus:
             import os
             
             # 1. Nos aseguramos de que la carpeta existe para no ensuciar el directorio raíz
-            carpeta_logs = 'logs_ia'
+            carpeta_logs = 'logs'
             if not os.path.exists(carpeta_logs):
                 os.makedirs(carpeta_logs)
                 

@@ -2,7 +2,7 @@ import random
 import pandas as pd
 import joblib
 import os
-from probability_calculator import (
+from learn.probability_calculator import (
     calcular_probabilidad_grande,
     calcular_probabilidad_chica,
     calcular_probabilidad_pares,
@@ -18,20 +18,20 @@ class SmartBot:
         
         # 1. Cargar Cerebro de Mus
         self.modelo_mus = None
-        if os.path.exists('modelo_decisor_mus.pkl'):
-            self.modelo_mus = joblib.load('modelo_decisor_mus.pkl')
+        if os.path.exists('/learn/models/modelo_decisor_mus.pkl'):
+            self.modelo_mus = joblib.load('/learn/models/modelo_decisor_mus.pkl')
             print("🧠 [BOT] Cerebro de Mus cargado.")
             
         # 2. Cargar Cerebro de Descartes
         self.modelo_descartes = None
-        if os.path.exists('modelo_descartes.pkl'):
-            self.modelo_descartes = joblib.load('modelo_descartes.pkl')
+        if os.path.exists('/learn/models/modelo_descartes.pkl'):
+            self.modelo_descartes = joblib.load('/learn/models/modelo_descartes.pkl')
             print("🧠 [BOT] Cerebro de Descartes cargado.")
 
         # 3. Cargar Cerebro de Apuestas
         self.modelo_apuestas = None
-        if os.path.exists('modelo_apuestas.pkl'):
-            self.modelo_apuestas = joblib.load('modelo_apuestas.pkl')
+        if os.path.exists('/learn/models/modelo_apuestas.pkl'):
+            self.modelo_apuestas = joblib.load('/learn/models/modelo_apuestas.pkl')
             print("🧠 [BOT] Cerebro de Apuestas cargado.")
         else:
             print("⚠️ [BOT] No se encontró el modelo de apuestas. Usando modo aleatorio.")
