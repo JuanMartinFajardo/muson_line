@@ -276,6 +276,27 @@ document.getElementById('btn-lang').addEventListener('click', () => {
 aplicarTraduccion();
 
 
+// ==========================================
+// PANTALLA COMPLETA
+// ==========================================
+const btnFullscreen = document.getElementById('btn-fullscreen');
+if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', () => {
+        // Si NO estamos en pantalla completa, la pedimos
+        if (!document.fullscreenElement) {
+            // Se la pedimos al elemento raíz (toda la página)
+            document.documentElement.requestFullscreen().catch(err => {
+                console.log(`Error al intentar iniciar pantalla completa: ${err.message}`);
+            });
+        } else {
+            // Si ya estamos, salimos
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    });
+}
+
 
 // ==========================================
 // 1. LÓGICA DEL MENÚ Y SALAS

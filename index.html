@@ -10,18 +10,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
+
+    <!-- BOTÓN GLOBAL (Siempre visible) -->
+    <div style="position: fixed; right: 15px; top: 15px; z-index: 1000;">
+        <button id="btn-fullscreen" style="background: rgba(46, 52, 64, 0.8); border: 1px solid #d8dee9; color: #d8dee9; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 1.1em;" title="Pantalla Completa">⛶</button>
+    </div>
+
+
+
    <!-- ========================================= -->
     <!-- 1. PANTALLA PRINCIPAL (MENÚ LOBBY)        -->
     <!-- ========================================= -->
     <div id="menu-screen" class="screen">
         
+        <!-- BOTÓN DE IDIOMA (Desaparece en la partida) -->
+        <div style="position: fixed; right: 60px; top: 15px; z-index: 999;">
+            <button id="btn-lang" style="background: rgba(46, 52, 64, 0.8); border: 1px solid #d8dee9; color: #d8dee9; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">EN</button>
+        </div>
+
+
         <!-- BARRA SUPERIOR DE USUARIO (Centrada y encima del título) -->
         <div id="user-bar" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 10px; margin-top: 20px;">
 
-            <!-- NUEVO: Selector de idioma -->
-            <div style="position: absolute; right: 20px; top: 0;">
-                <button id="btn-lang" style="background: transparent; border: 1px solid #d8dee9; color: #d8dee9; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">EN</button>
-            </div>
 
             <div id="user-buttons" style="display: flex; gap: 15px;">
                 <button id="btn-show-login" data-i18n="btn_login" style="background-color: transparent; border: 1px solid #88c0d0; color: #88c0d0; padding: 8px 20px; font-size: 1em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Iniciar Sesión</button>

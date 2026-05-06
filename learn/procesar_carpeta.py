@@ -10,57 +10,74 @@ def compilar_dataset_global(carpeta_logs, archivo_salida_global):
     Busca todos los archivos .jsonl en 'carpeta_logs', extrae las features
     avanzadas (cartas, memoria, probabilidades) y los une en un solo CSV gigante.
     """
-    print(f"🔍 Buscando logs en la carpeta: '{carpeta_logs}'...")
+    print(f"🔍 Searching for logs in folder: '{carpeta_logs}'...")
     
     # 1. Buscar todos los archivos .jsonl en el directorio
     patron_busqueda = os.path.join(carpeta_logs, '*.jsonl')
     archivos_jsonl = glob.glob(patron_busqueda)
     
     if not archivos_jsonl:
-        print(f"❌ Error: No se encontraron archivos .jsonl en '{carpeta_logs}'.")
+        print(f"❌ Error: No .jsonl files found in '{carpeta_logs}'.")
         return
         
-    print(f"📁 Encontrados {len(archivos_jsonl)} archivos de partidas.")
+    # --- 1. LÓGICA INCREMENTAL ---
+    archivos_procesados = set()
+    df_existente = None
+    
+    if os.path.exists(archivo_salida_global):
+        print(f"📄 CSV global detectado. Leyendo historial...")
+        df_existente = pd.read_csv(archivo_salida_global)
+        if 'origen_log' in df_existente.columns:
+            archivos_procesados = set(df_existente['origen_log'].unique())
+            print(f"✅ There are {len(archivos_procesados)} logs that have already been processed previously.")
+    
+    # Filtramos para quedarnos solo con los archivos que NO están en el set
+    archivos_a_procesar = [ruta for ruta in archivos_jsonl if os.path.basename(ruta) not in archivos_procesados]
+    
+    if not archivos_a_procesar:
+        print("✨ No hay archivos nuevos. El dataset ya está 100% actualizado.")
+        return df_existente
+        
+    print(f"📁 Found {len(archivos_a_procesar)} new files to process.")
     
     lista_dataframes = []
     
-    # 2. Procesar archivo por archivo
-    for ruta_archivo in archivos_jsonl:
+    # 2. Procesar solo los archivos nuevos
+    for ruta_archivo in archivos_a_procesar:
         nombre_archivo = os.path.basename(ruta_archivo)
         print(f"  ⏳ Procesando {nombre_archivo}...")
         
         try:
-            # Reutilizamos la función que ya tenemos, pero le decimos
-            # que guarde un archivo temporal invisible. No necesitamos ese CSV intermedio,
-            # lo que nos interesa es el DataFrame (df) que devuelve la función.
             df_partida = crear_dataset(ruta_archivo, 'temp_dummy.csv')
-            
-            # Añadimos una pequeña columna para saber de qué archivo vino (útil para debug)
             df_partida['origen_log'] = nombre_archivo
-            
             lista_dataframes.append(df_partida)
         except Exception as e:
-            print(f"  ⚠️ Error al procesar {nombre_archivo}: {e}")
+            print(f"  ⚠️ Error while processing {nombre_archivo}: {e}")
             continue
 
-    # Borramos el archivo temporal (limpieza)
     if os.path.exists('temp_dummy.csv'):
         os.remove('temp_dummy.csv')
 
-    # 3. Unir todos los DataFrames en uno solo
+    # 3. Unir los datos viejos con los nuevos
     if lista_dataframes:
-        df_global = pd.concat(lista_dataframes, ignore_index=True)
+        df_nuevos = pd.concat(lista_dataframes, ignore_index=True)
         
-        # Guardar el mastodonte
+        if df_existente is not None:
+            df_global = pd.concat([df_existente, df_nuevos], ignore_index=True)
+        else:
+            df_global = df_nuevos
+            
         df_global.to_csv(archivo_salida_global, index=False)
         print("\n=======================================================")
-        print(f"✅ ¡ÉXITO! Se han compilado {len(df_global)} lances en total.")
-        print(f"💾 Guardado como: '{archivo_salida_global}'")
+        print(f"✅ ¡Success!  {len(df_nuevos)} new lances added.")
+        print(f"📊 Total historical in the CSV: {len(df_global)} lances.")
+        print(f"💾 Saved as: '{archivo_salida_global}'")
         print("=======================================================")
         return df_global
     else:
-        print("❌ No se pudo extraer ningún dato válido de los archivos.")
-        return None
+        print("❌ No valid data was generated from the new files.")
+        return df_existente
+    
 
 if __name__ == '__main__':
     # Ruta de la carpeta donde tienes los .jsonl
@@ -70,6 +87,6 @@ if __name__ == '__main__':
     
     # Asegúrate de que la carpeta existe antes de ejecutar
     if not os.path.exists(carpeta):
-        print(f"❌ Error: La carpeta '{carpeta}' no existe. Créala y mete los .jsonl dentro.")
+        print(f"❌ Error: Folder '{carpeta}' does not exist. Create it and place the .jsonl files inside.")
     else:
         compilar_dataset_global(carpeta, archivo_final)

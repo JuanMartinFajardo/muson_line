@@ -9,6 +9,21 @@ from learn.probability_calculator import (
     calcular_valor_juego   
 )
 
+
+def crear_mascara_descarte(cartas_propias, cartas_tiradas):
+    norm_mano = [12 if c == 3 else 1 if c == 2 else c for c in cartas_propias]
+    mano_ordenada = sorted(norm_mano, reverse=True)
+    tiradas_norm = [12 if c == 3 else 1 if c == 2 else c for c in cartas_tiradas]
+    mask = [0, 0, 0, 0]
+    temp_mano = mano_ordenada.copy()
+    for t in tiradas_norm:
+        if t in temp_mano:
+            idx = temp_mano.index(t)
+            mask[idx] = 1
+            temp_mano[idx] = -1 
+    return "".join(map(str, mask))
+
+
 def crear_dataset(archivo_entrada, archivo_salida):
     datos_procesados = []
     memoria_jugadores = {}
@@ -75,6 +90,11 @@ def crear_dataset(archivo_entrada, archivo_salida):
             except:
                 prob_grande, prob_chica, prob_pares, prob_juego, es_juego_real = 0.0, 0.0, 0.0, 0.0, 0
 
+
+            mascara = None
+            if turno['accion'] in ['descarte', 'descartar'] and turno.get('detalles') and 'cartas_tiradas' in turno['detalles']:
+                mascara = crear_mascara_descarte(cartas_propias, turno['detalles']['cartas_tiradas'])
+
             # --- 4. CONSTRUCCIÓN DE LA FILA ---
             fila = {
                 "match_id": turno['match_id'],
@@ -96,6 +116,7 @@ def crear_dataset(archivo_entrada, archivo_salida):
                 "suma_puntos": estado_juego['suma'],
                 
                 "descartes_rival": memoria['descartes_rival'],
+                "mascara_descarte": mascara,
                 
                 "rival_pares_deducido": rival_pares_asumido,
                 "es_juego_real": es_juego_real,

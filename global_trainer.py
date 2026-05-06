@@ -6,7 +6,7 @@ from learn.entrenar_apuestas import entrenar_modelo_apuestas
 def global_model_trainer(carpeta_datos,csv_path):
     # 1. Compilar el dataset global a partir de la carpeta de datos
     print("📂 Compilating the global dataset from the data folder...")
-    #compilar_dataset_global(carpeta_datos, csv_path)
+    compilar_dataset_global(carpeta_datos, csv_path)
     
     # 2. Entrenar el modelo para decidir si se da Mus o no
     print("\n🎯 Training the model to decide whether to say Mus or not...")

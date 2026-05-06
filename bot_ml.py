@@ -18,23 +18,23 @@ class SmartBot:
         
         # 1. Cargar Cerebro de Mus
         self.modelo_mus = None
-        if os.path.exists('/learn/models/modelo_decisor_mus.pkl'):
-            self.modelo_mus = joblib.load('/learn/models/modelo_decisor_mus.pkl')
+        if os.path.exists('learn/models/modelo_decisor_mus.pkl'):
+            self.modelo_mus = joblib.load('learn/models/modelo_decisor_mus.pkl')
             print("🧠 [BOT] Cerebro de Mus cargado.")
             
         # 2. Cargar Cerebro de Descartes
         self.modelo_descartes = None
-        if os.path.exists('/learn/models/modelo_descartes.pkl'):
-            self.modelo_descartes = joblib.load('/learn/models/modelo_descartes.pkl')
+        if os.path.exists('learn/models/modelo_descartes.pkl'):
+            self.modelo_descartes = joblib.load('learn/models/modelo_descartes.pkl')
             print("🧠 [BOT] Cerebro de Descartes cargado.")
 
         # 3. Cargar Cerebro de Apuestas
         self.modelo_apuestas = None
-        if os.path.exists('/learn/models/modelo_apuestas.pkl'):
-            self.modelo_apuestas = joblib.load('/learn/models/modelo_apuestas.pkl')
+        if os.path.exists('learn/models/modelo_apuestas.pkl'):
+            self.modelo_apuestas = joblib.load('learn/models/modelo_apuestas.pkl')
             print("🧠 [BOT] Cerebro de Apuestas cargado.")
         else:
-            print("⚠️ [BOT] No se encontró el modelo de apuestas. Usando modo aleatorio.")
+            print("⚠️ [BOT] No se encontró el modelo. Usando modo aleatorio.")
 
     def actualizar_memoria(self, partida):
         if self.memoria['ronda'] != partida.ronda_n:
@@ -118,12 +118,15 @@ class SmartBot:
             'tengo_juego', 'suma_puntos', 'prob_grande', 'prob_chica', 'prob_pares', 'prob_juego'
         ])
         
-        # Predecir máscara (ej: "0011")
-        mascara = self.modelo_descartes.predict(df_input)[0]
+        # Predecir máscara (el modelo devuelve un int, ej: 11 o 1111)
+        mascara_raw = self.modelo_descartes.predict(df_input)[0]
+        
+        # Lo convertimos a texto y forzamos 4 dígitos (11 -> "0011")
+        mascara_str = str(mascara_raw).zfill(4)
         
         # Mapear los '1' de la máscara a los índices originales
         indices_a_tirar = []
-        for i, bit in enumerate(mascara):
+        for i, bit in enumerate(mascara_str):
             if bit == '1':
                 indice_original = cartas_ordenadas_con_indices[i][0]
                 indices_a_tirar.append(indice_original)

@@ -183,6 +183,36 @@ body {
     margin: 0 auto;       
 }
 
+
+/* Arreglo del scroll negativo para el menú principal */
+#menu-screen:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Obliga a empezar desde arriba */
+    align-items: center;
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto; /* Permite deslizar si el menú es muy largo */
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+}
+
+/* El mismo truco del "muelle invisible" para centrar el menú si sobra espacio */
+#menu-screen::before,
+#menu-screen::after {
+    content: "";
+    margin: auto;
+}
+
+/* Evitamos que el panel central se aplaste */
+#menu-screen .panel {
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 500px;
+}
+
+
 #center-table {
     flex-grow: 1;
     display: flex;

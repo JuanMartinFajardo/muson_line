@@ -7,7 +7,8 @@ import joblib
 def entrenar_modelo_mus(csv_path):
     # 1. Cargar el dataset
     df = pd.read_csv(csv_path)
-    
+    df = df[df['gano_ronda'] == 1].copy()  # Nos quedamos solo con los lances donde el jugador ganó la ronda
+
     # 2. Filtrar solo las acciones de la fase de 'mus'
     df_mus = df[df['fase'] == 'mus'].copy()
     
@@ -46,11 +47,11 @@ def entrenar_modelo_mus(csv_path):
     predicciones = modelo.predict(X_test)
     precision = accuracy_score(y_test, predicciones)
     
-    print("\n✅ --- RESULTADOS DEL EXAMEN ---")
-    print(f"Precisión global (Accuracy): {precision * 100:.2f}%")
-    print("\nMatriz de Confusión:")
+    print("\n✅ --- Test results ---")
+    print(f"Precision global (Accuracy): {precision * 100:.2f}%")
+    print("\nConfusion Matrix:")
     print(confusion_matrix(y_test, predicciones))
-    print("\nReporte Detallado:")
+    print("\nDetailed Report:")
     print(classification_report(y_test, predicciones, target_names=['Da Mus (0)', 'Corta Mus (1)']))
 
     # 7. Ver qué le importa más a la IA
@@ -58,13 +59,13 @@ def entrenar_modelo_mus(csv_path):
     resumen_importancias = pd.DataFrame({'Variable': features, 'Importancia': importancias})
     resumen_importancias = resumen_importancias.sort_values(by='Importancia', ascending=False)
     
-    print("\n🧠 --- ¿EN QUÉ SE FIJA LA IA PARA DECIDIR? ---")
+    print("\n🧠 --- What Does the AI Focus On When Deciding? ---")
     print(resumen_importancias.head(7).to_string(index=False))
 
     # 8. Guardar el "cerebro" en un archivo
     archivo_modelo = 'learn/models/modelo_decisor_mus.pkl'
     joblib.dump(modelo, archivo_modelo)
-    print(f"\n💾 Modelo guardado exitosamente como '{archivo_modelo}'.")
+    print(f"\n💾 Model saved successfully as '{archivo_modelo}'.")
 
 if __name__ == '__main__':
     entrenar_modelo_mus('learn/datasets/compiled_dataset.csv')
