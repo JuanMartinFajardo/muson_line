@@ -13,12 +13,12 @@ In this readme you will find
 
 # 1. What is CallMus?
 
-CallMus is intended to be a simple but robust online plataform to play the two player version of Mus. The app offers so far two modes: online playing and playing against a bot.
-To play online one can press 'Create new game' and get a code. To play with someone, just send him/her the code. If 'Public game' is activated, it will appear in a list of public games, from where other players can join.
+CallMus is intended to be a simple but robust online plataform to play the two player version of Mus. The app offers so far two modes: **online** playing and playing **against a bot**.
+To play online one can press **Create new game** and get a code. To play with someone, just send him/her the code. If **Public game** is activated, it will appear in a list of public games, from where other players can join.
 
 The game is translated into Spanish and English.
 
-I included an account system to keep track of the winings. When played logged, the matches contribute to compute an ELO ranking among players.
+I included an **account system** to keep track of the winings. When played logged, the matches contribute to compute an **ELO ranking** among players.
 
 
 # 2. How to run the python server?
@@ -44,28 +44,28 @@ To run it locally and make test, I personally use ngrok.
 # 3. How does the bot learn to play Mus?
 
 The bot "intelligence" consists on three parts.
-1. A model for deciding whether to mus or not
-2. A model to decide what cards to discard in case of mus.
-3. A model to handel the bettings.
+1. A model for deciding **whether to discard or not** (Mus vs no Mus)
+2. A model to decide **which cards to discard** in case of mus.
+3. A model to handel the **bettings**.
  
 
-For the sake of the training, every game generates a log that is stored in the folder `logs` as a .jsonl file. 
+For the sake of the training, **every game generates a log** that is stored in the folder `logs` as a .jsonl file. 
 Each line records all the data regarding a single turn: which cards players had, who's turn was, what action it took place, what was the bet called so far, how many points each player had, and who eventually won the round, among others.
 
-To make the models more efficient, we developed a python script to count the probability of winning each round with given cards (`lean/probability_calculator.py`). We give the model these derived variables as an extra input to make the learning more based on rationality.
+To make the models more efficient, we developed a python script to count the **probability of winning** each round with given cards (`lean/probability_calculator.py`). We give the model these derived variables as an extra input to make the learning more based on rationality.
 
 
-1. The Mus/no Mus model is trained using a random forest to read these lines (actually, only the ones corresponding to turns of the winner) and predict an output: Mus/no Mus
-2. The card discarding model is trained as well using a random forest algorithm to learn from the discards of the winners. In this case the output generated is a binary number from 1 to 16 (as there are 16 possible discards). As discarding the first and the second card from 4,5,10,2 (discard code 1100) is the same as discarding the third and the fourth from 10,2,4,5 ( discard code 0011), we sort the cards increasingly.
-3. The betting model is trained in the same fashion usind a random forest algorithm to decide between (bid, fold, raise, ordago) depending on the case. 
+1. The Mus/no Mus model is trained using a **random forest** to read these lines (actually, only the ones corresponding to turns of the winner) and predict an output: **Mus/no Mus**
+2. The card discarding model is trained as well using a **random forest** algorithm to learn from the discards of the winners. In this case the output generated is a **binary number from 1 to 16** (as there are 16 possible discards). As discarding the first and the second card from 4,5,10,2 (discard code 1100) is the same as discarding the third and the fourth from 10,2,4,5 ( discard code 0011), we sort the cards increasingly.
+3. The betting model is trained in the same fashion usind a **random forest** algorithm to decide between the **options** (bid, fold, raise, ordago) depending on the case. 
 
 To train it, execute `python3 global_trainer.py`.
 
 
 Performance so far:
-1. The first model shows a really good performance. Basically, it learnt what hands are good enough to keep.
-2. The second model works fine as well. It learnt how to improve a hand by throwing the right cards.
-3. The third model is not good enough. It can play, but it is extremely cautious and almost never raises the bet. Basically, with this model, it learnt how to play 'statistically' like the players. In Mus for two, players are usually cauitous and what determines the edge is the ability to bluff at the right time. As there is no possible way to imitate this globally, players must learn in each game how to bluff the particular opponent. I am seeking another model that can achieve this goal better.
+1. The first model shows a really **good performance**. Basically, it learnt what hands are good enough to keep.
+2. The second model **works fine** as well. It learnt how to improve a hand by throwing the right cards.
+3. The third model is **not good enough**. It can play, but it is extremely cautious and almost never raises the bet. Basically, with this model, it learnt how to play 'statistically' like the players. In Mus for two, players are usually cauitous and what determines the edge is the **ability to bluff at the right time**. As there is no possible way to imitate this globally, players must learn in each game how to bluff the particular opponent. I am seeking another model that can achieve this goal better.
 
 To sum up, learning to imitate is a good strategy for the first two models, but not for the third.
 
