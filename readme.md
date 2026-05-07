@@ -2,7 +2,7 @@
 # CallMus
 CallMus is an online app to play the 2 player version of the Spanish card game Mus.
 
-In this readme you will find
+In this readme you will find:
 
 1. An overview of the project CallMus
 2. How to set up the server
@@ -63,9 +63,9 @@ To train it, execute `python3 global_trainer.py`.
 
 
 Performance so far:
-1. The first model shows a really **good performance**. Basically, it learnt what hands are good enough to keep.
-2. The second model **works fine** as well. It learnt how to improve a hand by throwing the right cards.
-3. The third model is **not good enough**. It can play, but it is extremely cautious and almost never raises the bet. Basically, with this model, it learnt how to play 'statistically' like the players. In Mus for two, players are usually cauitous and what determines the edge is the **ability to bluff at the right time**. As there is no possible way to imitate this globally, players must learn in each game how to bluff the particular opponent. I am seeking another model that can achieve this goal better.
+1. The first model shows a really **good performance**. Basically, it learnt what hands are good enough to keep. The test showed a $90%$ of accuracy (with respect to human decisions)
+2. The second model **works fine** as well. It learnt how to improve a hand by throwing the right cards. The accuracy was around $70%$
+3. The third model is **not good enough**. It can play, but it is extremely cautious and almost never raises the bet. Basically, with this model, it learnt how to play 'statistically' like the players. In Mus for two, players are usually cauitous and what determines the edge is the **ability to bluff at the right time**. As there is no possible way to imitate this globally, players must learn in each game how to bluff the particular opponent. I am seeking another model that can achieve this goal better. Accuracy respect to human decisions (imitating) is of $65%$. The number is not good and the play-like-human criteria is not even a good test.
 
 To sum up, learning to imitate is a good strategy for the first two models, but not for the third.
 
@@ -140,3 +140,6 @@ If a bet was accepted, the winner of that round takes the points. If everyone pa
 * **The Bluff:** Since there is no partner to worry about, bluffing is more frequent. You can bet "Grande" even with poor cards to force a "Fold"
 * **The Órdago:** Use the *Órdago* cautiously. It is a powerful tool to stop an opponent who is about to reach the winning score.
 * **Postre:** The dealer (Postre) has the advantage in a tie, as the non-dealer (Mano) wins ties in the showdown.
+
+
+## 5. A few words about Mus
