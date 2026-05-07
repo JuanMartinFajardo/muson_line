@@ -1,7 +1,8 @@
-Mus is a famous Spanish card game.
+
+# CallMus
+CallMus is an online app to play the 2 player version of the Spanish card game Mus.
 
 In this readme you will find
-
 
 1. An overview of the project CallMus
 2. How to set up the server
@@ -12,7 +13,12 @@ In this readme you will find
 
 # 1. What is CallMus?
 
+CallMus is intended to be a simple but robust online plataform to play the two player version of Mus. The app offers so far two modes: online playing and playing against a bot.
+To play online one can press 'Create new game' and get a code. To play with someone, just send him/her the code. If 'Public game' is activated, it will appear in a list of public games, from where other players can join.
 
+The game is translated into Spanish and English.
+
+I included an account system to keep track of the winings. When played logged, the matches contribute to compute an ELO ranking among players.
 
 
 # 2. How to run the python server?
@@ -69,20 +75,20 @@ To sum up, learning to imitate is a good strategy for the first two models, but 
 
 Mus is a classic Spanish card game traditionally played in partnerships, but the two-player variant offers a fast-paced, psychological duel. This version emphasizes bluffing and tactical betting.
 
-## 1. The Basics
+## 4.1. The Basics
 * **The Deck:** A standard 40-card Spanish deck (no 8s, 9s, or 10s).
 * **Special Card Values:** * **3s** are considered **Kings**.
     * **2s** are considered **Aces**.
     * This means there are effectively 8 Kings and 8 Aces in the deck.
 * **Winning:** The game is usually played to **30 or 40 points** (tracked with stones or beans called *amarrakos*).
 
-## 2. The Deal and "Mus"
+## 4.2. The Deal and "Mus"
 1.  Each player is dealt **4 cards**.
 2.  The non-dealer speaks first. They can say **"Mus"** (if they want to discard and draw new cards) or **"No Mus"** (to start the betting rounds immediately).
 3.  **If both say "Mus":** Both players discard any number of cards and receive replacements from the dealer. This continues until one player says "No Mus."
 4.  **If one says "No Mus":** The discarding phase ends, and the betting begins.
 
-## 3. The Four Lances (Rounds)
+## 4.3. The Four Lances (Rounds)
 In every hand, players compete in four distinct categories. Betting happens in each category before moving to the next.
 
 ### I. Grande (Big)
@@ -108,7 +114,7 @@ In every hand, players compete in four distinct categories. Betting happens in e
 * **Hierarchy:** 31 is the best, then 40, 37, 36, 35, 34, 33, and 32.
 * **Punto:** If neither player has 31 or more, they bet on who is closest to 31 (this is called "Punto").
 
-## 4. Betting Mechanics
+## 4.4. Betting Mechanics
 In any round, a player can:
 * **Pass:** Move to the next round without betting.
 * **Envido (Bet):** Offer a bet (minimum 2 points).
@@ -116,7 +122,7 @@ In any round, a player can:
 * **No veo (I decline):** The player who bet takes 1 point immediately, and the round ends.
 * **Órdago:** A bet for the entire game. If accepted, cards are shown immediately to decide the winner of the whole match.
 
-## 5. Scoring Table (End of Hand)
+## 4.5. Scoring Table (End of Hand)
 If a bet was accepted, the winner of that round takes the points. If everyone passed, the winner of the round takes "de paso" points at the end.
 
 | Category | Points for Winner |
@@ -129,7 +135,7 @@ If a bet was accepted, the winner of that round takes the points. If everyone pa
 | **Juego (not 31)** | 2 points |
 | **Punto** | 1 point |
 
-## 6. Two-Player Strategy Tips
+## 4.6. Two-Player Strategy Tips
 * **The Bluff:** Since there is no partner to worry about, bluffing is more frequent. You can bet "Grande" even with poor cards to force a "Fold"
 * **The Órdago:** Use the *Órdago* cautiously. It is a powerful tool to stop an opponent who is about to reach the winning score.
 * **Postre:** The dealer (Postre) has the advantage in a tie, as the non-dealer (Mano) wins ties in the showdown.
