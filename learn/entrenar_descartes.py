@@ -31,6 +31,7 @@ def entrenar_modelo_descartes(csv_path):
     
     # 2. Eliminar filas donde la máscara no se guardó correctamente
     df_desc = df_desc.dropna(subset=['mascara_descarte'])
+    df_desc['mascara_descarte'] = df_desc['mascara_descarte'].astype(int).astype(str).str.zfill(4)
     
     if len(df_desc) == 0:
         print("❌ No hay datos suficientes de descartes en el CSV.")

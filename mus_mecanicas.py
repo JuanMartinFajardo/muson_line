@@ -7,8 +7,8 @@ import datetime
 # 1. BARAJA Y CARTAS
 # ==========================================
 
-Oros = 'Oros' #Oros_btc
-Copas = 'Copas' #Copas_pirate
+Oros = 'Oros_btc' #Oros_btc
+Copas = 'Copas_pirate' #Copas_pirate
 Espadas = 'Espadas'
 Bastos = 'Bastos'
 

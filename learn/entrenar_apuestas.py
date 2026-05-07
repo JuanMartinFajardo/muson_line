@@ -14,6 +14,8 @@ def entrenar_modelo_apuestas(csv_path):
         print("Asegúrate de ejecutar primero el generador masivo de datasets.")
         return
 
+
+    df = df[df['gano_ronda'] == 1].copy()  # Nos quedamos solo con los lances donde el jugador ganó la ronda
     # 1. Filtrar solo las fases de apuestas
     fases_apuesta = ['Grande', 'Chica', 'Pares', 'Juego']
     df_ap = df[df['fase'].isin(fases_apuesta)].copy()

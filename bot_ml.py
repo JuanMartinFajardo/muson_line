@@ -121,6 +121,9 @@ class SmartBot:
         # Predecir máscara (el modelo devuelve un int, ej: 11 o 1111)
         mascara_raw = self.modelo_descartes.predict(df_input)[0]
         
+        if isinstance(mascara_raw, float):
+            mascara_raw = int(mascara_raw)
+
         # Lo convertimos a texto y forzamos 4 dígitos (11 -> "0011")
         mascara_str = str(mascara_raw).zfill(4)
         
@@ -155,6 +158,20 @@ class SmartBot:
         fase_actual = partida.fases_apuesta[partida.indice_fase]
         mapa_fases = {'Grande': 1, 'Chica': 2, 'Pares': 3, 'Juego': 4}
         fase_num = mapa_fases.get(fase_actual, 1)
+
+
+        # =========================================================
+        # 🛡️ LAS LEYES DEL MUS (SALVAGUARDAS DE REGLAS)
+        # No dejamos que la IA opine si la jugada es ilegal
+        # =========================================================
+        if fase_actual == 'Pares' and cat_pares == 0:
+            print("🛑 [IA APUESTA] No tengo pares. Paso automáticamente.")
+            return 'pasar' if subida_pendiente == 0 else 'nover'
+            
+        if fase_actual == 'Juego' and not estado_juego['tiene_juego']:
+            print("🛑 [IA APUESTA] No tengo juego. Paso automáticamente.")
+            return 'pasar' if subida_pendiente == 0 else 'nover'
+        # =========================================================
 
 
         subida_ia = 40 if subida_pendiente == 'ÓRDAGO' else subida_pendiente
