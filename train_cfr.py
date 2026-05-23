@@ -8,7 +8,7 @@ from redes_mus import RegretNetwork, StrategyNetwork, ReplayBuffer, estado_a_vec
 # ==========================================
 # HYPERPARAMETERS
 # ==========================================
-ITERATIONS = 100  # Number of outer loops
+ITERATIONS = 5_000 #100  # Number of outer loops
 TRAVERSALS_PER_ITER = 500  # Games played per iteration
 BATCH_SIZE = 1024
 LEARNING_RATE = 0.001
@@ -174,6 +174,9 @@ if __name__ == "__main__":
         print(f"🧠 Training networks... (Buffers: {len(regret_buffer)} regrets, {len(strategy_buffer)} strategies)")
         for _ in range(50): # Multiple gradient steps per iteration
             train_networks()
+        if iteration % 500 == 0:
+            torch.save(strategy_net.state_dict(), f"deep_cfr_mus_bot_iter_{iteration}.pth")
+            print(f"💾 Checkpoint guardado en iteración {iteration}")
             
     end_time = time.time()
     print(f"✅ Training completed in {(end_time - start_time)/60:.2f} minutes.")
