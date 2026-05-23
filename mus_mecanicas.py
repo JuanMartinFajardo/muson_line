@@ -7,8 +7,8 @@ import datetime
 # 1. BARAJA Y CARTAS
 # ==========================================
 
-Oros = 'Oros_btc' #Oros_btc
-Copas = 'Copas_pirate' #Copas_pirate
+Oros = 'Oros' #Oros_btc
+Copas = 'Copas' #Copas_pirate
 Espadas = 'Espadas'
 Bastos = 'Bastos'
 
@@ -178,6 +178,8 @@ class PartidaMus:
             
             sids = [self.j1, self.j2]
             import random
+            import json
+            import os
             random.shuffle(sids)
             self.id_mano = sids[0] 
             self.id_postre = sids[1]
@@ -206,6 +208,7 @@ class PartidaMus:
             self.recuento_calculado = False
             self.pasos_recuento = []
             self.jugadores_listos = []
+            self.generate_log = True
 
             # --- NUEVO: SISTEMA DE LOGS ---
             import uuid
@@ -607,23 +610,21 @@ class PartidaMus:
                 mov['puntos_finales_rival'] = puntos_p if mov['es_mano'] else puntos_m
                 mov['gano_ronda'] = gano
 
-            import json
-            import os
-            
-            # 1. Nos aseguramos de que la carpeta existe para no ensuciar el directorio raíz
-            carpeta_logs = 'logs'
-            if not os.path.exists(carpeta_logs):
-                os.makedirs(carpeta_logs)
+            if self.generate_log:
+                # 1. Nos aseguramos de que la carpeta existe para no ensuciar el directorio raíz
+                carpeta_logs = 'logs'
+                if not os.path.exists(carpeta_logs):
+                    os.makedirs(carpeta_logs)
+                    
+                # 2. Creamos el nombre del archivo usando el match_id
+                nombre_archivo = os.path.join(carpeta_logs, f"{self.match_id}.jsonl")
                 
-            # 2. Creamos el nombre del archivo usando el match_id
-            nombre_archivo = os.path.join(carpeta_logs, f"{self.match_id}.jsonl")
-            
-            try:
-                with open(nombre_archivo, 'a', encoding='utf-8') as f:
-                    for mov in self.historial_ia:
-                        f.write(json.dumps(mov) + '\n')
-            except Exception as e:
-                print(f"Error guardando JSONL de IA en {nombre_archivo}:", e)
+                try:
+                    with open(nombre_archivo, 'a', encoding='utf-8') as f:
+                        for mov in self.historial_ia:
+                            f.write(json.dumps(mov) + '\n')
+                except Exception as e:
+                    print(f"Error guardando JSONL de IA en {nombre_archivo}:", e)
                 
             self.historial_ia = [] 
 

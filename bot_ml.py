@@ -10,6 +10,13 @@ from learn.probability_calculator import (
     evaluar_pares,
     calcular_valor_juego
 )
+import numpy as np
+import torch
+# Importamos la arquitectura de la red y el traductor de estados
+from redes_mus import StrategyNetwork, estado_a_vector
+from mus_mecanicas import tiene_pares, tiene_juego
+
+ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
 
 class SmartBot:
     def __init__(self, sid="BOT_ML"):
@@ -17,6 +24,16 @@ class SmartBot:
         self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': -1}
         
         # 1. Cargar Cerebro de Mus
+        self.modelo_apuestas_cfr = None
+        ruta_cfr = 'deep_cfr_mus_bot.pth'
+        
+        if os.path.exists(ruta_cfr):
+            self.modelo_apuestas_cfr = StrategyNetwork(11) # 11 es el input_size
+            self.modelo_apuestas_cfr.load_state_dict(torch.load(ruta_cfr))
+            self.modelo_apuestas_cfr.eval() # Lo ponemos en modo "solo lectura"
+            print("🧠 [BOT] Cerebro Deep CFR (Equilibrio de Nash) cargado para Apuestas.")
+        else:
+            print("⚠️ [BOT] No se encontró el modelo CFR.")
         self.modelo_mus = None
         if os.path.exists('learn/models/modelo_decisor_mus.pkl'):
             self.modelo_mus = joblib.load('learn/models/modelo_decisor_mus.pkl')
@@ -216,6 +233,82 @@ class SmartBot:
                 
         return mejor_accion
 
+
+    def get_valid_actions_cfr(self, partida, cartas, subida_pendiente):
+        """Filters illegal moves and applies the dynamic action abstraction rule."""
+        fase_actual = partida.fases_apuesta[partida.indice_fase]
+        
+        # Rule constraints: check if player has pairs or game
+        if fase_actual == 'Pares' and not tiene_pares(cartas):
+            return ['pasar'] if subida_pendiente == 0 else ['nover']
+        if fase_actual == 'Juego' and not tiene_juego(cartas):
+            return ['pasar'] if subida_pendiente == 0 else ['nover']
+
+        # Dynamic action abstraction based on points remaining to win
+        puntos_propios = partida.estado[self.sid]['puntos']
+        puntos_restantes = 40 - puntos_propios
+        bote_actual = partida.apuesta_vista + (subida_pendiente if isinstance(subida_pendiente, int) else 0)
+
+        if subida_pendiente == 0:
+            if puntos_restantes <= 2:
+                return ['pasar', 'ordago']
+            return ['pasar', 'envidar', 'ordago']
+        elif subida_pendiente == 'ÓRDAGO':
+            return ['ver', 'nover']
+        else:
+            if bote_actual >= 8 or bote_actual >= puntos_restantes:
+                return ['ver', 'nover', 'ordago']
+            else:
+                return ['ver', 'nover', 'subir', 'ordago']
+
+    def decidir_apuesta_cfr(self, partida, cartas, subida_pendiente):
+        """Runs inference on the Strategy Network and samples an action based on Nash Equilibrium."""
+        cartas_norm = [12 if c['valor'] == 3 else 1 if c['valor'] == 2 else c['valor'] for c in cartas]
+        c_ord = sorted(cartas_norm, reverse=True)
+        subida_ia = 40 if subida_pendiente == 'ÓRDAGO' else subida_pendiente
+
+        # Reconstruct the exact Information Set dictionary used during training
+        estado_dict = {
+            'es_mano': 1 if self.sid == partida.id_mano else 0,
+            'cartas': c_ord,
+            'indice_fase': partida.indice_fase,
+            'subida_pendiente': subida_ia,
+            'bote_grande': partida.botes.get('Grande', 0),
+            'bote_chica': partida.botes.get('Chica', 0),
+            'bote_pares': partida.botes.get('Pares', 0),
+            'apuesta_vista': partida.apuesta_vista
+        }
+
+        # Format input state into a PyTorch tensor
+        tensor_input = estado_a_vector(estado_dict)
+
+        # Predict mixed strategy distribution
+        with torch.no_grad():
+            raw_probabilities = self.modelo_apuestas_cfr(tensor_input).squeeze(0).numpy()
+
+        # Get valid actions for the current state and map them to network indices
+        valid_actions = self.get_valid_actions_cfr(partida, cartas, subida_pendiente)
+        valid_indices = [ACTION_MAP[a] for a in valid_actions]
+
+        # Filter out illegal actions and re-normalize probabilities
+        filtered_probs = np.zeros(6)
+        for idx in valid_indices:
+            filtered_probs[idx] = raw_probabilities[idx]
+
+        sum_probs = filtered_probs.sum()
+        if sum_probs > 0:
+            filtered_probs /= sum_probs
+        else:
+            # Fallback uniform distribution if network predictions colapsed
+            for idx in valid_indices:
+                filtered_probs[idx] = 1.0 / len(valid_indices)
+
+        # Sample final action using the weighted probabilities
+        actions_list = ['pasar', 'envidar', 'ver', 'nover', 'subir', 'ordago']
+        chosen_action = random.choices(actions_list, weights=filtered_probs, k=1)[0]
+        return chosen_action
+
+
     def obtener_accion(self, partida):
         self.actualizar_memoria(partida)
         fase = partida.fase
@@ -259,28 +352,25 @@ class SmartBot:
                 else:
                     return {'accion': random.choice(['mus', 'no_mus'])}
 
-        # 5. Apuestas (¡CON IA!)
+        # 5. Apuestas (¡CON IA DEEP CFR!)
         if fase == 'apuestas':
             subida = partida.subida_pendiente
             max_apuesta = 40 - estado['puntos']
             
-            # Decidimos la acción inteligente
-            if self.modelo_apuestas is not None:
-                eleccion = self.predecir_apuesta(partida, cartas, subida)
-                print(f"🎲 [IA APUESTA] Fase: {partida.fases_apuesta[partida.indice_fase]} | Decisión: {eleccion.upper()}")
+            # Decidimos la acción inteligente usando el Equilibrio de Nash
+            if self.modelo_apuestas_cfr is not None:
+                eleccion = self.decidir_apuesta_cfr(partida, cartas, subida)
+                print(f"🎲 [IA DEEP CFR] Fase: {partida.fases_apuesta[partida.indice_fase]} | Decisión: {eleccion.upper()}")
             else:
-                # Respaldo aleatorio si no hay modelo
+                # Respaldo aleatorio si no hay modelo entrenado
                 if subida == 0: eleccion = random.choice(['pasar', 'envidar'])
                 else: eleccion = random.choice(['ver', 'nover', 'subir'])
             
-            # Calculamos la cantidad si la IA decide apostar/subir
+            # Calculamos la cantidad si la IA decide apostar/subir (Mantenemos discretizado a 2)
             if eleccion == 'envidar':
-                cant = random.randint(2, min(5, max_apuesta)) if max_apuesta >= 2 else 2
-                return {'accion': 'envidar', 'cantidad': cant}
+                return {'accion': 'envidar', 'cantidad': 2}
             elif eleccion == 'subir':
-                tope = max_apuesta - partida.apuesta_vista
-                cant = random.randint(1, min(5, tope)) if tope >= 1 else 1
-                return {'accion': 'subir', 'cantidad': cant}
+                return {'accion': 'subir', 'cantidad': 2}
             else:
                 return {'accion': eleccion}
         return None

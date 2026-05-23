@@ -11,6 +11,7 @@ class MusBettingEnv:
     def reset(self):
         """Inicia una partida nueva y la adelanta hasta la fase de apuestas"""
         self.partida = PartidaMus("IA_1", "IA_2")
+        self.partida.generate_log = False
         self.partida.iniciar_ronda()
         self._fast_forward_to_apuestas()
         return self.get_information_set()
@@ -32,24 +33,39 @@ class MusBettingEnv:
             return []
             
         subida = self.partida.subida_pendiente
-        
-        # Filtros de las Leyes del Mus (No apostar si no tienes pares/juego)
         jugador = self.partida.turno_de
         cartas = self.partida.estado[jugador]['cartas']
         fase_actual = self.partida.fases_apuesta[self.partida.indice_fase]
         
+        from mus_mecanicas import tiene_pares, tiene_juego
+        
+        # 1. Filtros de las Leyes del Mus
         if fase_actual == 'Pares' and not tiene_pares(cartas):
             return ['pasar'] if subida == 0 else ['nover']
         if fase_actual == 'Juego' and not tiene_juego(cartas):
             return ['pasar'] if subida == 0 else ['nover']
 
-        # Opciones normales
+        # 2. Lógica de Poda Dinámica (Límite de 8 piedras o fin de partida)
+        puntos_propios = self.partida.estado[jugador]['puntos']
+        puntos_restantes = 40 - puntos_propios
+        bote_actual = self.partida.apuesta_vista + (subida if isinstance(subida, int) else 0)
+
         if subida == 0:
+            # Si nos quedan 2 puntos o menos, cualquier apuesta cierra la partida matemáticamente
+            if puntos_restantes <= 2:
+                return ['pasar', 'ordago']
             return ['pasar', 'envidar', 'ordago']
+            
         elif subida == 'ÓRDAGO':
             return ['ver', 'nover']
+            
         else:
-            return ['ver', 'nover', 'subir', 'ordago']
+            # Cortamos la opción de 'subir' si llegamos al tope de 8 piedras,
+            # o si el bote actual ya cubre los puntos que nos quedan para ganar.
+            if bote_actual >= 8 or bote_actual >= puntos_restantes:
+                return ['ver', 'nover', 'ordago']
+            else:
+                return ['ver', 'nover', 'subir', 'ordago']
 
     def step(self, accion_str):
         """Aplica la acción, avanza el juego y devuelve el resultado"""
@@ -118,7 +134,7 @@ if __name__ == "__main__":
     env = MusBettingEnv()
     
     inicio = time.time()
-    num_partidas = 100000
+    num_partidas = 10000
     
     print(f"🚀 Iniciando simulación rápida de {num_partidas} partidas...")
     for i in range(num_partidas):
