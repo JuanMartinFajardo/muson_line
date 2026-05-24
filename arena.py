@@ -8,9 +8,11 @@ from redes_mus import StrategyNetwork, estado_a_vector
 # ==========================================
 # CONFIGURACIÓN DE LA ARENA
 # ==========================================
-NUM_PARTIDAS = 1001
-PATH_MODELO_1 = 'learn/cfr/deep_cfr_mus_bot_iter_100.pth'
-PATH_MODELO_2 = 'learn/cfr/deep_cfr_mus_bot_iter_200.pth'   
+NUM_PARTIDAS = 5999
+name_model_1 = 'checkpoint_mus_latest'
+name_model_2 = 'deep_cfr_mus_bot_iter_50'
+PATH_MODELO_1 = f"learn/cfr/{name_model_1}.pth"
+PATH_MODELO_2 = f"learn/cfr0/{name_model_2}.pth"  
 
 ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
 INDEX_TO_ACTION = {v: k for k, v in ACTION_MAP.items()}
@@ -158,18 +160,21 @@ def jugar_partida(m1, m2):
             modelo_activo = m1 if jugador == "MODELO_1" else m2
             accion, cantidad = elegir_accion(modelo_activo, partida, jugador)
             partida.accion_apuesta(jugador, accion, cantidad)
+            pts1 = partida.estado["MODELO_1"]['puntos']
+            pts2 = partida.estado["MODELO_2"]['puntos']
             
         elif partida.fase == 'recuento':
             partida.calcular_recuento()
             pts1 = partida.estado["MODELO_1"]['puntos']
             pts2 = partida.estado["MODELO_2"]['puntos']
-            
             # Si alguien ha llegado a 40, se acaba la partida y devolvemos el ganador
             if pts1 >= 40 or pts2 >= 40:
                 return 1 if pts1 >= 40 else 2
                 
             partida.cambiar_roles()
             partida.iniciar_ronda()
+            partida.recuento_calculado = False
+            partida.jugadores_listos = []
 
 # ==========================================
 # 4. EJECUCIÓN Y GRÁFICAS
@@ -201,18 +206,34 @@ if __name__ == "__main__":
     print(f"🏆 Modelo 2: {victorias_2} victorias ({victorias_2/NUM_PARTIDAS*100:.1f}%)")
     
     # Dibujar la gráfica
+# ==========================================
+    # 4. EJECUCIÓN Y GRÁFICAS (TASA DE VICTORIA)
+    # ==========================================
+    # ... (el print del FINAL DEL COMBATE se queda igual) ...
+    
+    A = np.array(historial_v1)
+    B = np.array(historial_v2)
+    total_partidas = A + B
+    
+    # Calculamos A / (A + B). Donde total_partidas es 0 (el inicio), forzamos a que valga 0.5
+    C = np.divide(A, total_partidas, out=np.full_like(A, 0.5, dtype=float), where=(total_partidas != 0))
+
     plt.figure(figsize=(10, 6))
-    plt.plot(historial_v1, label='Modelo 1', color='blue', linewidth=2)
-    plt.plot(historial_v2, label='Modelo 2', color='red', linewidth=2)
     
-    plt.title(f'Arena de Combate: Modelo 1 vs Modelo 2\n(Resultado Final: {victorias_1} - {victorias_2})', fontsize=14)
+    # Línea principal del Win Rate
+    plt.plot(C, color='blue', linewidth=2, label='Win Rate Modelo 1')
+    
+    # Añadimos una línea horizontal en el 0.5 para ver rápidamente quién va ganando
+    plt.axhline(y=0.5, color='gray', linestyle='--', alpha=0.7, label='Empate Perfecto (0.5)')
+    
+    # Fijamos el eje Y de 0 a 1 para no perder la perspectiva
+    plt.ylim(0, 1) 
+    
+    plt.title(f'Convergencia de Tasa de Victoria (M1 vs M2)\nResultado Final: {victorias_1} - {victorias_2}', fontsize=14)
     plt.xlabel('Número de Partidas Jugadas', fontsize=12)
-    plt.ylabel('Victorias Acumuladas', fontsize=12)
+    plt.ylabel('Win Rate (Modelo 1)', fontsize=12)
     
-    plt.legend(fontsize=12)
+    plt.legend(loc='upper right', fontsize=10)
     plt.grid(True, linestyle='--', alpha=0.7)
     
-    # Guardar y mostrar
-    #plt.savefig('resultado_arena.png', dpi=300, bbox_inches='tight')
-    #print("📈 Gráfica guardada como 'resultado_arena.png'.")
     plt.show()

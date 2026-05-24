@@ -46,9 +46,13 @@ def get_strategy_from_regret(info_vector, valid_indices):
         strategy = positive_regrets / sum_regrets
     else:
         # If no positive regret, play random valid action
-        num_valid = len(valid_indices)
+        max_regret = -float('inf')
+        best_idx = valid_indices[0]
         for idx in valid_indices:
-            strategy[idx] = 1.0 / num_valid
+            if regrets[idx].item() > max_regret:
+                max_regret = regrets[idx].item()
+                best_idx = idx
+        strategy[best_idx] = 1.0
             
     return strategy
 
@@ -57,17 +61,17 @@ def traverse(env, traversing_player, t):
     Recursively travels the game tree.
     Returns the expected value (EV) of the node.
     """
-    # 1. Base case: Terminal node (End of round)
+    # 1. Caso Base: Nodo Terminal
     if env.partida.fase == 'recuento':
         env.partida.calcular_recuento()
         points_me = env.partida.estado[traversing_player]['puntos']
         opponent = "IA_2" if traversing_player == "IA_1" else "IA_1"
         points_opp = env.partida.estado[opponent]['puntos']
         
-        # In zero-sum games, the reward is the difference in points
-        return float(points_me - points_opp)
+        # CORRECCIÓN 3: Normalizamos la recompensa entre -1 y 1
+        return float(points_me - points_opp) / 40.0
 
-    # 2. Get current state information
+    # 2. Información del estado actual
     current_player = env.partida.turno_de
     info_dict = env.get_information_set()
     info_vector = estado_a_vector(info_dict)
@@ -75,17 +79,14 @@ def traverse(env, traversing_player, t):
     valid_actions_str = env.get_valid_actions()
     valid_indices = [ACTION_MAP[a] for a in valid_actions_str]
     
-    # 3. Get current policy from Regret Network
     strategy = get_strategy_from_regret(info_vector, valid_indices)
 
     # ---------------------------------------------------------
-    # NODE A: It's the Traversing Player's turn
-    # We explore ALL valid actions to calculate regret
+    # NODO A: Turno del jugador que explora el árbol
     # ---------------------------------------------------------
     if current_player == traversing_player:
         
-        # Save strategy to buffer for later training
-        strategy_buffer.guardar(info_vector, strategy.numpy(), t)
+        # CORRECCIÓN 2: ¡YA NO GUARDAMOS LA ESTRATEGIA AQUÍ!
         
         action_values = torch.zeros(6)
         node_value = 0.0
@@ -94,12 +95,10 @@ def traverse(env, traversing_player, t):
             cloned_env = env.clone()
             _, _, done = cloned_env.step(a_str)
             
-            # Recursive call
             expected_value = traverse(cloned_env, traversing_player, t)
             action_values[a_idx] = expected_value
             node_value += strategy[a_idx].item() * expected_value
             
-        # Calculate regret for each action and store it
         regrets = torch.zeros(6)
         for a_idx in valid_indices:
             regrets[a_idx] = action_values[a_idx] - node_value
@@ -108,13 +107,13 @@ def traverse(env, traversing_player, t):
         return node_value
 
     # ---------------------------------------------------------
-    # NODE B: It's the Opponent's turn
-    # We sample ONLY ONE action to keep the tree small
+    # NODO B: Turno del Oponente
     # ---------------------------------------------------------
     else:
-        probs = [strategy[i].item() for i in valid_indices]
+        # CORRECCIÓN 2: La estrategia se guarda EXCLUSIVAMENTE en el turno del rival
+        strategy_buffer.guardar(info_vector, strategy.numpy(), t)
         
-        # Sample one action based on probabilities
+        probs = [strategy[i].item() for i in valid_indices]
         chosen_idx = random.choices(valid_indices, weights=probs, k=1)[0]
         
         chosen_str = None
@@ -129,27 +128,29 @@ def traverse(env, traversing_player, t):
         return traverse(cloned_env, traversing_player, t)
 
 
-def train_networks():
-    """Trains both neural networks using the replay buffers."""
+def train_networks(T_actual):
     loss_fn = torch.nn.MSELoss()
     
     # Train Regret Network
     if len(regret_buffer) >= BATCH_SIZE:
         states, targets, weights = regret_buffer.sample(BATCH_SIZE)
+        
+        # LCFR: Reescalar los pesos por 2/T
+        weights = weights * (2.0 / T_actual)
+        
         optimizer_regret.zero_grad()
         predictions = regret_net(states)
-        
-        # Weight the loss by 't' (later iterations matter more)
         loss_regret = (weights * (predictions - targets)**2).mean()
         loss_regret.backward()
         optimizer_regret.step()
         
-    # Train Strategy Network
+    # Train Strategy Network (Misca lógica)
     if len(strategy_buffer) >= BATCH_SIZE:
         states, targets, weights = strategy_buffer.sample(BATCH_SIZE)
+        weights = weights * (2.0 / T_actual)
+        
         optimizer_strategy.zero_grad()
         predictions = strategy_net(states)
-        
         loss_strategy = (weights * (predictions - targets)**2).mean()
         loss_strategy.backward()
         optimizer_strategy.step()
@@ -201,12 +202,14 @@ if __name__ == "__main__":
                 env.reset()
                 traverse(env, traversing_player=p, t=iteration)
                 
+        regret_net = RegretNetwork(input_size)
+        optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
         # 2. Train Networks
         print(f"🧠 Training networks... (Buffers: {len(regret_buffer)} regrets, {len(strategy_buffer)} strategies)")
         for _ in range(50): # Multiple gradient steps per iteration
-            train_networks()
+            train_networks(iteration)
         print(f"Iteration competed in {round(time.time()-start_it_time)} seconds")
-        if iteration % 50 == 0:
+        if iteration % 25 == 0:
             checkpoint = {
                 'iteration': iteration,
                 'regret_net_state': regret_net.state_dict(),
@@ -215,7 +218,7 @@ if __name__ == "__main__":
                 'optimizer_strategy_state': optimizer_strategy.state_dict()
             }
             torch.save(checkpoint, "learn/cfr/checkpoint_mus_latest.pth")
-            torch.save(strategy_net.state_dict(), f"learn/cfr/deep_cfr_mus_bot_iter_{iteration}.pth")
+            if iteration % 50 == 0: torch.save(strategy_net.state_dict(), f"learn/cfr/deep_cfr_mus_bot_iter_{iteration}.pth")
             print(f"💾 Checkpoint maestro guardado en la iteración {iteration}")
             
 

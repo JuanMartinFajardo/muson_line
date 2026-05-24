@@ -27,7 +27,7 @@ class SmartBot:
 
         # 1. Cargar Cerebro de Apuestas CFR
         self.modelo_apuestas_cfr = None
-        ruta_cfr = 'learn/cfr/checkpoint_mus_latest.pth'
+        ruta_cfr = 'learn/cfr0/checkpoint_mus_latest.pth'
         #ruta_cfr = 'learn/cfr/deep_cfr_mus_bot_iter_50.pth'
         if os.path.exists(ruta_cfr):
             self.modelo_apuestas_cfr = StrategyNetwork(18) # ¡IMPORTANTE! Ahora son 18 inputs, no 11
@@ -52,6 +52,7 @@ class SmartBot:
             print("🧠 [BOT] Cerebro Deep CFR (Equilibrio de Nash) cargado para Apuestas.")
         else:
             print("⚠️ [BOT] No se encontró el modelo CFR.")'''
+        
         self.modelo_mus = None
         if os.path.exists('learn/models/modelo_decisor_mus.pkl'):
             self.modelo_mus = joblib.load('learn/models/modelo_decisor_mus.pkl')
@@ -67,6 +68,12 @@ class SmartBot:
     def actualizar_memoria(self, partida):
         if self.memoria['ronda'] != partida.ronda_n:
             self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': partida.ronda_n}
+
+
+    def predecir_mus1(self,partida, cartas,estado):
+        es_mano = 1 if partida.id_mano == self.sid else 0
+        cartas_norm = [12 if c['valor'] == 3 else 1 if c['valor'] == 2 else c['valor'] for c in cartas]
+        c_ord = sorted(cartas_norm, reverse=True)
 
     def predecir_mus(self, partida, cartas, estado):
         es_mano = 1 if partida.id_mano == self.sid else 0
