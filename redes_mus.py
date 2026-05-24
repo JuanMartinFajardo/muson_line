@@ -71,6 +71,10 @@ def estado_a_vector(estado_dict):
         estado_dict['bote_chica'] / 40.0,
         estado_dict['bote_pares'] / 40.0,
         estado_dict['apuesta_vista'] / 40.0
+        #estado_dict['puntos_propios'] / 40.0, # Normalizado a tope de 40
+        #estado_dict['puntos_rival'] / 40.0,
+        #estado_dict['descartes_mios'] / 4.0,  # Máximo 4 cartas
+        #estado_dict['descartes_rival'] / 4.0
     ]
     # Devolvemos un tensor de PyTorch (1 fila, 11 columnas)
     return torch.tensor([vector], dtype=torch.float32)

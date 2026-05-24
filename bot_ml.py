@@ -25,7 +25,7 @@ class SmartBot:
         
         # 1. Cargar Cerebro de Mus
         self.modelo_apuestas_cfr = None
-        ruta_cfr = 'deep_cfr_mus_bot.pth'
+        ruta_cfr = 'deep_cfr_mus_bot_iter_1000.pth'
         
         if os.path.exists(ruta_cfr):
             self.modelo_apuestas_cfr = StrategyNetwork(11) # 11 es el input_size
