@@ -296,6 +296,7 @@ class PartidaMus:
         self.estado[self.j1]['descartes_hechos'] = 0
         self.estado[self.j2]['descartes_hechos'] = 0
         self.quien_corta_mus = None
+        self.rondas_mus = 0
 
     # --- 2. FASE DE MUS Y DESCARTES ---
 
@@ -320,6 +321,7 @@ class PartidaMus:
             self.fase = 'descarte'
             self.estado[self.j1]['descartes_listos'] = False
             self.estado[self.j2]['descartes_listos'] = False
+            self.rondas_mus += 1
             return 'descarte'
 
 

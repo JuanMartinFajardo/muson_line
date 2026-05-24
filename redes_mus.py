@@ -61,20 +61,24 @@ def estado_a_vector(estado_dict):
     """
     vector = [
         estado_dict['es_mano'],
-        estado_dict['cartas'][0] / 12.0, # Normalizamos de 1 a 12 -> 0.0 a 1.0
+        estado_dict['cartas'][0] / 12.0, 
         estado_dict['cartas'][1] / 12.0,
         estado_dict['cartas'][2] / 12.0,
         estado_dict['cartas'][3] / 12.0,
-        estado_dict['indice_fase'] / 3.0, # 0, 1, 2, 3
+        estado_dict['indice_fase'] / 3.0,
         estado_dict['subida_pendiente'] / 40.0,
         estado_dict['bote_grande'] / 40.0,
         estado_dict['bote_chica'] / 40.0,
         estado_dict['bote_pares'] / 40.0,
-        estado_dict['apuesta_vista'] / 40.0
-        #estado_dict['puntos_propios'] / 40.0, # Normalizado a tope de 40
-        #estado_dict['puntos_rival'] / 40.0,
-        #estado_dict['descartes_mios'] / 4.0,  # Máximo 4 cartas
-        #estado_dict['descartes_rival'] / 4.0
+        estado_dict['apuesta_vista'] / 40.0,
+        # --- VARIABLES DE CONTEXTO ---
+        estado_dict['puntos_propios'] / 40.0,
+        estado_dict['puntos_rival'] / 40.0,
+        min(estado_dict['rondas_mus'] / 5.0, 1.0), # Tope normalizado en 5 rondas
+        estado_dict['descartes_rival'] / 4.0,
+        estado_dict['owner_grande'], # Ya vendrá como 0.0, 0.5 o 1.0
+        estado_dict['owner_chica'],
+        estado_dict['owner_pares']
     ]
     # Devolvemos un tensor de PyTorch (1 fila, 11 columnas)
     return torch.tensor([vector], dtype=torch.float32)
@@ -83,20 +87,36 @@ def estado_a_vector(estado_dict):
 # 3. MEMORIAS (REPLAY BUFFERS)
 # ==========================================
 
+# ==========================================
+# 3. MEMORIAS (REPLAY BUFFERS) - RESERVOIR SAMPLING
+# ==========================================
+
 class ReplayBuffer:
     """
-    Una lista gigante que borra lo más antiguo cuando se llena.
-    Almacena las experiencias del bot para entrenar a las redes en lotes.
+    Memoria con Reservoir Sampling. Garantiza que la red neuronal 
+    haga la media de toda su vida de entrenamiento sin colapsar la RAM.
     """
-    def __init__(self, capacidad=500000):
-        self.buffer = deque(maxlen=capacidad)
+    def __init__(self, capacidad=200000): # Aumentamos un poco la capacidad general
+        self.capacidad = capacidad
+        self.buffer = []
+        self.items_vistos = 0 # Contador histórico absoluto
     
     def guardar(self, info_vector, target_vector, iteracion):
-        # Guardamos: [El vector del estado, La respuesta correcta, Peso por iteración]
-        self.buffer.append((info_vector, target_vector, iteracion))
+        self.items_vistos += 1
+        tupla_datos = (info_vector, target_vector, iteracion)
+        
+        # Si hay hueco, lo metemos normal
+        if len(self.buffer) < self.capacidad:
+            self.buffer.append(tupla_datos)
+        else:
+            # RESERVOIR SAMPLING: Tiramos un dado matemático.
+            # A medida que el entrenamiento avanza, es más difícil que un 
+            # nuevo recuerdo sobrescriba a uno antiguo, preservando la memoria a largo plazo.
+            j = random.randint(0, self.items_vistos - 1)
+            if j < self.capacidad:
+                self.buffer[j] = tupla_datos
         
     def sample(self, batch_size):
-        # Saca una muestra aleatoria para entrenar (ej: 1024 jugadas a la vez)
         lote = random.sample(self.buffer, min(batch_size, len(self.buffer)))
         
         estados = torch.cat([item[0] for item in lote])

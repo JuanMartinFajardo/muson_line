@@ -23,17 +23,35 @@ class SmartBot:
         self.sid = sid
         self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': -1}
         
-        # 1. Cargar Cerebro de Mus
-        self.modelo_apuestas_cfr = None
-        ruta_cfr = 'deep_cfr_mus_bot_iter_1000.pth'
         
+
+        # 1. Cargar Cerebro de Apuestas CFR
+        self.modelo_apuestas_cfr = None
+        ruta_cfr = 'learn/cfr/checkpoint_mus_latest.pth'
+        #ruta_cfr = 'learn/cfr/deep_cfr_mus_bot_iter_50.pth'
         if os.path.exists(ruta_cfr):
-            self.modelo_apuestas_cfr = StrategyNetwork(11) # 11 es el input_size
+            self.modelo_apuestas_cfr = StrategyNetwork(18) # ¡IMPORTANTE! Ahora son 18 inputs, no 11
+            
+            # 1. Cargamos el archivo maestro
+            checkpoint = torch.load(ruta_cfr, weights_only=False)
+            
+            # 2. Extraemos SOLO los pesos de la red de estrategia
+            pesos_estrategia = checkpoint['strategy_net_state']
+            
+            # 3. Se los inyectamos al modelo
+            self.modelo_apuestas_cfr.load_state_dict(pesos_estrategia)
+            self.modelo_apuestas_cfr.eval() # Modo solo lectura
+            print("🧠 [BOT] Cerebro Deep CFR (18 vars) cargado para Apuestas.")
+        else:
+            print("⚠️ [BOT] No se encontró el modelo CFR.")
+        
+        '''if os.path.exists(ruta_cfr):
+            self.modelo_apuestas_cfr = StrategyNetwork(18) # 18 es el input_size
             self.modelo_apuestas_cfr.load_state_dict(torch.load(ruta_cfr))
             self.modelo_apuestas_cfr.eval() # Lo ponemos en modo "solo lectura"
             print("🧠 [BOT] Cerebro Deep CFR (Equilibrio de Nash) cargado para Apuestas.")
         else:
-            print("⚠️ [BOT] No se encontró el modelo CFR.")
+            print("⚠️ [BOT] No se encontró el modelo CFR.")'''
         self.modelo_mus = None
         if os.path.exists('learn/models/modelo_decisor_mus.pkl'):
             self.modelo_mus = joblib.load('learn/models/modelo_decisor_mus.pkl')
@@ -45,13 +63,6 @@ class SmartBot:
             self.modelo_descartes = joblib.load('learn/models/modelo_descartes.pkl')
             print("🧠 [BOT] Cerebro de Descartes cargado.")
 
-        # 3. Cargar Cerebro de Apuestas
-        self.modelo_apuestas = None
-        if os.path.exists('learn/models/modelo_apuestas.pkl'):
-            self.modelo_apuestas = joblib.load('learn/models/modelo_apuestas.pkl')
-            print("🧠 [BOT] Cerebro de Apuestas cargado.")
-        else:
-            print("⚠️ [BOT] No se encontró el modelo. Usando modo aleatorio.")
 
     def actualizar_memoria(self, partida):
         if self.memoria['ronda'] != partida.ronda_n:
@@ -153,86 +164,6 @@ class SmartBot:
                 
         return indices_a_tirar
 
-    def predecir_apuesta(self, partida, cartas, subida_pendiente):
-        es_mano = 1 if partida.id_mano == self.sid else 0
-        cartas_norm = [12 if c['valor'] == 3 else 1 if c['valor'] == 2 else c['valor'] for c in cartas]
-        c_ord = sorted(cartas_norm, reverse=True)
-        
-        cat_pares, val_pares = evaluar_pares(cartas_norm)
-        estado_juego = calcular_valor_juego(cartas_norm)
-        
-        try:
-            prob_g = calcular_probabilidad_grande(cartas, self.memoria['mis_descartes'], es_mano==1).get('prob_ganar', 0.0)
-            prob_c = calcular_probabilidad_chica(cartas, self.memoria['mis_descartes'], es_mano==1).get('prob_ganar', 0.0)
-            prob_p = calcular_probabilidad_pares(cartas, False, es_mano==1, self.memoria['mis_descartes']).get('prob_ganar', 0.0)
-            res_j = calcular_probabilidad_juego(cartas, 0, False, es_mano==1, self.memoria['mis_descartes'])
-            prob_j = res_j.get('prob_ganar', 0.0) if isinstance(res_j, dict) else 0.0
-        except:
-            prob_g, prob_c, prob_p, prob_j = 0.0, 0.0, 0.0, 0.0
-
-        # Mapeamos la fase actual
-        # En la lógica interna, el bot lee la subfase de: partida.fases_apuesta[partida.indice_fase]
-        fase_actual = partida.fases_apuesta[partida.indice_fase]
-        mapa_fases = {'Grande': 1, 'Chica': 2, 'Pares': 3, 'Juego': 4}
-        fase_num = mapa_fases.get(fase_actual, 1)
-
-
-        # =========================================================
-        # 🛡️ LAS LEYES DEL MUS (SALVAGUARDAS DE REGLAS)
-        # No dejamos que la IA opine si la jugada es ilegal
-        # =========================================================
-        if fase_actual == 'Pares' and cat_pares == 0:
-            print("🛑 [IA APUESTA] No tengo pares. Paso automáticamente.")
-            return 'pasar' if subida_pendiente == 0 else 'nover'
-            
-        if fase_actual == 'Juego' and not estado_juego['tiene_juego']:
-            print("🛑 [IA APUESTA] No tengo juego. Paso automáticamente.")
-            return 'pasar' if subida_pendiente == 0 else 'nover'
-        # =========================================================
-
-
-        subida_ia = 40 if subida_pendiente == 'ÓRDAGO' else subida_pendiente
-
-        features = [
-            fase_num, es_mano, c_ord[0], c_ord[1], c_ord[2], c_ord[3],
-            1 if cat_pares > 0 else 0, cat_pares, 
-            1 if estado_juego['tiene_juego'] else 0, estado_juego['suma'],
-            self.memoria['descartes_rival'], prob_g, prob_c, prob_p, prob_j,
-            # Le pasamos el estado real de la mesa al modelo
-            partida.botes.get('Grande', 0),
-            partida.botes.get('Chica', 0),
-            partida.botes.get('Pares', 0),
-            subida_ia
-        ]
-        
-        df_input = pd.DataFrame([features], columns=[
-            'fase_num', 'es_mano', 'c1', 'c2', 'c3', 'c4', 
-            'tengo_pares', 'tipo_pares', 'tengo_juego', 'suma_puntos',
-            'descartes_rival', 'prob_grande', 'prob_chica', 'prob_pares', 'prob_juego',
-            'bote_grande', 'bote_chica', 'bote_pares', 'subida_pendiente'
-        ])
-        
-        # Obtenemos las probabilidades de todas las acciones posibles
-        probs = self.modelo_apuestas.predict_proba(df_input)[0]
-        clases = self.modelo_apuestas.classes_
-        
-        # Filtramos las acciones válidas según el contexto
-        if subida_pendiente == 0:
-            acciones_validas = ['pasar', 'envidar', 'ordago']
-        else:
-            acciones_validas = ['ver', 'nover', 'subir', 'ordago']
-            
-        # Nos quedamos con la acción válida que tenga mayor probabilidad
-        mejor_accion = 'pasar' if subida_pendiente == 0 else 'nover' # Por defecto, somos cautos
-        mejor_prob = -1
-        
-        for accion, prob in zip(clases, probs):
-            if accion in acciones_validas and prob > mejor_prob:
-                mejor_prob = prob
-                mejor_accion = accion
-                
-        return mejor_accion
-
 
     def get_valid_actions_cfr(self, partida, cartas, subida_pendiente):
         """Filters illegal moves and applies the dynamic action abstraction rule."""
@@ -266,6 +197,8 @@ class SmartBot:
         cartas_norm = [12 if c['valor'] == 3 else 1 if c['valor'] == 2 else c['valor'] for c in cartas]
         c_ord = sorted(cartas_norm, reverse=True)
         subida_ia = 40 if subida_pendiente == 'ÓRDAGO' else subida_pendiente
+        rival = partida.id_postre if self.sid == partida.id_mano else partida.id_mano
+
 
         # Reconstruct the exact Information Set dictionary used during training
         estado_dict = {
@@ -276,7 +209,19 @@ class SmartBot:
             'bote_grande': partida.botes.get('Grande', 0),
             'bote_chica': partida.botes.get('Chica', 0),
             'bote_pares': partida.botes.get('Pares', 0),
-            'apuesta_vista': partida.apuesta_vista
+            'apuesta_vista': partida.apuesta_vista,
+            
+            'puntos_propios': partida.estado[self.sid]['puntos'],
+            'puntos_rival': partida.estado[rival]['puntos'],
+            
+            # Usamos la variable directa que acabamos de crear en el motor
+            'rondas_mus': partida.rondas_mus,
+            'descartes_rival': partida.estado[rival].get('descartes_hechos', 0),
+            
+            # Lógica Inline: 1.0 si es mío, 0.0 si es del rival, 0.5 si nadie lo ha ganado (None)
+            'owner_grande': 1.0 if partida.ganadores_fase.get('Grande') == self.sid else (0.0 if partida.ganadores_fase.get('Grande') is not None else 0.5),
+            'owner_chica': 1.0 if partida.ganadores_fase.get('Chica') == self.sid else (0.0 if partida.ganadores_fase.get('Chica') is not None else 0.5),
+            'owner_pares': 1.0 if partida.ganadores_fase.get('Pares') == self.sid else (0.0 if partida.ganadores_fase.get('Pares') is not None else 0.5)
         }
 
         # Format input state into a PyTorch tensor

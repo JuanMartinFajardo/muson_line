@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 from mus_mecanicas import PartidaMus, tiene_pares, tiene_juego
+import random
 
 class MusBettingEnv:
     def __init__(self):
@@ -17,15 +18,30 @@ class MusBettingEnv:
         return self.get_information_set()
 
     def _fast_forward_to_apuestas(self):
-        """Fuerza las decisiones iniciales para ir directo a la Grande"""
+        self.partida.estado["IA_1"]['puntos'] = random.randint(0, 39)
+        self.partida.estado["IA_2"]['puntos'] = random.randint(0, 39)
+        
+        # Inventamos un contexto de descartes previo para que la IA lo estudie
+        self.partida.rondas_mus = random.randint(0, 4)
+
         while self.partida.fase in ['espera_reparto', 'mus', 'descarte']:
             if self.partida.fase == 'espera_reparto':
                 self.partida.repartir_inicial()
+                
             elif self.partida.fase == 'mus':
-                # El jugador al que le toque corta el mus automáticamente
-                self.partida.cantar_mus(self.partida.turno_de, False)
+                if random.random() > 0.5:
+                    self.partida.cantar_mus(self.partida.turno_de, False)
+                else:
+                    self.partida.cantar_mus(self.partida.turno_de, True)
+                    
             elif self.partida.fase == 'descarte':
-                self.partida.procesar_descarte(self.partida.turno_de, [])
+                # ¡CORRECCIÓN! Iteramos sobre ambos jugadores independientemente del turno
+                for p in ["IA_1", "IA_2"]:
+                    # Solo le hacemos descartar si no lo ha hecho ya en esta ronda
+                    if not self.partida.estado[p]['descartes_listos']:
+                        num_cartas = random.randint(1, 4)
+                        indices = random.sample(range(4), num_cartas)
+                        self.partida.procesar_descarte(p, indices)
 
     def get_valid_actions(self):
         """Devuelve las acciones legales en el nodo actual"""
@@ -97,28 +113,40 @@ class MusBettingEnv:
         return self.get_information_set(), recompensas, done
 
     def get_information_set(self):
-        """
-        Extrae todo lo que el jugador activo sabe y lo convierte en un estado plano.
-        Esta función será el INPUT de la Red Neuronal más adelante.
-        """
         if self.partida.fase == 'recuento': return None
         
         jugador = self.partida.turno_de
+        rival = self.partida.id_postre if jugador == self.partida.id_mano else self.partida.id_mano
+        
         cartas = self.partida.estado[jugador]['cartas']
         c_vals = sorted([12 if c['valor']==3 else 1 if c['valor']==2 else c['valor'] for c in cartas], reverse=True)
-        
         subida = 40 if self.partida.subida_pendiente == 'ÓRDAGO' else self.partida.subida_pendiente
+        
+        # SOLUCIÓN AL PUNTO 3 (Propiedad de los botes)
+        def get_owner(fase_nombre):
+            ganador = self.partida.ganadores_fase.get(fase_nombre)
+            if ganador is None: return 0.5 # En el aire
+            return 1.0 if ganador == jugador else 0.0 # Mío o del rival
         
         estado = {
             'jugador': jugador,
             'es_mano': 1 if jugador == self.partida.id_mano else 0,
             'cartas': c_vals,
-            'indice_fase': self.partida.indice_fase, # 0:Grande, 1:Chica, 2:Pares, 3:Juego
+            'indice_fase': self.partida.indice_fase,
             'subida_pendiente': subida,
             'bote_grande': self.partida.botes.get('Grande', 0),
             'bote_chica': self.partida.botes.get('Chica', 0),
             'bote_pares': self.partida.botes.get('Pares', 0),
-            'apuesta_vista': self.partida.apuesta_vista
+            'apuesta_vista': self.partida.apuesta_vista,
+            'puntos_propios': self.partida.estado[jugador]['puntos'],
+            'puntos_rival': self.partida.estado[rival]['puntos'],
+            # SOLUCIÓN AL PUNTO 1 (Rondas de mus y descartes)
+            'rondas_mus': getattr(self.partida, 'rondas_mus', 0),
+            'descartes_rival': self.partida.estado[rival].get('descartes_hechos', 0),
+            # PROPIEDADES
+            'owner_grande': get_owner('Grande'),
+            'owner_chica': get_owner('Chica'),
+            'owner_pares': get_owner('Pares')
         }
         return estado
 

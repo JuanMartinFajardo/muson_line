@@ -4,11 +4,12 @@ import random
 import time
 from mus_env import MusBettingEnv
 from redes_mus import RegretNetwork, StrategyNetwork, ReplayBuffer, estado_a_vector
+import os
 
 # ==========================================
 # HYPERPARAMETERS
 # ==========================================
-ITERATIONS = 5_000 #100  # Number of outer loops
+ITERATIONS = 5_000  # Number of outer loops
 TRAVERSALS_PER_ITER = 500  # Games played per iteration
 BATCH_SIZE = 1024
 LEARNING_RATE = 0.001
@@ -17,7 +18,7 @@ LEARNING_RATE = 0.001
 ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
 
 # Initialize networks and buffers
-input_size = 11
+input_size = 18
 regret_net = RegretNetwork(input_size)
 strategy_net = StrategyNetwork(input_size)
 
@@ -153,15 +154,45 @@ def train_networks():
         loss_strategy.backward()
         optimizer_strategy.step()
 
+
+
+
+
+# --- LÓGICA DE RESUMEN DE ENTRENAMIENTO ---
+start_iteration = 1
+ruta_checkpoint = "learn/cfr/checkpoint_mus_latest.pth"
+
+if os.path.exists(ruta_checkpoint):
+    print("🔄 Se ha detectado un entrenamiento pausado. Restaurando...")
+    checkpoint = torch.load(ruta_checkpoint)
+    
+    # Restaurar redes
+    regret_net.load_state_dict(checkpoint['regret_net_state'])
+    strategy_net.load_state_dict(checkpoint['strategy_net_state'])
+    
+    # Restaurar optimizadores
+    optimizer_regret.load_state_dict(checkpoint['optimizer_regret_state'])
+    optimizer_strategy.load_state_dict(checkpoint['optimizer_strategy_state'])
+    
+    start_iteration = checkpoint['iteration'] + 1
+    print(f"✅ Reanudando desde la iteración {start_iteration}...")
+else:
+    # Si no hay checkpoint maestro, vemos si al menos tenemos el "Trasplante" inicial
+    ruta_trasplante = 'learn/cfr/deep_cfr_18vars_iniciado.pth'
+    if os.path.exists(ruta_trasplante):
+        strategy_net.load_state_dict(torch.load(ruta_trasplante))
+        print("💉 Empezando desde iteración 1, pero usando pesos trasplantados de la v11.")
+
 # ==========================================
 # MAIN TRAINING LOOP
 # ==========================================
 if __name__ == "__main__":
     print("🚀 Starting Deep CFR Training...")
     start_time = time.time()
-    
-    for iteration in range(1, ITERATIONS + 1):
+    # Cambiar el range para que empiece donde toca
+    for iteration in range(start_iteration, ITERATIONS + 1):
         print(f"--- Iteration {iteration}/{ITERATIONS} ---")
+        start_it_time = time.time()
         
         # 1. Generate Data (Self-Play)
         for p in ["IA_1", "IA_2"]:
@@ -174,13 +205,24 @@ if __name__ == "__main__":
         print(f"🧠 Training networks... (Buffers: {len(regret_buffer)} regrets, {len(strategy_buffer)} strategies)")
         for _ in range(50): # Multiple gradient steps per iteration
             train_networks()
-        if iteration % 500 == 0:
-            torch.save(strategy_net.state_dict(), f"deep_cfr_mus_bot_iter_{iteration}.pth")
-            print(f"💾 Checkpoint guardado en iteración {iteration}")
+        print(f"Iteration competed in {round(time.time()-start_it_time)} seconds")
+        if iteration % 50 == 0:
+            checkpoint = {
+                'iteration': iteration,
+                'regret_net_state': regret_net.state_dict(),
+                'strategy_net_state': strategy_net.state_dict(),
+                'optimizer_regret_state': optimizer_regret.state_dict(),
+                'optimizer_strategy_state': optimizer_strategy.state_dict()
+            }
+            torch.save(checkpoint, "learn/cfr/checkpoint_mus_latest.pth")
+            torch.save(strategy_net.state_dict(), f"learn/cfr/deep_cfr_mus_bot_iter_{iteration}.pth")
+            print(f"💾 Checkpoint maestro guardado en la iteración {iteration}")
+            
+
             
     end_time = time.time()
     print(f"✅ Training completed in {(end_time - start_time)/60:.2f} minutes.")
     
     # Save the final Strategy Network (This is our final bot!)
-    torch.save(strategy_net.state_dict(), "deep_cfr_mus_bot2.pth")
-    print("💾 Final bot saved as 'deep_cfr_mus_bot2.pth'.")
+    torch.save(strategy_net.state_dict(), f"learn/cfr/deep_cfr_mus_bot_18_{ITERATIONS}.pth")
+    print(f"💾 Final bot saved as 'learn/cfr/deep_cfr_mus_bot_18_{ITERATIONS}.pth'.")
