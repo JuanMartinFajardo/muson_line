@@ -9,6 +9,7 @@ In this readme you will find:
 3. How the bot is trained
 4. The rules of Mus
 5. A few words on the game
+6. References
 
 
 # 1. What is CallMus?
@@ -43,31 +44,58 @@ To run it locally and make tests, I personally use ngrok.
 
 # 3. How does the bot learn to play Mus?
 
+## 3.1 First attemps
+
+At the beginning I used a random forest method to decide upon the cards to do mus or not, and if so, which cards to discard. The result was not bad at all, but 
+
 The bot "intelligence" consists on three parts.
 1. A model for deciding **whether to discard or not** (Mus vs no Mus)
 2. A model to decide **which cards to discard** in case of mus.
 3. A model to handel the **bettings**.
- 
 
 For the sake of the training, **every game generates a log** that is stored in the folder `logs` as a .jsonl file. 
 Each line records all the data regarding a single turn: which cards players had, who's turn was, what action it took place, what was the bet called so far, how many points each player had, and who eventually won the round, among others.
 
-To make the models more efficient, we developed a python script to count the **probability of winning** each round with given cards (`lean/probability_calculator.py`). We give the model these derived variables as an extra input to make the learning more based on rationality.
+To make the models more efficient, I developed a python script to count the **probability of winning** each round with given cards (`lean/probability_calculator.py`). I give the model these derived variables as an extra input to make the learning more based on rationality.
+
+All three models were trained using a random forest method. The first two performed well, whereas the third (betting system) was horrible, because it learned to imitate other players, not what a good hand is or where to bluff. So I decided to seek for other strategies.
+
+## 3.2 Deep CFR
+
+The Counterfactual Regret Minimization (CFR Minimization) algorithm consists roughly on moving randomly through the game tree and storing the regrets of each choide. Trying to minimize this regret, we would reach the Nash Equilibrium, that by applying it we can play 'deffensively': meaning that our expected value is $\geq 0$.
+In general, this game tree is too large. In [1] the authors develope a model called Deep CFR that combines two neural networks (regret network and strategy network) to try to reach this nash equilibrium (stored in the strategy network). I implemented this model to approach the Nash Equilibrium. In particular I implemented the Linear CFR.
+
+## 3.3. Implementation of the Deep CFR
+Given my computing performance limitations, I use fine-tunning, to make the process faster.
+Comment on reservoir sampling ...
+
+The structure goes as follows. Fix a number of iterations (in our case 5000).
+For each iteration we run 500 random games in the game situation tree, and for each one of them we explore the tree of posibilities with `transverse`. Then we train both networks using a Stochastic Gradient Descent.
+
+The variables considered are:
+- Who is Mano
+- My cards (4 values)
+- The phase (High, Low, Pair, Game)
+- Last amount bet
+- The bet called for each phase
+- Who received the bet called (me, the opponen, or no one yet)
+- My points
+- The opponent's points
+- The amount of mus rounds
+- The amount of cards discarded by the opponent
 
 
-1. The Mus/no Mus model is trained using a **random forest** to read these lines (actually, only the ones corresponding to turns of the winner) and predict an output: **Mus/no Mus**
-2. The card discarding model is trained as well using a **random forest** algorithm to learn from the discards of the winners. In this case the output generated is a **binary number from 1 to 16** (as there are 16 possible discards). As discarding the first and the second card from 4,5,10,2 (discard code 1100) is the same as discarding the third and the fourth from 10,2,4,5 ( discard code 0011), we sort the cards increasingly.
-3. The betting model is trained in the same fashion usind a **random forest** algorithm to decide between the **options** (bid, fold, raise, ordago) depending on the case. 
+## 3.4 Deciding Mus vs no Mus and discarding
 
-To train it, execute `python3 global_trainer.py`.
+In order to achieve good performance in the random game samplings, I replaced both the model for mus/no mus and the one for discards with optimized algorithms. Moreover, I decided that there is not a big choice to be made when deciding mus/no mus or which cards to discard. Obviously there are somehow strategic choices to be made here, but appart from some more or less influential percentage of bluffing, everyone agrees on what a good hand is. Therefore, I decided to desing an optimized method to decide if you want to discard and in that case which cards you would like to.
 
 
-Performance so far:
-1. The first model shows a really **good performance**. Basically, it learnt what hands are good enough to keep. The test showed a $90%$ of accuracy (with respect to human decisions)
-2. The second model **works fine** as well. It learnt how to improve a hand by throwing the right cards. The accuracy was around $70%$
-3. The third model is **not good enough**. It can play, but it is extremely cautious and almost never raises the bet. Basically, with this model, it learnt how to play 'statistically' like the players. In Mus for two, players are usually cauitous and what determines the edge is the **ability to bluff at the right time**. As there is no possible way to imitate this globally, players must learn in each game how to bluff the particular opponent. I am seeking another model that can achieve this goal better. Accuracy respect to human decisions (imitating) is of $65%$. The number is not good and the play-like-human criteria is not even a good test.
+1. Mus no Mus: In order to decide if a hand is good or not, I computed for every hand all the probabilities of winning at each round (High, Low, Pair, Game), and I stored them in a learn/global_variables_mus_data.json. Luckly, for this game there are only 330 possible hands, so that is pretty lightweight. For every hand, the first 4 numbers correspond to the 4 probabilities of wining each round being Mano, and the following four are the same but without being Mano. With this probabilities computed, I decided to compute the expected value of each hand. For that I considered a situation in which a bet of 2 points is called in a round where we have at least 50% odds of winning, and we lose a point for every round we have less than 50% odds of winning. (Include formulas). Then I stored the expected values of each hand (again one for being Mano and one for not being Mano) in the same .json file. This expected value is obviously an approximation, but we do not want to s
 
-To sum up, learning to imitate is a good strategy for the first two models, but not for the third.
+Once we have the expected value, we say mus if it is over certain fixed threshold.
+
+2. To discard, we compute all possible discards (there are 15, note that it is mandatory to throw at least a card) and compute the expected value of that discard. For that, we make a reduction and assume that for every free spot we can obtain either a 12, a 10, a 5 or a 1. This assumption reduces the possible hands to only 35, and with that we only have to visit the expected_value dicctionary a few hundred times.
+
 
 
 # 4. The Rules of Mus (for 2 people)
@@ -143,3 +171,6 @@ If a bet was accepted, the winner of that round takes the points. If everyone pa
 
 
 ## 5. A few words about Mus
+
+## 6. References
+[1]: https://arxiv.org/abs/1811.00164
