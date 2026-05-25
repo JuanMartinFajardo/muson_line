@@ -5,6 +5,7 @@ import time
 from mus_env import MusBettingEnv
 from redes_mus import RegretNetwork, StrategyNetwork, ReplayBuffer, estado_a_vector
 import os
+from torch.utils.tensorboard import SummaryWriter
 
 
 # ==========================================
@@ -26,8 +27,8 @@ strategy_net = StrategyNetwork(input_size)
 regret_buffer = ReplayBuffer(capacidad=100000)
 strategy_buffer = ReplayBuffer(capacidad=100000)
 
-#optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
-#optimizer_strategy = torch.optim.Adam(strategy_net.parameters(), lr=LEARNING_RATE)
+optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
+optimizer_strategy = torch.optim.Adam(strategy_net.parameters(), lr=LEARNING_RATE)
 
 def get_strategy_from_regret(info_vector, valid_indices):
     """
@@ -144,6 +145,7 @@ def train_networks(T_actual):
         loss_regret = (weights * (predictions - targets)**2).mean()
         loss_regret.backward()
         optimizer_regret.step()
+        l_regret = loss_regret.item()
         
     # Train Strategy Network (Misca lógica)
     if len(strategy_buffer) >= BATCH_SIZE:
@@ -155,7 +157,9 @@ def train_networks(T_actual):
         loss_strategy = (weights * (predictions - targets)**2).mean()
         loss_strategy.backward()
         optimizer_strategy.step()
+        l_strategy = loss_strategy.item()
 
+    return l_regret, l_strategy
 
 
 
@@ -163,6 +167,8 @@ def train_networks(T_actual):
 # --- LÓGICA DE RESUMEN DE ENTRENAMIENTO ---
 start_iteration = 1
 ruta_checkpoint = "learn/cfr/checkpoint_mus_latest.pth"
+
+writer = SummaryWriter(log_dir="learn/cfr/runs/mus_experiment")
 
 if os.path.exists(ruta_checkpoint):
     print("🔄 Se ha detectado un entrenamiento pausado. Restaurando...")
@@ -207,8 +213,22 @@ if __name__ == "__main__":
         #optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
         # 2. Train Networks
         print(f"🧠 Training networks... (Buffers: {len(regret_buffer)} regrets, {len(strategy_buffer)} strategies)")
-        for _ in range(250): # Multiple gradient steps per iteration
-            train_networks(iteration)
+        total_loss_r = 0.0
+        total_loss_s = 0.0
+        n_steps = 250
+        for _ in range(n_steps): # Multiple gradient steps per iteration
+            l_r, l_s = train_networks(iteration)
+            total_loss_r += l_r
+            total_loss_s += l_s
+            
+        avg_loss_r = total_loss_r / n_steps
+        avg_loss_s = total_loss_s / n_steps
+
+        writer.add_scalar('Loss/Regret', avg_loss_r, iteration)
+        writer.add_scalar('Loss/Strategy', avg_loss_s, iteration)
+
+        print(f"📊 Loss Regret: {avg_loss_r:.5f} | Loss Strategy: {avg_loss_s:.5f}")
+
         print(f"Iteration competed in {round(time.time()-start_it_time)} seconds")
         if iteration % 25 == 0:
             checkpoint = {

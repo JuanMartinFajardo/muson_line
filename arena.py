@@ -12,10 +12,10 @@ import os
 # CONFIGURACIÓN DE LA ARENA
 # ==========================================
 NUM_PARTIDAS = 5999
-name_model_1 = 'deep_cfr_mus_bot_iter_1300'
-name_model_2 = 'deep_cfr_mus_bot_iter_700'
+name_model_1 = 'deep_cfr_mus_bot_iter_1400'
+name_model_2 = 'deep_cfr_mus_bot_iter_100'
 PATH_MODELO_1 = f"learn/cfr/{name_model_1}.pth"
-PATH_MODELO_2 = f"learn/cfr/{name_model_2}.pth"  
+PATH_MODELO_2 = f"learn/cfr0/{name_model_2}.pth"  
 
 ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
 INDEX_TO_ACTION = {v: k for k, v in ACTION_MAP.items()}
