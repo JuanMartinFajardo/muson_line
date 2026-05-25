@@ -15,8 +15,24 @@ import torch
 # Importamos la arquitectura de la red y el traductor de estados
 from redes_mus import StrategyNetwork, estado_a_vector
 from mus_mecanicas import tiene_pares, tiene_juego
+import json
+
+
+meta_variables = {'musero':0.2, 'farolero': 0.5, 'aleatorio': 0.1, 'fish': 0.5}
 
 ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
+
+def cargar_modelo(ruta):
+    modelo = StrategyNetwork(input_size=18)
+    # Soporte para cargar tanto un state_dict directo como un checkpoint maestro
+    datos = torch.load(ruta, weights_only=False)
+    if 'strategy_net_state' in datos:
+        modelo.load_state_dict(datos['strategy_net_state'])
+    else:
+        modelo.load_state_dict(datos)
+    modelo.eval()
+    return modelo
+
 
 class SmartBot:
     def __init__(self, sid="BOT_ML"):
@@ -27,36 +43,19 @@ class SmartBot:
 
         # 1. Cargar Cerebro de Apuestas CFR
         self.modelo_apuestas_cfr = None
-        ruta_cfr = 'learn/cfr0/checkpoint_mus_latest.pth'
-        #ruta_cfr = 'learn/cfr/deep_cfr_mus_bot_iter_50.pth'
-        if os.path.exists(ruta_cfr):
-            self.modelo_apuestas_cfr = StrategyNetwork(18) # ¡IMPORTANTE! Ahora son 18 inputs, no 11
-            
-            # 1. Cargamos el archivo maestro
-            checkpoint = torch.load(ruta_cfr, weights_only=False)
-            
-            # 2. Extraemos SOLO los pesos de la red de estrategia
-            pesos_estrategia = checkpoint['strategy_net_state']
-            
-            # 3. Se los inyectamos al modelo
-            self.modelo_apuestas_cfr.load_state_dict(pesos_estrategia)
-            self.modelo_apuestas_cfr.eval() # Modo solo lectura
-            print("🧠 [BOT] Cerebro Deep CFR (18 vars) cargado para Apuestas.")
-        else:
-            print("⚠️ [BOT] No se encontró el modelo CFR.")
+        name_model = 'deep_cfr_mus_bot_iter_900' #checkpoint_mus_latest
+        ruta_cfr = f"learn/cfr/{name_model}.pth"
+        self.modelo_apuestas_cfr = cargar_modelo(ruta_cfr)
         
-        '''if os.path.exists(ruta_cfr):
-            self.modelo_apuestas_cfr = StrategyNetwork(18) # 18 es el input_size
-            self.modelo_apuestas_cfr.load_state_dict(torch.load(ruta_cfr))
-            self.modelo_apuestas_cfr.eval() # Lo ponemos en modo "solo lectura"
-            print("🧠 [BOT] Cerebro Deep CFR (Equilibrio de Nash) cargado para Apuestas.")
+        self.expected_values_mus = {}
+        ruta_json = 'learn/global_variables/mus_data.json' # Ajusta la ruta si está en otra carpeta
+        if os.path.exists(ruta_json):
+            with open(ruta_json, 'r') as f:
+                datos = json.load(f)
+                self.expected_values_mus = datos.get('expected_values', {})
+            print("🧠 [BOT] Tabla de Expected Values cargada para decisión de Mus.")
         else:
-            print("⚠️ [BOT] No se encontró el modelo CFR.")'''
-        
-        self.modelo_mus = None
-        if os.path.exists('learn/models/modelo_decisor_mus.pkl'):
-            self.modelo_mus = joblib.load('learn/models/modelo_decisor_mus.pkl')
-            print("🧠 [BOT] Cerebro de Mus cargado.")
+            print("⚠️ [BOT] No se encontró mus_data.json.")
             
         # 2. Cargar Cerebro de Descartes
         self.modelo_descartes = None
@@ -70,55 +69,28 @@ class SmartBot:
             self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': partida.ronda_n}
 
 
-    def predecir_mus1(self,partida, cartas,estado):
-        es_mano = 1 if partida.id_mano == self.sid else 0
+    def predecir_mus(self, partida, cartas, estado, musero = 0.5):
+        """Decide si cortar el mus basándose en el Expected Value precalculado."""
+        es_mano = (partida.id_mano == self.sid)
+        
+        # 1. Normalizar y ordenar las cartas para que coincidan con las llaves del JSON
         cartas_norm = [12 if c['valor'] == 3 else 1 if c['valor'] == 2 else c['valor'] for c in cartas]
         c_ord = sorted(cartas_norm, reverse=True)
-
-    def predecir_mus(self, partida, cartas, estado):
-        es_mano = 1 if partida.id_mano == self.sid else 0
-        cartas_norm = [12 if c['valor'] == 3 else 1 if c['valor'] == 2 else c['valor'] for c in cartas]
-        c_ord = sorted(cartas_norm, reverse=True)
         
-        cat_pares, val_pares = evaluar_pares(cartas_norm)
-        estado_juego = calcular_valor_juego(cartas_norm)
+        # Al hacer str(lista), en Python se formatea exactamente como "[12, 12, 12, 12]"
+        llave_mano = str(c_ord)
         
-        try:
-            prob_g = calcular_probabilidad_grande(cartas, self.memoria['mis_descartes'], es_mano==1).get('prob_ganar', 0.0)
-            prob_c = calcular_probabilidad_chica(cartas, self.memoria['mis_descartes'], es_mano==1).get('prob_ganar', 0.0)
-            prob_p = calcular_probabilidad_pares(cartas, False, es_mano==1, self.memoria['mis_descartes']).get('prob_ganar', 0.0)
-            res_j = calcular_probabilidad_juego(cartas, 0, False, es_mano==1, self.memoria['mis_descartes'])
-            prob_j = res_j.get('prob_ganar', 0.0) if isinstance(res_j, dict) else 0.0
-        except:
-            prob_g, prob_c, prob_p, prob_j = 0.0, 0.0, 0.0, 0.0
-
-        if prob_g > 85.0 or prob_j > 85.0 or cat_pares >= 2:
-            print("⚡ [IA MUS] Cartas brutales detectadas. Corto mus por salvaguarda.")
-            return 'no_mus'
-
-        features = [
-            es_mano, c_ord[0], c_ord[1], c_ord[2], c_ord[3],
-            1 if cat_pares > 0 else 0, cat_pares, 
-            1 if estado_juego['tiene_juego'] else 0, estado_juego['suma'],
-            self.memoria['descartes_rival'], prob_g, prob_c, prob_p, prob_j
-        ]
+        # 2. Buscar el EV en el diccionario (por defecto 0.0 si no se encuentra)
+        ev_valores = self.expected_values_mus.get(llave_mano, [0.0, 0.0])
         
-        df_input = pd.DataFrame([features], columns=[
-            'es_mano', 'c1', 'c2', 'c3', 'c4', 
-            'tengo_pares', 'tipo_pares', 'tengo_juego', 'suma_puntos',
-            'descartes_rival', 'prob_grande', 'prob_chica', 'prob_pares', 'prob_juego'
-        ])
+        # 3. Elegir el EV correcto según la posición
+        ev_final = ev_valores[0] if es_mano else ev_valores[1]
         
-        if hasattr(self.modelo_mus, 'predict_proba'):
-            probs = self.modelo_mus.predict_proba(df_input)[0]
-            if len(probs) > 1 and probs[1] > 0.25: 
-                return 'no_mus'
-            return 'mus'
-            
-        prediccion = self.modelo_mus.predict(df_input)[0]
-        return 'no_mus' if prediccion == 1 else 'mus'
+        # 4. Decisión determinista: si rinde más de 0.5, cortamos.
+        return 'no_mus' if ev_final > musero else 'mus'
 
-    def predecir_descarte(self, partida, cartas):
+
+    def predecir_descartes_ia(self, partida, cartas):
         es_mano = 1 if partida.id_mano == self.sid else 0
         
         # 1. Asociamos el valor de cada carta con su índice original en la mano
@@ -170,6 +142,33 @@ class SmartBot:
                 indices_a_tirar.append(indice_original)
                 
         return indices_a_tirar
+
+
+    def predecir_descarte(self, partida, cartas):
+            """Calcula el descarte matemáticamente óptimo consultando la tabla de EV"""
+            from mus_discard_chooser import get_best_discard_strategy
+            
+            es_mano = (partida.id_mano == self.sid)
+            
+            # Extraemos los valores crudos de las cartas (3, 12, 1, 4...)
+            hand_vals = [c['valor'] for c in cartas]
+            
+            # Llamamos a tu algoritmo pasándole la tabla que ya está en RAM
+            resultado_descarte = get_best_discard_strategy(
+                my_hand=hand_vals, 
+                ev_lookup_table=self.expected_values_mus, 
+                am_i_mano=es_mano
+            )
+            
+            # Extraemos la lista de índices de forma segura (como hicimos en el entorno)
+            best_action = resultado_descarte.get('best_action', {})
+            if isinstance(best_action, dict) and 'discard' in best_action:
+                indices_brutos = best_action['discard']
+            else:
+                indices_brutos = best_action if best_action else []
+                
+            # Convertimos los índices a enteros y los devolvemos
+            return [int(i) for i in indices_brutos]
 
 
     def get_valid_actions_cfr(self, partida, cartas, subida_pendiente):
@@ -283,11 +282,11 @@ class SmartBot:
             if not estado['descartes_listos']:
                 if self.modelo_descartes is not None:
                     indices = self.predecir_descarte(partida, cartas)
-                    print(f"🎴 [IA DESCARTE] Tirando {len(indices)} cartas. Índices: {indices}")
+                    print(f"🎴 [BOT DESCARTE] Tirando {len(indices)} cartas. Índices: {indices}")
                 else:
                     # Respaldo aleatorio
-                    num_descartes = random.randint(0, 4)
-                    indices = random.sample(range(4), num_descartes)
+                    indices = self.predecir_descarte(partida, cartas)
+                    print(f"🎴 [BOT DESCARTE] Tirando {len(indices)} cartas. Índices: {indices}")
                 
                 self.memoria['mis_descartes'].extend([cartas[i]['valor'] for i in indices])
                 return {'accion': 'descartar', 'indices': indices}
@@ -297,12 +296,10 @@ class SmartBot:
 
         if fase == 'mus':
             if estado['quiere_mus'] is None:
-                if self.modelo_mus is not None:
-                    decision = self.predecir_mus(partida, cartas, estado)
-                    print(f"🤖 [IA MUS] Decisión final: {decision.upper()}")
-                    return {'accion': decision}
-                else:
-                    return {'accion': random.choice(['mus', 'no_mus'])}
+                decision = self.predecir_mus(partida, cartas, estado, musero = meta_variables['musero'])
+                print(f"🤖 [IA MUS] Decisión final: {decision.upper()}")
+                return {'accion': decision}
+
 
         # 5. Apuestas (¡CON IA DEEP CFR!)
         if fase == 'apuestas':

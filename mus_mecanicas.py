@@ -355,7 +355,7 @@ class PartidaMus:
 
     def procesar_descarte(self, jugador, indices_cartas_a_tirar):
             """Recibe una lista de índices (ej: [0, 2]) que el jugador quiere tirar"""
-            
+            indices_cartas_a_tirar = [int(i) for i in indices_cartas_a_tirar]
             # 3. GUARDAR EL DESCARTE EXACTO ANTES DE BORRARLO
             valores_tirados = [self.estado[jugador]['cartas'][i]['valor'] for i in sorted(indices_cartas_a_tirar, reverse=True)]
             self.registrar_movimiento_ia(jugador, 'descarte', detalles={"cartas_tiradas": valores_tirados})

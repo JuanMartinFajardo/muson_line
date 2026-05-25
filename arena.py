@@ -4,15 +4,18 @@ import random
 import matplotlib.pyplot as plt
 from mus_mecanicas import PartidaMus, tiene_pares, tiene_juego
 from redes_mus import StrategyNetwork, estado_a_vector
+from mus_discard_chooser import get_best_discard_strategy
+import json
+import os
 
 # ==========================================
 # CONFIGURACIÓN DE LA ARENA
 # ==========================================
 NUM_PARTIDAS = 5999
-name_model_1 = 'checkpoint_mus_latest'
-name_model_2 = 'deep_cfr_mus_bot_iter_50'
+name_model_1 = 'deep_cfr_mus_bot_iter_1300'
+name_model_2 = 'deep_cfr_mus_bot_iter_700'
 PATH_MODELO_1 = f"learn/cfr/{name_model_1}.pth"
-PATH_MODELO_2 = f"learn/cfr0/{name_model_2}.pth"  
+PATH_MODELO_2 = f"learn/cfr/{name_model_2}.pth"  
 
 ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
 INDEX_TO_ACTION = {v: k for k, v in ACTION_MAP.items()}
@@ -39,6 +42,20 @@ try:
 except Exception as e:
     print(f"❌ Error cargando modelos: {e}")
     exit()
+
+
+expected_values_mus = {}
+# Usamos una ruta absoluta relativa al archivo para evitar fallos de ejecución
+ruta_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'learn/global_variables/mus_data.json')
+
+if os.path.exists(ruta_json):
+    with open(ruta_json, 'r') as f:
+        datos = json.load(f)
+        expected_values_mus = datos.get('expected_values', {})
+    print("💾 [GIMNASIO] Tabla de Expected Values cargada en caché global.")
+else:
+    print("⚠️ [GIMNASIO] Alerta: No se encontró mus_data.json. Las decisiones de mus colapsarán.")
+
 
 # ==========================================
 # 2. FUNCIONES AUXILIARES DE INFERENCIA
@@ -132,16 +149,50 @@ def jugar_partida(m1, m2):
             
         elif partida.fase == 'mus':
             # Comportamiento semi-aleatorio para generar diversidad de situaciones
-            corta_mus = (random.random() > 0.5)
-            partida.cantar_mus(jugador, not corta_mus)
+            es_mano = (jugador == partida.id_mano)
+            cartas = partida.estado[jugador]['cartas']
+            
+            # Normalizamos igual que en el bot
+            cartas_norm = [12 if c['valor'] == 3 else 1 if c['valor'] == 2 else c['valor'] for c in cartas]
+            c_ord = sorted(cartas_norm, reverse=True)
+            llave_mano = str(c_ord)
+            
+            # Consultamos el diccionario
+            ev_valores = expected_values_mus.get(llave_mano, [0.0, 0.0])
+            ev_final = ev_valores[0] if es_mano else ev_valores[1]
+            
+            # Si rinde más de 0.5, cortamos mus (False), de lo contrario damos mus (True)
+            if ev_final > 0.5:
+                partida.cantar_mus(jugador, False)
+            else:
+                partida.cantar_mus(jugador, True)
             
         elif partida.fase == 'descarte':
             # ¡CORRECCIÓN AL BUCLE INFINITO DE DESCARTES!
             for p in ["MODELO_1", "MODELO_2"]:
                 if not partida.estado[p]['descartes_listos']:
-                    num_cartas = random.randint(1, 4)
-                    indices = random.sample(range(4), num_cartas)
-                    partida.procesar_descarte(p, indices)
+                    cartas = partida.estado[p]['cartas']
+                    # Extraemos los valores crudos de las cartas (3, 12, 1, etc.)
+                    hand_vals = [c['valor'] for c in cartas]
+                    es_mano = (p == partida.id_mano)
+                    
+                    # El algoritmo evalúa las 16 combinaciones posibles basándose en la tabla EV
+                    indices_a_tirar = get_best_discard_strategy(
+                        my_hand=hand_vals, 
+                        ev_lookup_table=expected_values_mus, 
+                        am_i_mano=es_mano
+                    )
+                    best_action = indices_a_tirar['best_action']
+                    
+                    # Si best_action es un diccionario, extraemos la lista de la llave 'discard'
+                    if isinstance(best_action, dict) and 'discard' in best_action:
+                        indices_brutos = best_action['discard']
+                    else:
+                        indices_brutos = best_action # Por si acaso a veces devuelve la lista directamente
+                    
+                    # Convertimos a enteros
+                    indices_a_tirar = [int(i) for i in indices_brutos]
+                    partida.procesar_descarte(p, indices_a_tirar)
                     
         elif partida.fase == 'apuestas':
             # 1. Consumir automáticamente los avisos de "Nadie tiene pares" o "No juego"

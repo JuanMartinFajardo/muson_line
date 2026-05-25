@@ -2,12 +2,30 @@ import copy
 import numpy as np
 from mus_mecanicas import PartidaMus, tiene_pares, tiene_juego
 import random
+import json
+import os
+from mus_discard_chooser import get_best_discard_strategy
+from mus_mecanicas import tiene_pares, tiene_juego
+
+expected_values_mus = {}
+# Usamos una ruta absoluta relativa al archivo para evitar fallos de ejecución
+ruta_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'learn/global_variables/mus_data.json')
+
+if os.path.exists(ruta_json):
+    with open(ruta_json, 'r') as f:
+        datos = json.load(f)
+        expected_values_mus = datos.get('expected_values', {})
+    print("💾 [GIMNASIO] Tabla de Expected Values cargada en caché global.")
+else:
+    print("⚠️ [GIMNASIO] Alerta: No se encontró mus_data.json. Las decisiones de mus colapsarán.")
+
 
 class MusBettingEnv:
     def __init__(self):
         # Mapeo de acciones posibles a índices (0 a 5)
         self.acciones_lista = ['pasar', 'envidar', 'ver', 'nover', 'subir', 'ordago']
         self.partida = None
+
 
     def reset(self):
         """Inicia una partida nueva y la adelanta hasta la fase de apuestas"""
@@ -29,19 +47,54 @@ class MusBettingEnv:
                 self.partida.repartir_inicial()
                 
             elif self.partida.fase == 'mus':
-                if random.random() > 0.5:
-                    self.partida.cantar_mus(self.partida.turno_de, False)
+                # --- NUEVA LÓGICA DE MUS BASADA EN EV ---
+                jugador = self.partida.turno_de
+                es_mano = (jugador == self.partida.id_mano)
+                cartas = self.partida.estado[jugador]['cartas']
+                
+                # Normalizamos igual que en el bot
+                cartas_norm = [12 if c['valor'] == 3 else 1 if c['valor'] == 2 else c['valor'] for c in cartas]
+                c_ord = sorted(cartas_norm, reverse=True)
+                llave_mano = str(c_ord)
+                
+                # Consultamos el diccionario
+                ev_valores = expected_values_mus.get(llave_mano, [0.0, 0.0])
+                ev_final = ev_valores[0] if es_mano else ev_valores[1]
+                
+                # Si rinde más de 0.5, cortamos mus (False), de lo contrario damos mus (True)
+                if ev_final > 0.5:
+                    self.partida.cantar_mus(jugador, False)
                 else:
-                    self.partida.cantar_mus(self.partida.turno_de, True)
+                    self.partida.cantar_mus(jugador, True)
                     
             elif self.partida.fase == 'descarte':
-                # ¡CORRECCIÓN! Iteramos sobre ambos jugadores independientemente del turno
+                # NUEVA LÓGICA INTELIGENTE DE DESCARTE
                 for p in ["IA_1", "IA_2"]:
-                    # Solo le hacemos descartar si no lo ha hecho ya en esta ronda
                     if not self.partida.estado[p]['descartes_listos']:
-                        num_cartas = random.randint(1, 4)
-                        indices = random.sample(range(4), num_cartas)
-                        self.partida.procesar_descarte(p, indices)
+                        # Importamos tu función de descarte
+                        
+                        cartas = self.partida.estado[p]['cartas']
+                        # Extraemos los valores crudos de las cartas (3, 12, 1, etc.)
+                        hand_vals = [c['valor'] for c in cartas]
+                        es_mano = (p == self.partida.id_mano)
+                        
+                        # El algoritmo evalúa las 16 combinaciones posibles basándose en la tabla EV
+                        indices_a_tirar = get_best_discard_strategy(
+                            my_hand=hand_vals, 
+                            ev_lookup_table=expected_values_mus, 
+                            am_i_mano=es_mano
+                        )
+                        best_action = indices_a_tirar['best_action']
+                        
+                        # Si best_action es un diccionario, extraemos la lista de la llave 'discard'
+                        if isinstance(best_action, dict) and 'discard' in best_action:
+                            indices_brutos = best_action['discard']
+                        else:
+                            indices_brutos = best_action # Por si acaso a veces devuelve la lista directamente
+                        
+                        # Convertimos a enteros
+                        indices_a_tirar = [int(i) for i in indices_brutos]
+                        self.partida.procesar_descarte(p, indices_a_tirar)
 
     def get_valid_actions(self):
         """Devuelve las acciones legales en el nodo actual"""
@@ -53,7 +106,7 @@ class MusBettingEnv:
         cartas = self.partida.estado[jugador]['cartas']
         fase_actual = self.partida.fases_apuesta[self.partida.indice_fase]
         
-        from mus_mecanicas import tiene_pares, tiene_juego
+        
         
         # 1. Filtros de las Leyes del Mus
         if fase_actual == 'Pares' and not tiene_pares(cartas):

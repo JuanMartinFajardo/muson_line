@@ -6,6 +6,7 @@ from mus_env import MusBettingEnv
 from redes_mus import RegretNetwork, StrategyNetwork, ReplayBuffer, estado_a_vector
 import os
 
+
 # ==========================================
 # HYPERPARAMETERS
 # ==========================================
@@ -25,8 +26,8 @@ strategy_net = StrategyNetwork(input_size)
 regret_buffer = ReplayBuffer(capacidad=100000)
 strategy_buffer = ReplayBuffer(capacidad=100000)
 
-optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
-optimizer_strategy = torch.optim.Adam(strategy_net.parameters(), lr=LEARNING_RATE)
+#optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
+#optimizer_strategy = torch.optim.Adam(strategy_net.parameters(), lr=LEARNING_RATE)
 
 def get_strategy_from_regret(info_vector, valid_indices):
     """
@@ -179,7 +180,7 @@ if os.path.exists(ruta_checkpoint):
     print(f"✅ Reanudando desde la iteración {start_iteration}...")
 else:
     # Si no hay checkpoint maestro, vemos si al menos tenemos el "Trasplante" inicial
-    ruta_trasplante = 'learn/cfr/deep_cfr_18vars_iniciado.pth'
+    ruta_trasplante = 'learn/cfr/deep_cfr_mus_bot_iter_1000.pth'
     if os.path.exists(ruta_trasplante):
         strategy_net.load_state_dict(torch.load(ruta_trasplante))
         print("💉 Empezando desde iteración 1, pero usando pesos trasplantados de la v11.")
@@ -202,11 +203,11 @@ if __name__ == "__main__":
                 env.reset()
                 traverse(env, traversing_player=p, t=iteration)
                 
-        regret_net = RegretNetwork(input_size)
-        optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
+        #regret_net = RegretNetwork(input_size)
+        #optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
         # 2. Train Networks
         print(f"🧠 Training networks... (Buffers: {len(regret_buffer)} regrets, {len(strategy_buffer)} strategies)")
-        for _ in range(50): # Multiple gradient steps per iteration
+        for _ in range(250): # Multiple gradient steps per iteration
             train_networks(iteration)
         print(f"Iteration competed in {round(time.time()-start_it_time)} seconds")
         if iteration % 25 == 0:

@@ -108,7 +108,8 @@ def get_best_discard_strategy(my_hand, ev_lookup_table, am_i_mano=True, known_ou
             if expected_ev_for_action > best_ev:
                 best_ev = expected_ev_for_action
                 best_action = {
-                    "discard": discarded_cards,
+                    "discard": list(discard_indices), # ¡CORRECCIÓN: Guardamos las posiciones (0, 1, 2, 3)!
+                    "discard_values": discarded_cards, # Opcional: guardamos los valores por si quieres debugear
                     "keep": kept_cards,
                     "ev": round(best_ev, 5)
                 }
