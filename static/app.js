@@ -11,7 +11,7 @@ let enPartida = false;
 const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
 const gameLog = document.getElementById('game-log');
-let show_in_console = true;
+let show_in_console = false;
 
 // ==========================================
 // 0. MOTOR DE IDIOMAS (i18n)
