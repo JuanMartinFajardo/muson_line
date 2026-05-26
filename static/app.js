@@ -11,7 +11,7 @@ let enPartida = false;
 const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
 const gameLog = document.getElementById('game-log');
-
+let show_in_console = true;
 
 // ==========================================
 // 0. MOTOR DE IDIOMAS (i18n)
@@ -515,7 +515,10 @@ socket.on('actualizar_mesa', (datos) => {
     if (datos.para_sid !== socket.id) return;
     
     // 2. CHIVATO: Esto imprimirá los datos en la consola si por fin llegan
-     console.log("📥 Datos recibidos del servidor:", datos);
+   
+    if (show_in_console) {
+        console.log("📥 Datos recibidos del servidor:", datos);
+    }
 
     if (!enPartida) {
         document.getElementById('menu-screen').classList.add('hidden');

@@ -72,6 +72,7 @@ class MusBettingEnv:
                 for p in ["IA_1", "IA_2"]:
                     if not self.partida.estado[p]['descartes_listos']:
                         # Importamos tu función de descarte
+
                         
                         cartas = self.partida.estado[p]['cartas']
                         # Extraemos los valores crudos de las cartas (3, 12, 1, etc.)
