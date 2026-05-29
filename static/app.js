@@ -6,6 +6,7 @@ let cartasSeleccionadas = [];
 let subfaseApuestasActual = "";
 let apuestaVistaActual = 0; // CORREGIDO: V mayúscula
 let enPartida = false;
+let recuentoTimeout;
 
 // PANTALLAS CORRECTAS
 const menuScreen = document.getElementById('menu-screen');
@@ -495,6 +496,7 @@ document.getElementById('btn-subir').addEventListener('click', () => {
 });
 
 document.getElementById('btn-next-round').addEventListener('click', (e) => {
+    clearTimeout(recuentoTimeout);
     mostrarBotones([]);
     document.getElementById('my-cards').innerHTML = '';
     const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
@@ -504,7 +506,7 @@ document.getElementById('btn-next-round').addEventListener('click', (e) => {
         ? `${t('rival_siguiente_partida')}`
         : `${t('info_esperando_rival_listo')}`;
 
-    gameLog.innerHTML = `<strong style='font-size: 1.2em; color: #ebcb8b;'>${textoEspera}</strong>`;
+    gameLog.innerHTML = `<strong style='font-size: 1.2em; color: #ffffff; font-weight: 300; letter-spacing: 1px;'>${textoEspera}</strong>`;
     socket.emit('accion_juego', { accion: 'listo_siguiente_ronda' });
 });
 
@@ -515,6 +517,8 @@ document.getElementById('btn-next-round').addEventListener('click', (e) => {
 socket.on('actualizar_mesa', (datos) => {
     // 1. FILTRO: Si el paquete no es para mí, lo ignoro
     if (datos.para_sid !== socket.id) return;
+    
+    clearTimeout(recuentoTimeout);
     
     // 2. CHIVATO: Esto imprimirá los datos en la consola si por fin llegan
    
@@ -560,15 +564,15 @@ socket.on('actualizar_mesa', (datos) => {
         }
 
         const getColStyle = (isActive) => isActive 
-            ? 'color:#2e3440; background:#ebcb8b; font-weight:bold; border-radius:4px; padding:2px 5px; margin-bottom:5px; text-align:center; font-size:1.1em;' 
-            : 'color:#ebcb8b; font-weight:bold; padding:2px 5px; margin-bottom:5px; text-align:center; font-size:1.1em;';
+            ? 'color:#000000; background:#ffffff; font-weight:bold; border-radius:3px; padding:2px 5px; margin-bottom:5px; text-align:center; font-size:1.1em; letter-spacing:1px;' 
+            : 'color:#888888; font-weight:normal; padding:2px 5px; margin-bottom:5px; text-align:center; font-size:1em; letter-spacing:1px;';
 
         let htmlApuestaEnAire = `<div id="caja-en-aire" style="min-height: 65px; display: flex; flex-direction: column; justify-content: center; align-items: center; margin-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 10px;">`;
 
         if (datos.apuestas && (datos.apuestas.subida > 0 || datos.apuestas.subida === 'ÓRDAGO')) {
             const cantidadStr = datos.apuestas.subida === 'ÓRDAGO' ? 'un ÓRDAGO' : datos.apuestas.subida;
             const textoSube = datos.apuestas.soy_quien_sube ? t('has_subido') + cantidadStr : t('te_suben') + cantidadStr;
-            const colorSube = datos.apuestas.soy_quien_sube ? `#ebcb8b` : `#bf616a`;
+            const colorSube = datos.apuestas.soy_quien_sube ? `#ffffff` : `#aaaaaa`;
 
             htmlApuestaEnAire += `
                 <p style="font-size: 1.1em; margin: 0 0 5px 0;">${t('info_apuesta_vista')} <span class="highlight">${datos.apuestas.apuesta_vista}</span></p>
@@ -623,7 +627,7 @@ socket.on('actualizar_mesa', (datos) => {
             textoTrans = t('msg_' + datos.mensaje_transicion.code);
         }
         
-        gameLog.innerHTML = `<strong style="color:#ebcb8b; font-size: 1.2em;">${textoTrans}</strong>`;
+        gameLog.innerHTML = `<strong style="color:#ffffff; font-weight: 300; font-size: 1.2em; letter-spacing: 1px;">${textoTrans}</strong>`;
         mostrarBotones([]);
         if (datos.es_mi_turno) {
             setTimeout(() => socket.emit('accion_juego', { accion: 'continuar_transicion' }), 3000);
@@ -716,7 +720,7 @@ socket.on('actualizar_mesa', (datos) => {
         gameLog.innerText = textoMsg;
 
         if (datos.descartes_rival > 0 && datos.fase === 'mus') {
-            gameLog.innerHTML += `<br><span style="color:#a3be8c; font-size:0.9em;">(${t('info_rival_cambio')} ${datos.descartes_rival} ${t('cartas')})</span>`;
+            gameLog.innerHTML += `<br><span style="color:#aaaaaa; font-size:0.9em; font-style: italic;">(${t('info_rival_cambio')} ${datos.descartes_rival} ${t('cartas')})</span>`;
         }
     }
 
@@ -814,51 +818,74 @@ function mostrarRecuentoEstatico(datos) {
     }
 
 const gameLog = document.getElementById('game-log');
-    let htmlRecuento = `<strong style='font-size: 1.2em; color: #88c0d0;'>${t('msg_resultados')}</strong><br><br>`;
+    let baseHtml = `<strong style='font-size: 1.2em; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; font-weight: 300;'>${t('msg_resultados')}</strong><br><br>`;
+    gameLog.innerHTML = baseHtml;
+
+    let mensajes = [];
 
     if (datos.recuento && datos.recuento.length > 0) {
         for (let paso of datos.recuento) {
             let code = paso.datos.code;
             
             if (code === 'recuento_nover') {
-                let nombreFase = t('fase_' + paso.datos.fase.toLowerCase());
-                htmlRecuento += `<i>${t_dinamico('msg_recuento_nover', {fase: nombreFase})}</i><br>`;
-                
+                if (paso.datos.fase !== 'Grande' && paso.datos.fase !== 'Chica') {
+                    let nombreFase = t('fase_' + paso.datos.fase.toLowerCase());
+                    mensajes.push(`<i>${t_dinamico('msg_recuento_nover', {fase: nombreFase})}</i><br>`);
+                }
             } else if (code === 'recuento_gana') {
                 let nombreFase = t('fase_' + paso.datos.fase.toLowerCase());
                 let claveGana = paso.gano_yo ? 'msg_recuento_gana_yo' : 'msg_recuento_gana_rival';
-                htmlRecuento += `${t_dinamico(claveGana, {puntos: paso.datos.puntos, fase: nombreFase})}<br>`;
+                mensajes.push(`${t_dinamico(claveGana, {puntos: paso.datos.puntos, fase: nombreFase})}<br>`);
                 
             } else if (code === 'recuento_pedrete_win') {
                 let claveGana = paso.gano_yo ? 'msg_recuento_pedrete_win_yo' : 'msg_recuento_pedrete_win_rival';
-                htmlRecuento += `${t(claveGana)}<br>`;
+                mensajes.push(`${t(claveGana)}<br>`);
             }
         }
     } else {
-        htmlRecuento += `${t('msg_error_ronda')}<br>`;
+        mensajes.push(`${t('msg_error_ronda')}<br>`);
     }
 
     let btnNext = document.getElementById('btn-next-round');
+    let botonesFinales = [];
 
     // Comprobar victorias de partida o match
     if (datos.mis_puntos >= 40 || datos.puntos_rival >= 40) {
         const txt = datos.mis_puntos >= 40 ? t('msg_gana_partida_yo') : t('msg_gana_partida_rival');
-        htmlRecuento += `<br><strong style="font-size: 1.5em; color: #a3be8c;">${txt}</strong>`;
+        mensajes.push(`<br><strong style="font-size: 1.5em; color: #ffffff; font-weight: 300; letter-spacing: 1px;">${txt}</strong>`);
         
         if (datos.match_finalizado) {
             const txtGlobal = datos.mis_puntos >= 40 ? t('msg_gana_match_yo') : t('msg_gana_match_rival');
-            htmlRecuento += `<br><strong style="font-size: 1.5em; color: #a3be8c;">${txtGlobal}</strong>`;
-            gameLog.innerHTML = htmlRecuento;
-            mostrarBotones(['btn-volver-menu']);
+            mensajes.push(`<br><strong style="font-size: 1.5em; color: #ffffff; font-weight: 300; letter-spacing: 1px;">${txtGlobal}</strong>`);
+            botonesFinales = ['btn-volver-menu'];
         } else {
-            gameLog.innerHTML = htmlRecuento;
             if (btnNext) btnNext.innerText = t("btn_next_game"); 
-            mostrarBotones(['btn-next-round']);
+            botonesFinales = ['btn-next-round'];
         }
     } else {
-        gameLog.innerHTML = htmlRecuento;
         if (btnNext) btnNext.innerText = t("btn_next_round");
-        mostrarBotones(['btn-next-round']);
+        botonesFinales = ['btn-next-round'];
+    }
+
+    let index = 0;
+    function mostrarSiguienteMensaje() {
+        if (index < mensajes.length) {
+            gameLog.innerHTML += mensajes[index];
+            index++;
+            if (index < mensajes.length) {
+                recuentoTimeout = setTimeout(mostrarSiguienteMensaje, 2000);
+            } else {
+                mostrarBotones(botonesFinales);
+            }
+        } else {
+            mostrarBotones(botonesFinales);
+        }
+    }
+
+    if (mensajes.length > 0) {
+        mostrarSiguienteMensaje();
+    } else {
+        mostrarBotones(botonesFinales);
     }
 }
 
