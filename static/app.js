@@ -554,10 +554,10 @@ socket.on('actualizar_mesa', (datos) => {
             document.getElementById('in-subir').value = 2;
         }
 
-        let gStyle = fAct === t('fase_grande') ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
-        let cStyle = fAct === t('fase_chica') ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
-        let pStyle = fAct === t('fase_pares') ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
-        let jStyle = fAct === t('fase_juego') ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em;' : '';
+        let gStyle = fAct === 'Grande' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em; background:rgba(235,203,139,0.15); border-radius:4px; padding:2px 5px;' : '';
+        let cStyle = fAct === 'Chica' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em; background:rgba(235,203,139,0.15); border-radius:4px; padding:2px 5px;' : '';
+        let pStyle = fAct === 'Pares' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em; background:rgba(235,203,139,0.15); border-radius:4px; padding:2px 5px;' : '';
+        let jStyle = fAct === 'Juego' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em; background:rgba(235,203,139,0.15); border-radius:4px; padding:2px 5px;' : '';
 
         let htmlBotes = `
             <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
