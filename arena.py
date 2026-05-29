@@ -12,8 +12,8 @@ import os
 # CONFIGURACIÓN DE LA ARENA
 # ==========================================
 NUM_PARTIDAS = 5999
-name_model_1 = 'deep_cfr_mus_bot_iter_3600'
-name_model_2 = 'deep_cfr_mus_bot_iter_1400'
+name_model_1 = 'deep_cfr_mus_bot_iter_1400'
+name_model_2 = 'deep_cfr_mus_bot_iter_1800'
 PATH_MODELO_1 = f"learn/cfr/{name_model_1}.pth"
 PATH_MODELO_2 = f"learn/cfr/{name_model_2}.pth"  
 
