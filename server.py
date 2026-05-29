@@ -329,9 +329,22 @@ def enviar_estado_a_jugadores(codigo_sala):
             'fase_actual': '',
             'subida': partida_actual.subida_pendiente,
             'botes': partida_actual.botes,
+            'dejes': {},
             'apuesta_vista': partida_actual.apuesta_vista,
             'soy_quien_sube': (partida_actual.quien_sube == sid)
         }
+
+        
+        if hasattr(partida_actual, 'dejes_fase'):
+            for f, d in partida_actual.dejes_fase.items():
+                if d is not None:
+                    info_apuestas['dejes'][f] = {
+                        'gano_yo': (d['ganador'] == sid),
+                        'valor': d['valor']
+                    }
+
+                
+
         if partida_actual.fase == 'apuestas' and partida_actual.indice_fase < len(partida_actual.fases_apuesta):
             info_apuestas['fase_actual'] = partida_actual.fases_apuesta[partida_actual.indice_fase]
         

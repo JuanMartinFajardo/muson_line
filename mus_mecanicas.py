@@ -196,6 +196,7 @@ class PartidaMus:
             self.fases_apuesta = ['Grande', 'Chica', 'Pares', 'Juego']
             self.indice_fase = 0
             self.botes = {'Grande': 0, 'Chica': 0, 'Pares': 0, 'Juego': 0}
+            self.dejes_fase = {'Grande': None, 'Chica': None, 'Pares': None, 'Juego': None}
             self.ganadores_fase = {'Grande': None, 'Chica': None, 'Pares': None, 'Juego': None}
             
             self.apuesta_vista = 0
@@ -388,6 +389,7 @@ class PartidaMus:
         self.fase = 'apuestas'
         self.indice_fase = 0
         self.botes = {'Grande': 0, 'Chica': 0, 'Pares': 0, 'Juego': 0}
+        self.dejes_fase = {'Grande': None, 'Chica': None, 'Pares': None, 'Juego': None}
         self.ganadores_fase = {'Grande': None, 'Chica': None, 'Pares': None, 'Juego': None}
         self.ordago_aceptado_en = None
         self.preparar_subfase()
@@ -466,6 +468,9 @@ class PartidaMus:
             deje = self.apuesta_vista if self.apuesta_vista > 0 else 1
             self.estado[rival]['puntos'] += deje
             self.ganadores_fase[nombre_fase] = rival
+            if not hasattr(self, 'dejes_fase'):
+                self.dejes_fase = {'Grande': None, 'Chica': None, 'Pares': None, 'Juego': None}
+            self.dejes_fase[nombre_fase] = {'ganador': rival, 'valor': deje}
             self.avanzar_subfase(0)
 
         elif accion == 'envidar' or accion == 'subir':

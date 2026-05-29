@@ -571,24 +571,32 @@ socket.on('actualizar_mesa', (datos) => {
             `;
         }
         htmlApuestaEnAire += `</div>`;
+        
+        const getBoteTexto = (fase, apuestas) => {
+            if (apuestas.dejes && apuestas.dejes[fase]) {
+                const deje = apuestas.dejes[fase];
+                return deje.gano_yo ? `${deje.valor}(+)` : `${deje.valor}(-)`;
+            }
+            return apuestas.botes[fase] || 0;
+        };
 
         let htmlBotes = `
             <div style="display: flex; justify-content: space-around; width: 100%;">
                 <div style="display: flex; flex-direction: column; flex: 1;">
                     <div style="${getColStyle(fAct === 'Grande')}">${t('fase_grande')}</div>
-                    <div style="text-align: center; font-size: 1.2em;">${datos.apuestas.botes.Grande}</div>
+                    <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Grande', datos.apuestas)}</div>
                 </div>
                 <div style="display: flex; flex-direction: column; flex: 1;">
                     <div style="${getColStyle(fAct === 'Chica')}">${t('fase_chica')}</div>
-                    <div style="text-align: center; font-size: 1.2em;">${datos.apuestas.botes.Chica}</div>
+                    <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Chica', datos.apuestas)}</div>
                 </div>
                 <div style="display: flex; flex-direction: column; flex: 1;">
                     <div style="${getColStyle(fAct === 'Pares')}">${t('fase_pares')}</div>
-                    <div style="text-align: center; font-size: 1.2em;">${datos.apuestas.botes.Pares}</div>
+                    <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Pares', datos.apuestas)}</div>
                 </div>
                 <div style="display: flex; flex-direction: column; flex: 1;">
                     <div style="${getColStyle(fAct === 'Juego')}">${t('fase_juego')}</div>
-                    <div style="text-align: center; font-size: 1.2em;">${datos.apuestas.botes.Juego}</div>
+                    <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Juego', datos.apuestas)}</div>
                 </div>
             </div>
         `;
