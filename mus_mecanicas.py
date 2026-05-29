@@ -457,10 +457,8 @@ class PartidaMus:
         if accion == 'pasar':
             self.pases_consecutivos += 1
             if self.pases_consecutivos == 2:
-                # Pase corrido. Punto de pase en Grande, Chica o Punto.
-                es_punto = (nombre_fase == 'Juego' and not tiene_juego(self.estado[self.id_mano]['cartas']) and not tiene_juego(self.estado[self.id_postre]['cartas']))
-                punto_pase = 1 if nombre_fase in ['Grande', 'Chica'] or es_punto else 0
-                #punto_pase = 1 if nombre_fase in ['Grande', 'Chica'] else 0
+                # Pase corrido. Punto de pase solo en Grande y Chica (El Punto ya se suma en el recuento como pts_bonus).
+                punto_pase = 1 if nombre_fase in ['Grande', 'Chica'] else 0
                 self.avanzar_subfase(punto_pase)
             else:
                 self.turno_de = rival
