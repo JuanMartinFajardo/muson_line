@@ -108,6 +108,8 @@ const dict = {
         msg_recuento_gana_rival: "<b>El rival ha</b> ganado {puntos} puntos en {fase}.",
         msg_recuento_pedrete_win_yo: "<b>Has</b> ganado la partida con un ¡Pedrete!",
         msg_recuento_pedrete_win_rival: "<b>El rival ha</b> ganado la partida con un ¡Pedrete!",
+        msg_recuento_ordago_yo: "<b>Has</b> ganado el órdago a {fase}.",
+        msg_recuento_ordago_rival: "<b>El rival ha</b> ganado el órdago a {fase}.",
         msg_error_ronda: "<em>(Hubo un error o la ronda no tuvo apuestas válidas)</em>",
         msg_gana_partida_yo: "🏆 ¡HAS GANADO ESTA PARTIDA!",
         msg_gana_partida_rival: "💀 ¡EL RIVAL HA GANADO ESTA PARTIDA!",
@@ -215,6 +217,8 @@ const dict = {
         msg_recuento_gana_rival: "<b>The opponent</b> won {puntos} points in {fase}.",
         msg_recuento_pedrete_win_yo: "<b>You</b> won the match with a ¡Pedrete!",
         msg_recuento_pedrete_win_rival: "<b>The opponent</b> won the match with a ¡Pedrete!",
+        msg_recuento_ordago_yo: "<b>You</b> won the órdago in {fase}.",
+        msg_recuento_ordago_rival: "<b>The opponent</b> won the órdago in {fase}.",
         msg_error_ronda: "<em>(There was an error or the round had no valid bets)</em>",
         msg_gana_partida_yo: "🏆 YOU WON THIS GAME!",
         msg_gana_partida_rival: "💀 THE OPPONENT WON THIS GAME!",
@@ -644,6 +648,12 @@ socket.on('actualizar_mesa', (datos) => {
         return;
     }
 
+    // Guardamos la selección anterior si seguimos en la fase de descarte y aún no nos hemos descartado
+    let seleccionAnterior = [];
+    if (datos.fase === 'descarte' && !datos.descartes_listos) {
+        seleccionAnterior = [...cartasSeleccionadas];
+    }
+
     cartasSeleccionadas = [];
     const btnDescartar = document.getElementById('btn-descartar');
     if(btnDescartar) btnDescartar.innerText = `${t('btn_descartar')} (0)`;
@@ -656,6 +666,11 @@ socket.on('actualizar_mesa', (datos) => {
             const div = document.createElement('div');
             div.className = 'carta';
             div.innerHTML = `<img src="${carta.img}" alt="${carta.texto}" draggable="false" oncontextmenu="return false;">`;
+
+            if (seleccionAnterior.includes(index)) {
+                cartasSeleccionadas.push(index);
+                div.classList.add('seleccionada');
+            }
 
             div.onclick = () => {
                 if (datos.fase === 'descarte' && !datos.descartes_listos) {
@@ -673,6 +688,10 @@ socket.on('actualizar_mesa', (datos) => {
             };
             contenedorCartas.appendChild(div);
         });
+        
+        if (btnDescartar && cartasSeleccionadas.length > 0) {
+            btnDescartar.innerText = `${t('btn_descartar')} (${cartasSeleccionadas.length})`;
+        }
     } else {
         contenedorCartas.innerHTML = `${t('info_tus_cartas')}`;
     }
@@ -740,8 +759,10 @@ socket.on('actualizar_mesa', (datos) => {
     if (datos.fase === 'descarte') {
         if (!datos.descartes_listos) {
             botonesActivos.push('btn-descartar');
+            document.getElementById('btn-descartar').disabled = cartasSeleccionadas.length === 0;
+        } else {
+            document.getElementById('btn-descartar').disabled = true;
         }
-        document.getElementById('btn-descartar').disabled = true;
         
     } else if (datos.es_mi_turno) {
         if (datos.fase === 'espera_reparto') {
@@ -809,19 +830,38 @@ function mostrarRecuentoEstatico(datos) {
         }
     }
 
-    document.getElementById('puntos-mios').innerText = datos.mis_puntos;
-    document.getElementById('puntos-rival').innerText = datos.puntos_rival;
-
     if(document.getElementById('partidas-mios')) {
         document.getElementById('partidas-mios').innerText = datos.mis_partidas;
         document.getElementById('partidas-rival').innerText = datos.partidas_rival;
     }
 
-const gameLog = document.getElementById('game-log');
+    const gameLog = document.getElementById('game-log');
     let baseHtml = `<strong style='font-size: 1.2em; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; font-weight: 300;'>${t('msg_resultados')}</strong><br><br>`;
     gameLog.innerHTML = baseHtml;
 
     let mensajes = [];
+    let ptMios = datos.mis_puntos;
+    let ptRival = datos.puntos_rival;
+
+    // Calculamos los puntos iniciales restando los ganados en el recuento
+    if (datos.recuento && datos.recuento.length > 0) {
+        for (let paso of datos.recuento) {
+            let pts = 0;
+            if (paso.datos.code === 'recuento_gana') pts = paso.datos.puntos || 0;
+            else if (paso.datos.code === 'recuento_ordago') pts = 40;
+            
+            if (paso.gano_yo) ptMios -= pts;
+            else ptRival -= pts;
+        }
+    }
+    
+    // Evitamos negativos por seguridad
+    ptMios = Math.max(0, ptMios);
+    ptRival = Math.max(0, ptRival);
+
+    // Inicializamos la vista con los puntos de antes de la fase de recuento
+    document.getElementById('puntos-mios').innerText = ptMios;
+    document.getElementById('puntos-rival').innerText = ptRival;
 
     if (datos.recuento && datos.recuento.length > 0) {
         for (let paso of datos.recuento) {
@@ -830,20 +870,24 @@ const gameLog = document.getElementById('game-log');
             if (code === 'recuento_nover') {
                 if (paso.datos.fase !== 'Grande' && paso.datos.fase !== 'Chica') {
                     let nombreFase = t('fase_' + paso.datos.fase.toLowerCase());
-                    mensajes.push(`<i>${t_dinamico('msg_recuento_nover', {fase: nombreFase})}</i><br>`);
+                    mensajes.push({ texto: `<i>${t_dinamico('msg_recuento_nover', {fase: nombreFase})}</i><br>`, puntos: 0 });
                 }
             } else if (code === 'recuento_gana') {
                 let nombreFase = t('fase_' + paso.datos.fase.toLowerCase());
                 let claveGana = paso.gano_yo ? 'msg_recuento_gana_yo' : 'msg_recuento_gana_rival';
-                mensajes.push(`${t_dinamico(claveGana, {puntos: paso.datos.puntos, fase: nombreFase})}<br>`);
+                mensajes.push({ texto: `${t_dinamico(claveGana, {puntos: paso.datos.puntos, fase: nombreFase})}<br>`, gano_yo: paso.gano_yo, puntos: paso.datos.puntos });
                 
             } else if (code === 'recuento_pedrete_win') {
                 let claveGana = paso.gano_yo ? 'msg_recuento_pedrete_win_yo' : 'msg_recuento_pedrete_win_rival';
-                mensajes.push(`${t(claveGana)}<br>`);
+                mensajes.push({ texto: `${t(claveGana)}<br>`, puntos: 0 });
+            } else if (code === 'recuento_ordago') {
+                let nombreFase = t('fase_' + paso.datos.fase.toLowerCase());
+                let claveGana = paso.gano_yo ? 'msg_recuento_ordago_yo' : 'msg_recuento_ordago_rival';
+                mensajes.push({ texto: `${t_dinamico(claveGana, {fase: nombreFase})}<br>`, gano_yo: paso.gano_yo, puntos: 40 });
             }
         }
     } else {
-        mensajes.push(`${t('msg_error_ronda')}<br>`);
+        mensajes.push({ texto: `${t('msg_error_ronda')}<br>`, puntos: 0 });
     }
 
     let btnNext = document.getElementById('btn-next-round');
@@ -852,11 +896,11 @@ const gameLog = document.getElementById('game-log');
     // Comprobar victorias de partida o match
     if (datos.mis_puntos >= 40 || datos.puntos_rival >= 40) {
         const txt = datos.mis_puntos >= 40 ? t('msg_gana_partida_yo') : t('msg_gana_partida_rival');
-        mensajes.push(`<br><strong style="font-size: 1.5em; color: #ffffff; font-weight: 300; letter-spacing: 1px;">${txt}</strong>`);
+        mensajes.push({ texto: `<br><strong style="font-size: 1.5em; color: #ffffff; font-weight: 300; letter-spacing: 1px;">${txt}</strong>`, puntos: 0 });
         
         if (datos.match_finalizado) {
             const txtGlobal = datos.mis_puntos >= 40 ? t('msg_gana_match_yo') : t('msg_gana_match_rival');
-            mensajes.push(`<br><strong style="font-size: 1.5em; color: #ffffff; font-weight: 300; letter-spacing: 1px;">${txtGlobal}</strong>`);
+            mensajes.push({ texto: `<br><strong style="font-size: 1.5em; color: #ffffff; font-weight: 300; letter-spacing: 1px;">${txtGlobal}</strong>`, puntos: 0 });
             botonesFinales = ['btn-volver-menu'];
         } else {
             if (btnNext) btnNext.innerText = t("btn_next_game"); 
@@ -870,7 +914,20 @@ const gameLog = document.getElementById('game-log');
     let index = 0;
     function mostrarSiguienteMensaje() {
         if (index < mensajes.length) {
-            gameLog.innerHTML += mensajes[index];
+            let msgObj = mensajes[index];
+            gameLog.innerHTML += msgObj.texto;
+            
+            // Sumamos los puntos visualmente en ese momento
+            if (msgObj.puntos > 0) {
+                if (msgObj.gano_yo) {
+                    ptMios = Math.min(40, ptMios + msgObj.puntos);
+                    document.getElementById('puntos-mios').innerText = ptMios;
+                } else {
+                    ptRival = Math.min(40, ptRival + msgObj.puntos);
+                    document.getElementById('puntos-rival').innerText = ptRival;
+                }
+            }
+
             index++;
             if (index < mensajes.length) {
                 recuentoTimeout = setTimeout(mostrarSiguienteMensaje, 2000);

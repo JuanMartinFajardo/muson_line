@@ -548,7 +548,12 @@ class PartidaMus:
                     if fase == 'Grande': ganador_rol = comparar_cartas(cartas_m, cartas_p, True)
                     elif fase == 'Chica': ganador_rol = comparar_cartas(cartas_m, cartas_p, False)
                     elif fase == 'Pares': ganador_rol = comp_pares_info(get_pares_info(cartas_m), get_pares_info(cartas_p))
-                    elif fase == 'Juego': ganador_rol = comp_juego(cartas_m, cartas_p)
+                    elif fase == 'Juego':
+                        if not tiene_juego(cartas_m) and not tiene_juego(cartas_p):
+                            n_log = 'Punto'
+                            ganador_rol = comp_punto(cartas_m, cartas_p)
+                        else:
+                            ganador_rol = comp_juego(cartas_m, cartas_p)
                     ganador_sid = self.id_mano if ganador_rol == 'mano' else self.id_postre
             else:
                 if fase == 'Grande' and not ganador_sid:
@@ -581,10 +586,12 @@ class PartidaMus:
                 self.estado[ganador_sid]['puntos'] = min(40, self.estado[ganador_sid]['puntos'] + pts_total)
                 
             # Construimos el texto exacto para enviarlo al navegador
-            if self.ganadores_fase.get(fase) is not None and pts_total == 0:
+            if self.ordago_aceptado_en and fase == self.ordago_aceptado_en:
+                datos_paso = {'code': 'recuento_ordago', 'fase': n_log}
+            elif self.ganadores_fase.get(fase) is not None and pts_total == 0:
                 datos_paso = {'code': 'recuento_nover', 'fase': n_log}
             else:
-               datos_paso = {'code': 'recuento_gana', 'puntos': pts_total, 'fase': n_log}
+                datos_paso = {'code': 'recuento_gana', 'puntos': pts_total, 'fase': n_log}
                 
             self.pasos_recuento.append({
                 'ganador_sid': ganador_sid,

@@ -176,4 +176,10 @@ If a bet was accepted, the winner of that round takes the points. If everyone pa
 [1]: https://arxiv.org/abs/1811.00164
 
 
+## 7. Support
+
+CallMus is a young project, should you find bugs or have suggestions, please do not hesitate to contact us via GitHub.
+
+If you want to help to maintain this project free of adds, you can donate.
+
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/U3Q220FB6L)
