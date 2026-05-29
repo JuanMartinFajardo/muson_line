@@ -296,3 +296,25 @@ body {
         padding: 5px 0 !important;
     }
 }
+
+/* Ampliación de cartas al pasar el ratón en ordenador */
+@media screen and (min-width: 769px) {
+    .cartas-ampliadas, .cartas-ampliadas-rival {
+        z-index: 100;
+        position: relative;
+    }
+    .cartas-ampliadas .carta, .cartas-ampliadas-rival .carta {
+        position: relative;
+        z-index: 100;
+    }
+    .cartas-ampliadas .carta {
+        transform-origin: bottom center; /* Crecen hacia arriba para que el ratón no se salga de ellas */
+    }
+    .cartas-ampliadas-rival .carta {
+        transform-origin: top center; /* Crecen hacia abajo para que no se corten por arriba */
+    }
+    .cartas-ampliadas .carta:nth-child(1), .cartas-ampliadas-rival .carta:nth-child(1) { transform: scale(1.6) translateX(-30px); }
+    .cartas-ampliadas .carta:nth-child(2), .cartas-ampliadas-rival .carta:nth-child(2) { transform: scale(1.6) translateX(-10px); }
+    .cartas-ampliadas .carta:nth-child(3), .cartas-ampliadas-rival .carta:nth-child(3) { transform: scale(1.6) translateX(10px); }
+    .cartas-ampliadas .carta:nth-child(4), .cartas-ampliadas-rival .carta:nth-child(4) { transform: scale(1.6) translateX(30px); }
+}

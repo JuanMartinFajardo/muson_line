@@ -1085,3 +1085,49 @@ document.getElementById('th-sort-winrate').addEventListener('click', () => {
     else { currentSort = 'winrate'; sortDesc = true; }
     renderLeaderboard();
 });
+
+// ==========================================
+// 7. EFECTOS VISUALES (HOVER CARTAS)
+// ==========================================
+const myCardsContainer = document.getElementById('my-cards');
+let zoomTimeout;
+
+if (myCardsContainer) {
+    myCardsContainer.addEventListener('mouseenter', () => {
+        // Solo ampliamos en PC, si no es fase descarte y si hay cartas repartidas
+        if (window.innerWidth > 768 && faseJuego !== 'descarte' && myCardsContainer.children.length > 0) {
+            myCardsContainer.classList.add('cartas-ampliadas');
+            clearTimeout(zoomTimeout);
+            zoomTimeout = setTimeout(() => {
+                myCardsContainer.classList.remove('cartas-ampliadas');
+            }, 3000); // Se dejan de ampliar automáticamente a los 3 segundos
+        }
+    });
+    myCardsContainer.addEventListener('mouseleave', () => {
+        clearTimeout(zoomTimeout);
+        myCardsContainer.classList.remove('cartas-ampliadas');
+    });
+}
+
+// Lógica de ampliación para las cartas del rival (SOLO en recuento)
+const oppCardsContainer = document.querySelector('#opponent-area .cards-placeholder');
+let zoomTimeoutOpp;
+
+if (oppCardsContainer) {
+    oppCardsContainer.addEventListener('mouseenter', () => {
+        // Solo ampliamos en PC, si es fase recuento y hay cartas dibujadas (no texto)
+        if (window.innerWidth > 768 && faseJuego === 'recuento' && oppCardsContainer.children.length > 0) {
+            if (oppCardsContainer.querySelector('.carta')) {
+                oppCardsContainer.classList.add('cartas-ampliadas-rival');
+                clearTimeout(zoomTimeoutOpp);
+                zoomTimeoutOpp = setTimeout(() => {
+                    oppCardsContainer.classList.remove('cartas-ampliadas-rival');
+                }, 3000); // Auto-cierre a los 3 segundos al igual que las nuestras
+            }
+        }
+    });
+    oppCardsContainer.addEventListener('mouseleave', () => {
+        clearTimeout(zoomTimeoutOpp);
+        oppCardsContainer.classList.remove('cartas-ampliadas-rival');
+    });
+}
