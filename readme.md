@@ -174,3 +174,6 @@ If a bet was accepted, the winner of that round takes the points. If everyone pa
 
 ## 6. References
 [1]: https://arxiv.org/abs/1811.00164
+
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/U3Q220FB6L)
