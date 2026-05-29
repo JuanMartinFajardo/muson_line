@@ -544,10 +544,10 @@ socket.on('actualizar_mesa', (datos) => {
             contenedorRival.innerHTML = t('txt_cartas_sin_repartir');
         } else if (datos.fase !== 'recuento') {
             contenedorRival.innerHTML = `
-            <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
-            <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
-            <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
-            <div class="carta"><img src="/static/img/dorso.jpg" draggable="false" oncontextmenu="return false;"></div>
+            <div class="carta"><img src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;"></div>
+            <div class="carta"><img src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;"></div>
+            <div class="carta"><img src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;"></div>
+            <div class="carta"><img src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;"></div>
             `;
         }
     }

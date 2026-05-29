@@ -7,18 +7,18 @@ import datetime
 # 1. BARAJA Y CARTAS
 # ==========================================
 
-Oros = 'Oros' #Oros_btc
-Copas = 'Copas' #Copas_pirate
-Espadas = 'Espadas'
-Bastos = 'Bastos'
+Oros = 'coins' #Oros_btc
+Copas = 'coups' #Copas_pirate
+Espadas = 'swords'
+Bastos = 'clubs'
 
 import os
 
 # 1. Obtenemos la ruta real de la carpeta donde está este script
-BASE_DIR = os.path.dirname(os.path.abspath(__name__))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def obtener_ruta_imagen(nombre):
-    extensiones = [".jpg", ".png", ".jpeg"]
+    extensiones = [".webp", ".svg", ".jpg", ".png", ".jpeg"]
     
     for ext in extensiones:
         # Construimos la ruta real para que Python la encuentre en el disco
@@ -38,25 +38,41 @@ datos = {
 }
 
 def crear_baraja():
-    palos = [Oros, Copas, Espadas, Bastos]
+    # Diccionario con tus nombres exactos de palos en minúsculas
+    traduccion_palos = {
+        'Oros': 'coins',
+        'Copas': 'cups',
+        'Espadas': 'swords',
+        'Bastos': 'clubs'
+    }
+    
+    palos = ['Oros', 'Copas', 'Espadas', 'Bastos']
     valores = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12]
     baraja = []
     
     for palo in palos:
         for valor in valores:
+            # Lógica del texto visible para el usuario en español
             nombre = str(valor)
             if valor == 1: nombre = 'As'
             elif valor == 10: nombre = 'Sota'
             elif valor == 11: nombre = 'Caballo'
             elif valor == 12: nombre = 'Rey'
+            
+            # Obtenemos el equivalente para el nombre del archivo SVG
+            palo_en = traduccion_palos[palo]
+            
+            # Construye el formato exacto: card_coups_10, card_coins_1, etc.
+            nombre_archivo = f"card_{palo_en}_{valor:02d}"
+            
             baraja.append({
                 'valor': valor, 
                 'palo': palo,
-                # Generamos la ruta exacta: ej. /static/img/3_oros.png
-                'img': obtener_ruta_imagen(f"{valor}_{palo.lower()}"),
+                'img': obtener_ruta_imagen(nombre_archivo),
                 'texto': f"{nombre} de {palo}"
             })
     return baraja
+
 
 def get_valores_mus(cartas):
     # Los 3 son Reyes (12) y los 2 son Ases (1)
