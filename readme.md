@@ -174,7 +174,7 @@ If a bet was accepted, the winner of that round takes the points. If everyone pa
 
 ## 6. References
 [1]: https://arxiv.org/abs/1811.00164
-
+The pictures used for the cards were imported from the repository [gjenkins20](https://github.com/gjenkins20/spanish-playing-cards-svg/tree/main)
 
 ## 7. Support
 
