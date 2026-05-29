@@ -554,32 +554,46 @@ socket.on('actualizar_mesa', (datos) => {
             document.getElementById('in-subir').value = 2;
         }
 
-        let gStyle = fAct === 'Grande' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em; background:rgba(235,203,139,0.15); border-radius:4px; padding:2px 5px;' : '';
-        let cStyle = fAct === 'Chica' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em; background:rgba(235,203,139,0.15); border-radius:4px; padding:2px 5px;' : '';
-        let pStyle = fAct === 'Pares' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em; background:rgba(235,203,139,0.15); border-radius:4px; padding:2px 5px;' : '';
-        let jStyle = fAct === 'Juego' ? 'color:#ebcb8b; font-weight:bold; font-size:1.1em; background:rgba(235,203,139,0.15); border-radius:4px; padding:2px 5px;' : '';
+        const getColStyle = (isActive) => isActive 
+            ? 'color:#2e3440; background:#ebcb8b; font-weight:bold; border-radius:4px; padding:2px 5px; margin-bottom:5px; text-align:center; font-size:1.1em;' 
+            : 'color:#ebcb8b; font-weight:bold; padding:2px 5px; margin-bottom:5px; text-align:center; font-size:1.1em;';
 
-        let htmlBotes = `
-            <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
-                <p style="${gStyle}">${t('fase_grande')}: ${datos.apuestas.botes.Grande}</p>
-                <p style="${cStyle}">${t('fase_chica')}: ${datos.apuestas.botes.Chica}</p>
-                <p style="${pStyle}">${t('fase_pares')}: ${datos.apuestas.botes.Pares}</p>
-                <p style="${jStyle}">${t('fase_juego')}: ${datos.apuestas.botes.Juego}</p>
-            </div>
-        `;
+        let htmlApuestaEnAire = `<div id="caja-en-aire" style="min-height: 65px; display: flex; flex-direction: column; justify-content: center; align-items: center; margin-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 10px;">`;
 
         if (datos.apuestas && (datos.apuestas.subida > 0 || datos.apuestas.subida === 'ÓRDAGO')) {
             const cantidadStr = datos.apuestas.subida === 'ÓRDAGO' ? 'un ÓRDAGO' : datos.apuestas.subida;
             const textoSube = datos.apuestas.soy_quien_sube ? t('has_subido') + cantidadStr : t('te_suben') + cantidadStr;
             const colorSube = datos.apuestas.soy_quien_sube ? `#ebcb8b` : `#bf616a`;
 
-            htmlBotes += `
-            <div id="caja-en-aire" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #88c0d0;">
-                <p style="font-size: 1.1em; margin-bottom: 5px;">${t('info_apuesta_vista')} <span class="highlight">${datos.apuestas.apuesta_vista}</span></p>
+            htmlApuestaEnAire += `
+                <p style="font-size: 1.1em; margin: 0 0 5px 0;">${t('info_apuesta_vista')} <span class="highlight">${datos.apuestas.apuesta_vista}</span></p>
                 <p style="font-size: 1.2em; font-weight: bold; color: ${colorSube}; margin: 0;">${textoSube}</p>
-            </div>`;
+            `;
         }
-        logDiv.innerHTML = htmlBotes;
+        htmlApuestaEnAire += `</div>`;
+
+        let htmlBotes = `
+            <div style="display: flex; justify-content: space-around; width: 100%;">
+                <div style="display: flex; flex-direction: column; flex: 1;">
+                    <div style="${getColStyle(fAct === 'Grande')}">${t('fase_grande')}</div>
+                    <div style="text-align: center; font-size: 1.2em;">${datos.apuestas.botes.Grande}</div>
+                </div>
+                <div style="display: flex; flex-direction: column; flex: 1;">
+                    <div style="${getColStyle(fAct === 'Chica')}">${t('fase_chica')}</div>
+                    <div style="text-align: center; font-size: 1.2em;">${datos.apuestas.botes.Chica}</div>
+                </div>
+                <div style="display: flex; flex-direction: column; flex: 1;">
+                    <div style="${getColStyle(fAct === 'Pares')}">${t('fase_pares')}</div>
+                    <div style="text-align: center; font-size: 1.2em;">${datos.apuestas.botes.Pares}</div>
+                </div>
+                <div style="display: flex; flex-direction: column; flex: 1;">
+                    <div style="${getColStyle(fAct === 'Juego')}">${t('fase_juego')}</div>
+                    <div style="text-align: center; font-size: 1.2em;">${datos.apuestas.botes.Juego}</div>
+                </div>
+            </div>
+        `;
+
+        logDiv.innerHTML = htmlApuestaEnAire + htmlBotes;
     } else {
         if (logDiv) logDiv.classList.add('hidden');
     }
@@ -675,8 +689,10 @@ socket.on('actualizar_mesa', (datos) => {
         let textoMsg = "";
         if (datos.mensaje) {
             if (datos.mensaje.code === 'fase_apuestas' || datos.mensaje.code === 'fase_general') {
-                let nombreFaseTraducida = t('fase_' + datos.mensaje.fase.toLowerCase());
-                textoMsg = t_dinamico('msg_' + datos.mensaje.code, { fase: nombreFaseTraducida, jugador: datos.mensaje.jugador });
+                //let nombreFaseTraducida = t('fase_' + datos.mensaje.fase.toLowerCase());
+                //textoMsg = t_dinamico('msg_' + datos.mensaje.code, { fase: nombreFaseTraducida, jugador: datos.mensaje.jugador });
+                // Deliberately hidden so the table area isn't pushed down by repetitive text
+                textoMsg = "";
             } else {
                 textoMsg = t('msg_' + datos.mensaje.code);
             }
