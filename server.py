@@ -331,7 +331,8 @@ def enviar_estado_a_jugadores(codigo_sala):
             'botes': partida_actual.botes,
             'dejes': {},
             'apuesta_vista': partida_actual.apuesta_vista,
-            'soy_quien_sube': (partida_actual.quien_sube == sid)
+            'soy_quien_sube': (partida_actual.quien_sube == sid),
+            'juego_es_punto': getattr(partida_actual, 'juego_es_punto', False)
         }
 
         

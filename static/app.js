@@ -91,6 +91,7 @@ const dict = {
         fase_chica: "CHICA",
         fase_pares: "PARES",
         fase_juego: "JUEGO",
+        fase_punto: "PUNTO",
         fase_mus: "MUS",
         msg_nadie_pares: "Nadie tiene Pares.",
         msg_no_pares: "El {rol} no tiene Pares.",
@@ -196,6 +197,7 @@ const dict = {
         fase_chica: "LOW",
         fase_pares: "PAIRS",
         fase_juego: "GAME",
+        fase_punto: "POINT",
         fase_mus: "MUS",
         msg_nadie_pares: "No one has Pairs.",
         msg_no_pares: "The {rol} doesn't have Pairs.",
@@ -547,6 +549,9 @@ socket.on('actualizar_mesa', (datos) => {
         logDiv.classList.remove('hidden');
 
         let fAct = datos.apuestas ? datos.apuestas.fase_actual : '';
+            if (datos.mensaje_transicion && datos.mensaje_transicion.fase) {
+                fAct = datos.mensaje_transicion.fase;
+            }
 
         if (datos.fase === 'apuestas' && fAct !== subfaseApuestasActual) {
             subfaseApuestasActual = fAct;
@@ -579,6 +584,8 @@ socket.on('actualizar_mesa', (datos) => {
             }
             return apuestas.botes[fase] || 0;
         };
+        
+        let labelJuego = (datos.apuestas && datos.apuestas.juego_es_punto) ? t('fase_punto') : t('fase_juego');
 
         let htmlBotes = `
             <div style="display: flex; justify-content: space-around; width: 100%;">
@@ -595,7 +602,7 @@ socket.on('actualizar_mesa', (datos) => {
                     <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Pares', datos.apuestas)}</div>
                 </div>
                 <div style="display: flex; flex-direction: column; flex: 1;">
-                    <div style="${getColStyle(fAct === 'Juego')}">${t('fase_juego')}</div>
+                    <div style="${getColStyle(fAct === 'Juego')}">${labelJuego}</div>
                     <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Juego', datos.apuestas)}</div>
                 </div>
             </div>

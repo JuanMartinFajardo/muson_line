@@ -392,8 +392,8 @@ class PartidaMus:
         self.dejes_fase = {'Grande': None, 'Chica': None, 'Pares': None, 'Juego': None}
         self.ganadores_fase = {'Grande': None, 'Chica': None, 'Pares': None, 'Juego': None}
         self.ordago_aceptado_en = None
+        self.juego_es_punto = False
         self.preparar_subfase()
-        self.transicion_punto_mostrada = False
         self.transicion_punto_mostrada = False
 
     def preparar_subfase(self):
@@ -417,9 +417,9 @@ class PartidaMus:
             m_tiene = tiene_pares(self.estado[self.id_mano]['cartas'])
             p_tiene = tiene_pares(self.estado[self.id_postre]['cartas'])
             if not m_tiene or not p_tiene:
-                if not m_tiene and not p_tiene: self.mensaje_transicion = {'code': 'nadie_pares'}
-                elif m_tiene: self.mensaje_transicion = {'code': 'no_pares', 'rol': 'postre'}
-                else: self.mensaje_transicion = {'code': 'no_pares', 'rol': 'mano'}
+                if not m_tiene and not p_tiene: self.mensaje_transicion = {'code': 'nadie_pares', 'fase': 'Pares'}
+                elif m_tiene: self.mensaje_transicion = {'code': 'no_pares', 'rol': 'postre', 'fase': 'Pares'}
+                else: self.mensaje_transicion = {'code': 'no_pares', 'rol': 'mano', 'fase': 'Pares'}
                 # Avanzamos la máquina de estados internamente antes del return
                 self.indice_fase += 1 
                 return
@@ -430,15 +430,16 @@ class PartidaMus:
             
             # ¡NUEVO! Si nadie tiene, mostramos el aviso pero NO saltamos la fase
             if not m_tiene and not p_tiene:
+                self.juego_es_punto = True
                 if not getattr(self, 'transicion_punto_mostrada', False):
-                    self.mensaje_transicion = {'code': 'juego_a_punto'}
+                    self.mensaje_transicion = {'code': 'juego_a_punto', 'fase': 'Juego'}
                     self.transicion_punto_mostrada = True
                     return # Hace la pausa de 3s, luego volverá a entrar aquí y pasará de largo
             
             # Si solo uno tiene, mostramos el aviso y SÍ saltamos la fase
             elif m_tiene != p_tiene:
-                if m_tiene: self.mensaje_transicion = {'code': 'no_juego', 'rol': 'postre'}
-                else: self.mensaje_transicion = {'code': 'no_juego', 'rol': 'mano'}
+                if m_tiene: self.mensaje_transicion = {'code': 'no_juego', 'rol': 'postre', 'fase': 'Juego'}
+                else: self.mensaje_transicion = {'code': 'no_juego', 'rol': 'mano', 'fase': 'Juego'}
                 self.indice_fase += 1
                 return
 
