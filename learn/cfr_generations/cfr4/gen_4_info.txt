@@ -1,0 +1,8 @@
+Generation 4.
+Training complete up to 4700 iterations.
+n_steps: 250
+games_per_iter: 500
+
+Fine-tuning: True
+Relevant_models:
+- deep_cfr_mus_bot_4_iter_1400

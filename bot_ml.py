@@ -18,7 +18,7 @@ from mus_mecanicas import tiene_pares, tiene_juego
 import json
 
 
-meta_variables = {'musero':0.2, 'farolero': 0.5, 'aleatorio': 0.1, 'fish': 0.5}
+meta_variables = {'musero':random.random(), 'farolero': random.random(), 'aleatorio': random.random(), 'fish': random.random()}
 
 ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
 
@@ -43,7 +43,7 @@ class SmartBot:
 
         # 1. Cargar Cerebro de Apuestas CFR
         self.modelo_apuestas_cfr = None
-        name_model = 'deep_cfr_mus_bot_iter_1400'  #'checkpoint_mus_latest' #'deep_cfr_mus_bot_iter_1400'
+        name_model = 'deep_cfr_mus_bot_cfr5_iter_150'  #'checkpoint_mus_latest' #'deep_cfr_mus_bot_iter_1400'
         ruta_cfr = f"learn/cfr/{name_model}.pth"
         self.modelo_apuestas_cfr = cargar_modelo(ruta_cfr)
         
@@ -69,7 +69,7 @@ class SmartBot:
             self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': partida.ronda_n}
 
 
-    def predecir_mus(self, partida, cartas, estado, musero = 0.5):
+    def predecir_mus(self, partida, cartas, estado, meta_variables=meta_variables):
         """Decide si cortar el mus basándose en el Expected Value precalculado."""
         es_mano = (partida.id_mano == self.sid)
         
@@ -86,8 +86,20 @@ class SmartBot:
         # 3. Elegir el EV correcto según la posición
         ev_final = ev_valores[0] if es_mano else ev_valores[1]
         
-        # 4. Decisión determinista: si rinde más de 0.5, cortamos.
-        return 'no_mus' if ev_final > musero else 'mus'
+        impulso_farol = meta_variables['farolero'] * random.random()
+    
+        # 3. Ruido puro para que no sea matemático y robótico 100%
+        # random.uniform(-1, 1) puede subir o bajar la percepción
+        ruido = meta_variables['aleatorio'] * random.uniform(-1.0, 1.0) * 0.2
+        
+        # 4. Cálculo del EV percibido en este turno concreto
+        ev_percibido = ev_final + impulso_farol + ruido
+        
+        # 5. Toma de decisión
+        if ev_percibido >= meta_variables['musero']:
+            return "no_mus"
+        else:
+            return "mus"
 
 
     def predecir_descartes_ia(self, partida, cartas):
@@ -296,7 +308,7 @@ class SmartBot:
 
         if fase == 'mus':
             if estado['quiere_mus'] is None:
-                decision = self.predecir_mus(partida, cartas, estado, musero = meta_variables['musero'])
+                decision = self.predecir_mus(partida, cartas, estado, meta_variables)
                 print(f"🤖 [IA MUS] Decisión final: {decision.upper()}")
                 return {'accion': decision}
 

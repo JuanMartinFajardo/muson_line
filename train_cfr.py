@@ -12,9 +12,11 @@ from torch.utils.tensorboard import SummaryWriter
 # HYPERPARAMETERS
 # ==========================================
 ITERATIONS = 5_000  # Number of outer loops
-TRAVERSALS_PER_ITER = 500  # Games played per iteration
+TRAVERSALS_PER_ITER = 1_000  # Games played per iteration
 BATCH_SIZE = 1024
 LEARNING_RATE = 0.001
+
+GENERATION_NAME = 'cfr5'
 
 # Action string to index mapping
 ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
@@ -209,13 +211,13 @@ if __name__ == "__main__":
                 env.reset()
                 traverse(env, traversing_player=p, t=iteration)
                 
-        #regret_net = RegretNetwork(input_size)
-        #optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
+        regret_net = RegretNetwork(input_size)
+        optimizer_regret = torch.optim.Adam(regret_net.parameters(), lr=LEARNING_RATE)
         # 2. Train Networks
         print(f"🧠 Training networks... (Buffers: {len(regret_buffer)} regrets, {len(strategy_buffer)} strategies)")
         total_loss_r = 0.0
         total_loss_s = 0.0
-        n_steps = 250
+        n_steps = 2_000  # Number of gradient steps per iteration
         for _ in range(n_steps): # Multiple gradient steps per iteration
             l_r, l_s = train_networks(iteration)
             total_loss_r += l_r
@@ -238,8 +240,8 @@ if __name__ == "__main__":
                 'optimizer_regret_state': optimizer_regret.state_dict(),
                 'optimizer_strategy_state': optimizer_strategy.state_dict()
             }
-            torch.save(checkpoint, "learn/cfr/checkpoint_mus_latest.pth")
-            if iteration % 50 == 0: torch.save(strategy_net.state_dict(), f"learn/cfr/deep_cfr_mus_bot_iter_{iteration}.pth")
+            torch.save(checkpoint, f"learn/cfr/checkpoint_mus_{GENERATION_NAME}_latest.pth")
+            if iteration % 50 == 0: torch.save(strategy_net.state_dict(), f"learn/cfr/deep_cfr_mus_bot_{GENERATION_NAME}_iter_{iteration}.pth")
             print(f"💾 Checkpoint maestro guardado en la iteración {iteration}")
             
 
@@ -248,5 +250,5 @@ if __name__ == "__main__":
     print(f"✅ Training completed in {(end_time - start_time)/60:.2f} minutes.")
     
     # Save the final Strategy Network (This is our final bot!)
-    torch.save(strategy_net.state_dict(), f"learn/cfr/deep_cfr_mus_bot_18_{ITERATIONS}.pth")
-    print(f"💾 Final bot saved as 'learn/cfr/deep_cfr_mus_bot_18_{ITERATIONS}.pth'.")
+    torch.save(strategy_net.state_dict(), f"learn/cfr/deep_cfr_mus_bot_{GENERATION_NAME}_{ITERATIONS}.pth")
+    print(f"💾 Final bot saved as 'learn/cfr/deep_cfr_mus_bot_{GENERATION_NAME}_{ITERATIONS}.pth'.")
