@@ -37,7 +37,7 @@ class SmartBot:
     def __init__(self, sid="BOT_ML"):
         self.sid = sid
         self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': -1}
-        self.meta_variables = self.update_meta_variables()
+        self.meta_variables = self.update_meta_variables(show=True)  # Inicializamos las meta-variables con valores aleatorios
         
 
         # 1. Cargar Cerebro de Apuestas CFR
@@ -73,7 +73,7 @@ class SmartBot:
         self.meta_variables['bluffer'] = max(0.7, random.random())  # Asegura que siempre tenga algo de bluffer
         self.meta_variables['aleatorio'] = random.random()  # Cambia la cantidad de ruido en las decisiones
         self.meta_variables['fish'] = random.random()  # Cambia la probabilidad de cometer errores tontos"""
-        new_meta = {'musero': random.random(), 'bluffer': max(0.7, random.random()), 'aleatorio': random.random(), 'fish': random.random()}
+        new_meta = {'musero': random.random(), 'bluffer': min(0.4, random.random()), 'aleatorio': min(0.5, random.random()), 'fish': random.random()}
         if show: print(f"🔄 Meta-variables actualizadas: {new_meta}")
         return new_meta
 
