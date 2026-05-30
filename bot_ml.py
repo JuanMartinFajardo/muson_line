@@ -18,7 +18,6 @@ from mus_mecanicas import tiene_pares, tiene_juego
 import json
 
 
-meta_variables = {'musero':random.random(), 'farolero': random.random(), 'aleatorio': random.random(), 'fish': random.random()}
 
 ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
 
@@ -38,7 +37,7 @@ class SmartBot:
     def __init__(self, sid="BOT_ML"):
         self.sid = sid
         self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': -1}
-        
+        self.meta_variables = self.update_meta_variables()
         
 
         # 1. Cargar Cerebro de Apuestas CFR
@@ -46,7 +45,12 @@ class SmartBot:
         name_model = 'deep_cfr_mus_bot_cfr5_iter_150'  #'checkpoint_mus_latest' #'deep_cfr_mus_bot_iter_1400'
         ruta_cfr = f"learn/cfr/{name_model}.pth"
         self.modelo_apuestas_cfr = cargar_modelo(ruta_cfr)
-        
+
+        # We import another CFR model that is more bluffer and impredictable.
+        name_model_2 = 'deep_cfr_mus_bot_iter_1400'  #'checkpoint_mus_latest' #'deep_cfr_mus_bot_iter_1400'
+        ruta_cfr_2 = f"learn/cfr_generations/cfr4/{name_model_2}.pth"
+        self.modelo_apuestas_cfr_2 = cargar_modelo(ruta_cfr_2)
+
         self.expected_values_mus = {}
         ruta_json = 'learn/global_variables/mus_data.json' # Ajusta la ruta si está en otra carpeta
         if os.path.exists(ruta_json):
@@ -63,13 +67,22 @@ class SmartBot:
             self.modelo_descartes = joblib.load('learn/models/modelo_descartes.pkl')
             print("🧠 [BOT] Cerebro de Descartes cargado.")
 
+    def update_meta_variables(self, show = False):
+        """Actualiza las meta-variables de la IA al final de cada mano para introducir variabilidad en su comportamiento.
+        self.meta_variables['musero'] = random.random()  # Cambia el umbral de corte del mus
+        self.meta_variables['bluffer'] = max(0.7, random.random())  # Asegura que siempre tenga algo de bluffer
+        self.meta_variables['aleatorio'] = random.random()  # Cambia la cantidad de ruido en las decisiones
+        self.meta_variables['fish'] = random.random()  # Cambia la probabilidad de cometer errores tontos"""
+        new_meta = {'musero': random.random(), 'bluffer': max(0.7, random.random()), 'aleatorio': random.random(), 'fish': random.random()}
+        if show: print(f"🔄 Meta-variables actualizadas: {new_meta}")
+        return new_meta
 
     def actualizar_memoria(self, partida):
         if self.memoria['ronda'] != partida.ronda_n:
             self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': partida.ronda_n}
 
 
-    def predecir_mus(self, partida, cartas, estado, meta_variables=meta_variables):
+    def predecir_mus(self, partida, cartas, estado):
         """Decide si cortar el mus basándose en el Expected Value precalculado."""
         es_mano = (partida.id_mano == self.sid)
         
@@ -86,17 +99,17 @@ class SmartBot:
         # 3. Elegir el EV correcto según la posición
         ev_final = ev_valores[0] if es_mano else ev_valores[1]
         
-        impulso_farol = meta_variables['farolero'] * random.random()
+        impulso_farol = self.meta_variables['bluffer'] * random.random()
     
         # 3. Ruido puro para que no sea matemático y robótico 100%
         # random.uniform(-1, 1) puede subir o bajar la percepción
-        ruido = meta_variables['aleatorio'] * random.uniform(-1.0, 1.0) * 0.2
+        ruido = self.meta_variables['aleatorio'] * random.uniform(-1.0, 1.0) * 0.2
         
         # 4. Cálculo del EV percibido en este turno concreto
         ev_percibido = ev_final + impulso_farol + ruido
         
         # 5. Toma de decisión
-        if ev_percibido >= meta_variables['musero']:
+        if ev_percibido >= self.meta_variables['musero']:
             return "no_mus"
         else:
             return "mus"
@@ -247,7 +260,10 @@ class SmartBot:
 
         # Predict mixed strategy distribution
         with torch.no_grad():
-            raw_probabilities = self.modelo_apuestas_cfr(tensor_input).squeeze(0).numpy()
+            if random.random() > self.meta_variables['bluffer']:
+                raw_probabilities = self.modelo_apuestas_cfr_2(tensor_input).squeeze(0).numpy()
+            else:
+                raw_probabilities = self.modelo_apuestas_cfr(tensor_input).squeeze(0).numpy()
 
         # Get valid actions for the current state and map them to network indices
         valid_actions = self.get_valid_actions_cfr(partida, cartas, subida_pendiente)
@@ -285,7 +301,10 @@ class SmartBot:
                 return {'accion': 'pedrete'}
 
         if partida.mensaje_transicion: return {'accion': 'continuar_transicion'}
-        if fase == 'recuento': return {'accion': 'listo_siguiente_ronda'}
+        if fase == 'recuento':
+            self.update_meta_variables(show=True)  # Actualizamos las meta-variables al final de cada mano            
+            return {'accion': 'listo_siguiente_ronda'}
+        
 
         # ==========================================
         # FASE DE DESCARTE (¡NUEVO!)
@@ -308,7 +327,7 @@ class SmartBot:
 
         if fase == 'mus':
             if estado['quiere_mus'] is None:
-                decision = self.predecir_mus(partida, cartas, estado, meta_variables)
+                decision = self.predecir_mus(partida, cartas, estado)
                 print(f"🤖 [IA MUS] Decisión final: {decision.upper()}")
                 return {'accion': decision}
 
