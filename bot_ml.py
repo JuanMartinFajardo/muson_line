@@ -37,12 +37,12 @@ class SmartBot:
     def __init__(self, sid="BOT_ML"):
         self.sid = sid
         self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': -1}
-        self.meta_variables = self.update_meta_variables(show=True)  # Inicializamos las meta-variables con valores aleatorios
+        self.meta_variables = self.update_meta_variables(show=False)  # Inicializamos las meta-variables con valores aleatorios
         
 
         # 1. Cargar Cerebro de Apuestas CFR
         self.modelo_apuestas_cfr = None
-        name_model = 'deep_cfr_mus_bot_cfr5_iter_650'  #'checkpoint_mus_latest' #'deep_cfr_mus_bot_iter_1400'
+        name_model = 'deep_cfr_mus_bot_cfr5_iter_1050'  #'checkpoint_mus_latest' #'deep_cfr_mus_bot_iter_1400'
         ruta_cfr = f"learn/cfr/{name_model}.pth"
         self.modelo_apuestas_cfr = cargar_modelo(ruta_cfr)
 
@@ -73,7 +73,7 @@ class SmartBot:
         self.meta_variables['bluffer'] = max(0.7, random.random())  # Asegura que siempre tenga algo de bluffer
         self.meta_variables['aleatorio'] = random.random()  # Cambia la cantidad de ruido en las decisiones
         self.meta_variables['fish'] = random.random()  # Cambia la probabilidad de cometer errores tontos"""
-        new_meta = {'musero': random.random(), 'bluffer': min(0.4, random.random()), 'aleatorio': min(0.5, random.random()), 'fish': random.random()}
+        new_meta = {'musero': random.random(), 'bluffer': min(0.35, random.random()), 'aleatorio': min(0.4, random.random()), 'fish': random.random()}
         if show: print(f"🔄 Meta-variables actualizadas: {new_meta}")
         return new_meta
 
@@ -260,7 +260,7 @@ class SmartBot:
 
         # Predict mixed strategy distribution
         with torch.no_grad():
-            if random.random() > self.meta_variables['bluffer']:
+            if False: #random.random() > self.meta_variables['bluffer']:
                 raw_probabilities = self.modelo_apuestas_cfr_2(tensor_input).squeeze(0).numpy()
             else:
                 raw_probabilities = self.modelo_apuestas_cfr(tensor_input).squeeze(0).numpy()
