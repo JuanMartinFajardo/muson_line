@@ -3,3 +3,10 @@ mus.db
 recycle
 learn/oldmodels
 learn/__pycache__
+learn/datasets
+learn/models
+learn/procesar_carpeta
+learn/dataset_generator.py
+learn/entrenar_apuestas.py
+learn/entrenar_descartes.py
+learn/entrenar_mus.py
