@@ -260,10 +260,8 @@ class SmartBot:
 
         # Predict mixed strategy distribution
         with torch.no_grad():
-            if False: #random.random() > self.meta_variables['bluffer']:
-                raw_probabilities = self.modelo_apuestas_cfr_2(tensor_input).squeeze(0).numpy()
-            else:
-                raw_probabilities = self.modelo_apuestas_cfr(tensor_input).squeeze(0).numpy()
+            raw_probabilities = self.modelo_apuestas_cfr(tensor_input).squeeze(0).numpy()
+                
 
         # Get valid actions for the current state and map them to network indices
         valid_actions = self.get_valid_actions_cfr(partida, cartas, subida_pendiente)
