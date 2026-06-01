@@ -168,7 +168,7 @@ def train_networks(T_actual):
 
 # --- LÓGICA DE RESUMEN DE ENTRENAMIENTO ---
 start_iteration = 1
-ruta_checkpoint = "learn/cfr/checkpoint_mus_latest.pth"
+ruta_checkpoint = "learn/cfr/checkpoint_mus_cfr5_latest.pth"
 
 writer = SummaryWriter(log_dir="learn/cfr/runs/mus_experiment")
 

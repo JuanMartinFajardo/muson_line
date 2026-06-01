@@ -42,7 +42,7 @@ class SmartBot:
 
         # 1. Cargar Cerebro de Apuestas CFR
         self.modelo_apuestas_cfr = None
-        name_model = 'deep_cfr_mus_bot_cfr5_iter_1050'  #'checkpoint_mus_latest' #'deep_cfr_mus_bot_iter_1400'
+        name_model = 'deep_cfr_mus_bot_cfr5_iter_1800'  #'checkpoint_mus_latest' #'deep_cfr_mus_bot_iter_1400'
         ruta_cfr = f"learn/cfr/{name_model}.pth"
         self.modelo_apuestas_cfr = cargar_modelo(ruta_cfr)
 

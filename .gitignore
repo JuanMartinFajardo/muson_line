@@ -5,8 +5,13 @@ learn/oldmodels
 learn/__pycache__
 learn/datasets
 learn/models
+learn/oldmodels
+learn/datasets
 learn/procesar_carpeta
 learn/dataset_generator.py
 learn/entrenar_apuestas.py
 learn/entrenar_descartes.py
 learn/entrenar_mus.py
+train_cfr.py
+redes_mus.py
+global_trainer.py
