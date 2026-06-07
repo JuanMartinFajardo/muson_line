@@ -393,6 +393,8 @@ socket.on('sala_creada', (datos) => {
     document.getElementById('codigo-creado').classList.remove('hidden');
     document.getElementById('txt-codigo').innerText = datos.codigo;
     menuMsg.innerText = "";
+    btnCrear.disabled = true;
+    btnUnirse.disabled = true;
 });
 
 socket.on('error_sala', (datos) => {
@@ -422,9 +424,10 @@ tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;" data
 
         let botonHTML = '';
         if (esMiSala) {
-            botonHTML = `<span data-i18n="txt_tu_sala" style="color: #a3be8c; font-size: 0.85em; font-weight: bold;">${t("txt_tu_sala")}</span>`;
+            // NUEVO: Ahora es un botón funcional verde para reclamar tu trono
+            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #a3be8c; color: #2e3440; border-radius: 4px; cursor: pointer; border: none; font-weight: bold;">${t("txt_tu_sala")}</button>`;
         } else {
-            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" data-i18n="btn_unirse_publica" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">${t("btn_unirse_publica")}</button>`;
+            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">${t("btn_unirse_publica")}</button>`;
         }
 
         tr.innerHTML = `

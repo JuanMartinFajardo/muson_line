@@ -112,7 +112,7 @@ class MusBettingEnv:
         # 1. Filtros de las Leyes del Mus
         if fase_actual == 'Pares' and not tiene_pares(cartas):
             return ['pasar'] if subida == 0 else ['nover']
-        if fase_actual == 'Juego' and not tiene_juego(cartas):
+        if fase_actual == 'Juego' and not tiene_juego(cartas) and not getattr(self.partida, 'juego_es_punto', False):
             return ['pasar'] if subida == 0 else ['nover']
 
         # 2. Lógica de Poda Dinámica (Límite de 8 piedras o fin de partida)

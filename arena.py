@@ -66,7 +66,7 @@ def obtener_acciones_validas(partida, jugador):
     fase_actual = partida.fases_apuesta[partida.indice_fase]
     
     if fase_actual == 'Pares' and not tiene_pares(cartas): return ['pasar'] if subida == 0 else ['nover']
-    if fase_actual == 'Juego' and not tiene_juego(cartas): return ['pasar'] if subida == 0 else ['nover']
+    if fase_actual == 'Juego' and not tiene_juego(cartas) and not getattr(partida, 'juego_es_punto', False): return ['pasar'] if subida == 0 else ['nover']
 
     p_propios = partida.estado[jugador]['puntos']
     p_restantes = 40 - p_propios

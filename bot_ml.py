@@ -203,7 +203,7 @@ class SmartBot:
         # Rule constraints: check if player has pairs or game
         if fase_actual == 'Pares' and not tiene_pares(cartas):
             return ['pasar'] if subida_pendiente == 0 else ['nover']
-        if fase_actual == 'Juego' and not tiene_juego(cartas):
+        if fase_actual == 'Juego' and not tiene_juego(cartas) and not getattr(partida, 'juego_es_punto', False):
             return ['pasar'] if subida_pendiente == 0 else ['nover']
 
         # Dynamic action abstraction based on points remaining to win

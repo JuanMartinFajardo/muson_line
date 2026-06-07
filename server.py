@@ -82,8 +82,9 @@ def emitir_lista_publicas():
     lista = []
     for cod, info in salas.items():
         if info['estado'] == 'esperando' and info.get('publico', False):
+            # Leemos el nombre directamente de la sala
+            nombre = info.get('creador_nombre', 'Desconocido')
             creador_sid = info['sids'][0] if info['sids'] else None
-            nombre = jugadores[creador_sid]['nombre'] if creador_sid in jugadores else "Desconocido"
             creador_username = info.get('username')
 
             lista.append({
@@ -121,7 +122,7 @@ def handle_crear_sala(datos):
     jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': real_username}
     join_room(codigo) 
     
-    salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor, 'publico': es_publico, 'username': real_username}
+    salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor, 'publico': es_publico, 'username': real_username, 'creador_nombre': nombre}
     
     print(f"👉 {nombre} ha creado la sala {codigo} (Pública: {es_publico})")
     emit('sala_creada', {'codigo': codigo}, room=sid)
@@ -177,55 +178,90 @@ def handle_crear_partida_bot(datos):
 @socketio.on('unirse_sala')
 def handle_unirse_sala(datos):
     sid = request.sid
-    nombre = datos.get('nombre', 'Jugador 2')
+    # Quitamos espacios accidentales al inicio o final
+    nombre = datos.get('nombre', 'Jugador').strip()
     codigo = datos.get('codigo', '').upper()
     
     if codigo in salas and salas[codigo]['estado'] == 'esperando':
-        creador_sid = salas[codigo]['sids'][0]
-        
-        # Leemos los usernames sin importar nada nuevo
         mi_username = session.get('username')
-        creador_username = salas[codigo].get('username') # Lo leemos de la sala directamente (más seguro)
+        creador_username = salas[codigo].get('username')
+        creador_nombre = salas[codigo].get('creador_nombre', '').strip()
+        sids = salas[codigo]['sids']
         
-        # --- BLOQUEO 1: Es la misma pestaña exacta (Mismo SID) ---
-        if sid == creador_sid:
-            emit('error_sala', {'mensaje': 'No puedes unirte a tu propia sala.'}, room=sid)
+        # --- 1. BLOQUEO ANTI-DOBLE CLIC (Lag) ---
+        if sid in sids:
+            emit('sala_creada', {'codigo': codigo}, room=sid)
+            return # Lo ignoramos silenciosamente para no dar errores falsos
+            
+        # --- 2. IDENTIFICAMOS AL CREADOR (A prueba de fallos de sesión) ---
+        es_creador = False
+        if mi_username and creador_username and mi_username == creador_username:
+            es_creador = True
+        elif nombre.lower() == creador_nombre.lower():
+            es_creador = True
+
+        asiento_asignado = -1
+        
+        # --- 3. ASIENTOS INTELIGENTES ---
+        if es_creador:
+            # El creador legítimo recupera su trono (Asiento 0)
+            if sids[0] is None:
+                sids[0] = sid
+                asiento_asignado = 0
+            elif len(sids) == 1:
+                sids.append(sid)
+                asiento_asignado = 1
+            elif len(sids) == 2 and sids[1] is None:
+                sids[1] = sid
+                asiento_asignado = 1
+        else:
+            # Invitado buscando silla
+            if len(sids) == 1:
+                sids.append(sid)
+                asiento_asignado = 1
+            elif len(sids) == 2 and sids[1] is None:
+                sids[1] = sid
+                asiento_asignado = 1
+            elif len(sids) == 2 and sids[0] is None:
+                # LA MAGIA: Si la sesión falló, pero el asiento del creador está libre, 
+                # sentamos a esta persona ahí para poder arrancar el juego de una vez.
+                sids[0] = sid
+                asiento_asignado = 0
+                print(f"⚠️ {nombre} ocupó el Asiento 0 (vacío) por precaución en {codigo}.")
+                
+        if asiento_asignado == -1:
+            emit('error_sala', {'mensaje': 'La sala ya está llena.'}, room=sid)
             return
             
-        # --- BLOQUEO 2: Es la misma cuenta logueada (En dos pestañas distintas) ---
-        if mi_username and creador_username and mi_username == creador_username:
-            emit('error_sala', {'mensaje': 'No puedes jugar contra ti mismo.'}, room=sid)
-            return
-
-        # Si supera los bloqueos, lo unimos con normalidad
-        salas[codigo]['sids'].append(sid)
-        salas[codigo]['estado'] = 'jugando'
-        
-        # Añadimos el username al que se une
+        # Añadimos los datos al jugador
         jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': mi_username}
         join_room(codigo)
-        
-        print(f"👉 {nombre} se ha unido a la sala {codigo}. ¡Arrancamos!")
-        
-        # Instanciamos el motor de Mus para esta sala
-        j1_sid = salas[codigo]['sids'][0]
-        j2_sid = sid
-        partida = PartidaMus(j1_sid, j2_sid)
 
-        #Le pasamos los nombres reales para el log
-        partida.nombres_ia = {
-            j1_sid: creador_username if creador_username else jugadores[j1_sid]['nombre'],
-            j2_sid: mi_username if mi_username else jugadores[j2_sid]['nombre']
-        }
-        partida.al_mejor_de = salas[codigo].get('al_mejor_de', 3)
-        partida.iniciar_ronda()
-        salas[codigo]['motor'] = partida
-        
-        emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
-        enviar_estado_a_jugadores(codigo)
-        emitir_lista_publicas()
+        # --- 4. COMPROBAMOS SI ARRANCAMOS LA PARTIDA ---
+        if len(sids) == 2 and sids[0] is not None and sids[1] is not None:
+            salas[codigo]['estado'] = 'jugando'
+            j1_sid, j2_sid = sids[0], sids[1]
+            
+            partida = PartidaMus(j1_sid, j2_sid)
+            
+            # Garantizamos que los nombres sean los correctos
+            partida.nombres_ia = {
+                j1_sid: jugadores.get(j1_sid, {}).get('username') or jugadores.get(j1_sid, {}).get('nombre', 'J1'),
+                j2_sid: jugadores.get(j2_sid, {}).get('username') or jugadores.get(j2_sid, {}).get('nombre', 'J2')
+            }
+            partida.al_mejor_de = salas[codigo].get('al_mejor_de', 3)
+            partida.iniciar_ronda()
+            salas[codigo]['motor'] = partida
+            
+            emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
+            enviar_estado_a_jugadores(codigo)
+            emitir_lista_publicas()
+        else:
+            emit('sala_creada', {'codigo': codigo}, room=sid)
+            emitir_lista_publicas()
+            
     else:
-        emit('error_sala', {'mensaje': 'El código no existe o la sala está llena.'}, room=sid)
+        emit('error_sala', {'mensaje': 'El código no existe o la sala está en juego.'}, room=sid)
 
 # --- 2. ACCIONES DE JUEGO AISLADAS ---
 
@@ -448,15 +484,35 @@ def handle_disconnect():
     if sid in jugadores:
         codigo = jugadores[sid]['sala']
         nombre = jugadores[sid]['nombre']
+        del jugadores[sid]  # Borramos los datos temporales del jugador
         
-        # Si la sala sigue existiendo, avisamos al que se ha quedado dentro
         if codigo in salas:
-            print(f"❌ {nombre} se ha desconectado. Destruyendo sala {codigo}.")
-            emit('rival_desconectado', room=codigo)
-            del salas[codigo]  # Borramos la sala de la memoria
-            emitir_lista_publicas()
-            
-        del jugadores[sid]  # Borramos los datos del jugador
+            if salas[codigo]['estado'] == 'esperando':
+                # En lugar de borrar su espacio, dejamos un "hueco vacío" (None)
+                if sid in salas[codigo]['sids']:
+                    idx = salas[codigo]['sids'].index(sid)
+                    salas[codigo]['sids'][idx] = None
+                
+                print(f"⚠️ {nombre} minimizó/desconectó. La sala {codigo} aguantará 2 minutos.")
+                
+                def limpiar_sala_huerfana():
+                    socketio.sleep(120)
+                    if codigo in salas and salas[codigo]['estado'] == 'esperando':
+                        # Si todos los asientos son None, la sala está completamente muerta
+                        if all(s is None for s in salas[codigo]['sids']):
+                            print(f"🧹 Limpiando sala abandonada: {codigo}")
+                            del salas[codigo]
+                            emitir_lista_publicas()
+                
+                socketio.start_background_task(limpiar_sala_huerfana)
+                emitir_lista_publicas()
+                
+            else:
+                # Si estaban jugando, destruimos la sala
+                print(f"❌ {nombre} se desconectó en plena partida. Destruyendo sala {codigo}.")
+                emit('rival_desconectado', room=codigo)
+                del salas[codigo]
+                emitir_lista_publicas()
 
 
 if __name__ == '__main__':
