@@ -187,6 +187,10 @@ def handle_unirse_sala(datos):
         creador_username = salas[codigo].get('username')
         creador_nombre = salas[codigo].get('creador_nombre', '').strip()
         sids = salas[codigo]['sids']
+    
+        if mi_username and creador_username and mi_username == creador_username:
+            emit('error_sala', {'mensaje': 'No puedes jugar contra ti mismo con la misma cuenta.'}, room=sid)
+            return
         
         # --- 1. BLOQUEO ANTI-DOBLE CLIC (Lag) ---
         if sid in sids:
