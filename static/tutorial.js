@@ -501,6 +501,7 @@ const tutorialSlides = [
 ];
 
 let currentSlideIndex = 0;
+let openedFromGame = false;
 
 // Variables del DOM
 const modalTutorial = document.getElementById('modal-tutorial');
@@ -509,6 +510,7 @@ const btnPrev = document.getElementById('tut-prev');
 const btnNext = document.getElementById('tut-next');
 const dotsContainer = document.getElementById('tut-dots');
 
+// Inicializar el carrusel
 // Inicializar el carrusel
 function renderSlide(index) {
     const slide = tutorialSlides[index];
@@ -533,6 +535,9 @@ function renderSlide(index) {
     // Actualizar puntitos
     dotsContainer.innerHTML = '';
     tutorialSlides.forEach((_, i) => {
+        // NUEVO: Omitimos el puntito de la diapositiva de práctica si venimos del juego
+        if (openedFromGame && i === 8) return;
+
         const dot = document.createElement('div');
         dot.style.width = '10px';
         dot.style.height = '10px';
@@ -543,10 +548,16 @@ function renderSlide(index) {
     });
 }
 
-// Eventos de botones
+// Eventos de botones con salto inteligente
 btnNext.addEventListener('click', () => {
     if (currentSlideIndex < tutorialSlides.length - 1) {
         currentSlideIndex++;
+        
+        // NUEVO: Si venimos del juego y toca la slide 8, saltamos directo a la 9 (Ejemplo 1)
+        if (openedFromGame && currentSlideIndex === 8) {
+            currentSlideIndex++;
+        }
+        
         renderSlide(currentSlideIndex);
     } else {
         cerrarTutorial();
@@ -556,6 +567,12 @@ btnNext.addEventListener('click', () => {
 btnPrev.addEventListener('click', () => {
     if (currentSlideIndex > 0) {
         currentSlideIndex--;
+        
+        // NUEVO: Si venimos del juego y retrocedemos a la slide 8, saltamos directo a la 7
+        if (openedFromGame && currentSlideIndex === 8) {
+            currentSlideIndex--;
+        }
+        
         renderSlide(currentSlideIndex);
     }
 });
@@ -564,6 +581,7 @@ document.getElementById('btn-cerrar-tutorial').addEventListener('click', cerrarT
 
 // Abrir desde el menú principal
 document.getElementById('btn-tutorial').addEventListener('click', () => {
+    openedFromGame = false;
     document.getElementById('modal-overlay').style.display = 'flex';
     document.getElementById('modal-overlay').classList.remove('hidden');
     
@@ -594,16 +612,56 @@ window.goToSlide = function(index) {
     }
 };
 
-// Capturar el botón de jugar (Preparando el terreno para el siguiente paso)
+// ==========================================
+// CAPTURA DE EVENTOS (BOTONES GLOBALES DEL TUTORIAL)
+// ==========================================
 document.addEventListener('click', function(e) {
+    
+    // 1. Botón de "Start Practising" -> Partida contra bot al mejor de 1
     if (e.target && e.target.id === 'btn-start-interactive') {
-        // 1. Cerramos la ventana del tutorial
         cerrarTutorial();
         
-        // 2. Simulamos un clic transparente en el botón real de jugar contra el bot
         const btnBot = document.getElementById('btn-jugar-bot');
+        const inMejorDe = document.getElementById('in-mejor-de');
+        
         if (btnBot) {
+            // Guardamos el valor que el usuario tuviera puesto
+            const valorOriginal = inMejorDe ? inMejorDe.value : "3";
+            
+            // Forzamos al mejor de 1
+            if (inMejorDe) inMejorDe.value = "1";
+            
+            // Simulamos el clic para lanzar toda la maquinaria de app.js
             btnBot.click();
+            
+            // Devolvemos el selector a su estado original
+            if (inMejorDe) inMejorDe.value = valorOriginal;
+        }
+    }
+
+    // 2. Botón de ayuda durante la partida [?]
+    if (e.target && (e.target.id === 'btn-help-game' || e.target.closest('#btn-help-game'))) {
+        openedFromGame = true; // Desde el juego NO se muestra la slide de práctica
+        const overlay = document.getElementById('modal-overlay');
+        const modalTut = document.getElementById('modal-tutorial');
+        
+        if (overlay && modalTut) {
+            overlay.style.display = 'flex';
+            overlay.classList.remove('hidden');
+            
+            const modalesAOcultar = ['modal-login', 'modal-signup', 'modal-leaderboard', 'modal-privacy'];
+            modalesAOcultar.forEach(id => {
+                const m = document.getElementById(id);
+                if (m) m.classList.add('hidden');
+            });
+            
+            modalTut.classList.remove('hidden');
+            
+            // Si estaba en la slide de práctica por el menú, lo movemos a la siguiente por seguridad
+            if (currentSlideIndex === 8) {
+                currentSlideIndex = 9;
+            }
+            renderSlide(currentSlideIndex);
         }
     }
 });
