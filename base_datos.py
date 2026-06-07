@@ -47,13 +47,7 @@ def registrar_partida_completa(ganador_user, perdedor_user):
     conexion = sqlite3.connect(DB_NAME)
     cursor = conexion.cursor()
     
-    # 1. Sumar victorias y derrotas (incluso si han jugado contra un invitado)
-    if ganador_user:
-        cursor.execute('UPDATE Usuarios SET victorias = victorias + 1 WHERE username = ?', (ganador_user,))
-    if perdedor_user:
-        cursor.execute('UPDATE Usuarios SET derrotas = derrotas + 1 WHERE username = ?', (perdedor_user,))
-        
-    # 2. Actualizar ELO *solo* si ambos son jugadores reales registrados
+    # Actualizar victorias, derrotas y ELO *solo* si ambos son jugadores reales registrados
     if ganador_user and perdedor_user:
         cursor.execute('SELECT elo FROM Usuarios WHERE username = ?', (ganador_user,))
         res_g = cursor.fetchone()
@@ -61,6 +55,11 @@ def registrar_partida_completa(ganador_user, perdedor_user):
         res_p = cursor.fetchone()
         
         if res_g and res_p:
+            # 1. Sumar victorias y derrotas
+            cursor.execute('UPDATE Usuarios SET victorias = victorias + 1 WHERE username = ?', (ganador_user,))
+            cursor.execute('UPDATE Usuarios SET derrotas = derrotas + 1 WHERE username = ?', (perdedor_user,))
+            
+            # 2. Actualizar ELO
             elo_g, elo_p = res_g[0], res_p[0]
             # ganador tiene 1 victoria, perdedor 0
             nuevo_elo_g, nuevo_elo_p, _ = procesar_partida_mus(elo_g, elo_p, 1, 0)

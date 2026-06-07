@@ -50,7 +50,7 @@
 
         </div>
 
-        <h1 style="margin-top: 0;">CallMus</h1>
+        <img src="/static/img/callmus2logo_193.jpg" alt="CallMus Logo" style="max-width: 250px; height: auto; margin: 0 auto 20px auto; display: block;">
 
 
         <div class="panel">
@@ -110,8 +110,9 @@
             <button id="btn-show-leaderboard" data-i18n="btn_show_leaderboard" style="width: 100%; margin-top: 15px; background-color: #5e81ac; color: #eceff4; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1.1em; border: none; cursor: pointer; transition: 0.3s;">🏆 Ver Leaderboard</button>
 
             <!-- Botón de Ko-fi -->
-            <div style="margin-top: 20px; display: flex; justify-content: center;">
+            <div style="margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 15px;">
                 <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#ed1d1d', 'U3Q220FB6L');kofiwidget2.draw();</script> 
+                <button id="btn-show-privacy" data-i18n="btn_privacy" style="background-color: transparent; border: 1px solid #4c566a; color: #d8dee9; padding: 5px 15px; font-size: 0.9em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Política de Privacidad</button>
             </div>
 
             <p id="menu-msg" style="color: #bf616a; margin-top: 15px; font-weight: bold;"></p>
@@ -240,6 +241,8 @@
                 <input type="date" id="signup-birth" style="width: 90%; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box; color-scheme: dark;">
             </div>
             
+            <p style="font-size: 0.8em; color: #eceff4; opacity: 0.7; margin-bottom: 15px; padding: 0 15px; line-height: 1.4;" data-i18n="privacy_disclaimer">Al registrarte aceptas las políticas de privacidad, que puedes encontrar en la sección Política de Privacidad.</p>
+
             <button id="btn-submit-signup" style="width: 90%; background-color: #a3be8c; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;" data-i18n="btn_cuenta">Crear cuenta</button>
             <p id="msg-signup" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
         </div>
@@ -266,6 +269,19 @@
                         <tr><td colspan="4" style="padding: 10px; opacity: 0.7;" data-i18n="loading_players">Cargando jugadores...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Modal Política de privacidad -->
+        <div id="modal-privacy" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 600px; max-width: 90vw; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-height: 80vh; display: flex; flex-direction: column;">
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            
+            <h2 style="color: #a3be8c; margin-top: 5px; margin-bottom: 20px; text-align: center;" data-i18n="privacy_title">Acerca de CallMus (v0.1)</h2>
+            
+            <div style="flex-grow: 1; overflow-y: auto; padding-right: 15px; color: #eceff4; font-size: 0.95em; line-height: 1.6;">
+                <p data-i18n="privacy_p1"></p>
+                <p data-i18n="privacy_p2"></p>
+                <div data-i18n="privacy_p3"></div>
             </div>
         </div>
 

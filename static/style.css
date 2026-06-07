@@ -1,7 +1,20 @@
+:root {
+    --bg-color: #000000;
+    --menu-panel-bg: #1E241E;
+    --menu-border: #343D34;
+    --btn-primary-bg: #C5A059;
+    --btn-primary-text: #000000;
+    --btn-secondary-bg: #343D34;
+    --text-bone: #F4F1DE;
+    --input-bg: #151A15;
+    --input-placeholder: rgba(244, 241, 222, 0.5);
+    --error-color: #FF5E5B;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #2e3440;
-    color: #eceff4;
+    background-color: var(--bg-color);
+    color: var(--text-bone);
     margin: 0;
     display: flex;
     justify-content: center;
@@ -21,10 +34,11 @@ body {
 }
 
 .panel {
-    background-color: #3b4252;
+    background-color: var(--menu-panel-bg);
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
+    border: 1px solid var(--menu-border);
 }
 
 input, button {
@@ -318,6 +332,72 @@ body {
     .cartas-ampliadas .carta:nth-child(2), .cartas-ampliadas-rival .carta:nth-child(2) { transform: scale(1.6) translateX(-10px); }
     .cartas-ampliadas .carta:nth-child(3), .cartas-ampliadas-rival .carta:nth-child(3) { transform: scale(1.6) translateX(10px); }
     .cartas-ampliadas .carta:nth-child(4), .cartas-ampliadas-rival .carta:nth-child(4) { transform: scale(1.6) translateX(30px); }
+}
+
+/* ========================================= */
+/* TEMA "TAPETE PREMIUM" (MENÚ Y MODALES)    */
+/* ========================================= */
+
+/* Sobrescribir fondos de modales y contenedores internos */
+#modal-login, #modal-signup, #modal-leaderboard,
+#menu-screen div[style*="background-color: #2e3440"] {
+    background-color: var(--menu-panel-bg) !important;
+    border-color: var(--menu-border) !important;
+}
+
+#menu-screen div[style*="border"], div[id^="modal-"] div[style*="border"] {
+    border-color: var(--menu-border) !important;
+}
+
+/* Textos unificados (Evitamos pisar el color de game-screen) */
+#menu-screen h2, #menu-screen h3, #menu-screen label, #menu-screen span, #menu-screen p,
+div[id^="modal-"] h2, div[id^="modal-"] label, div[id^="modal-"] span, div[id^="modal-"] td, div[id^="modal-"] th {
+    color: var(--text-bone) !important;
+}
+
+/* Errores integrados con el color de Ko-fi para mantener coherencia */
+#menu-msg, #msg-login, #msg-signup {
+    color: var(--error-color) !important;
+}
+
+/* Botones Primarios */
+#btn-crear, #btn-unirse, #btn-submit-login, #btn-submit-signup {
+    background-color: var(--btn-primary-bg) !important;
+    color: var(--btn-primary-text) !important;
+    border: none !important;
+}
+#btn-crear:hover, #btn-unirse:hover, #btn-submit-login:hover, #btn-submit-signup:hover {
+    background-color: #D6B575 !important;
+}
+
+/* Botones Secundarios */
+#btn-jugar-bot, #btn-show-login, #btn-show-signup, #btn-show-leaderboard, 
+#btn-logout, #btn-lang, .btn-cerrar-modal, .btn-unirse-publica {
+    background-color: var(--btn-secondary-bg) !important;
+    color: var(--text-bone) !important;
+    border: 1px solid var(--menu-border) !important;
+}
+#btn-jugar-bot:hover, #btn-show-login:hover, #btn-show-signup:hover, #btn-show-leaderboard:hover, 
+#btn-logout:hover, #btn-lang:hover, .btn-cerrar-modal:hover, .btn-unirse-publica:hover {
+    background-color: #424E42 !important;
+}
+
+/* Campos de Entrada */
+#menu-screen input, div[id^="modal-"] input {
+    background-color: var(--input-bg) !important;
+    color: var(--text-bone) !important;
+    border: 1px solid var(--menu-border) !important;
+}
+#menu-screen input::placeholder, div[id^="modal-"] input::placeholder {
+    color: var(--input-placeholder) !important;
+}
+
+/* Tablas (Leaderboard / Públicas) */
+#menu-screen thead, div[id^="modal-"] thead {
+    background-color: var(--menu-border) !important;
+}
+#menu-screen th, #menu-screen td, div[id^="modal-"] th, div[id^="modal-"] td {
+    border-bottom: 1px solid var(--menu-border) !important;
 }
 
 /* ========================================= */

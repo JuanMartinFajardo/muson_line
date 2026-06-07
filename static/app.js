@@ -123,7 +123,14 @@ const dict = {
         txt_hola: "Hola",
         btn_jugar_bot: "Jugar contra bot",
         txt_creando_partida_bot: "Creando partida contra un bot...",
-        fase_espera_reparto: "Esperando el reparto..."
+        fase_espera_reparto: "Esperando el reparto...",
+        msg_inserta_nombre: "Por favor, inserta un nombre para jugar.",
+        btn_privacy: "Acerca de CallMus",
+        privacy_title: "Acerca de CallMus (v0.1)",
+        privacy_p1: "<strong>Información general</strong><br>CallMus es una aplicación web diseñada para jugar a la variante de dos jugadores del tradicional juego de cartas Mus. La plataforma permite a los usuarios disfrutar de partidas multijugador contra otras personas o enfrentarse a un bot avanzado, entrenado mediante el algoritmo de aprendizaje profundo Deep CFR.",
+        privacy_p2: "<strong>Desarrollo</strong><br>Este proyecto ha sido desarrollado en su totalidad por Juan Martín Fajardo. El código fuente es de código abierto y se distribuye bajo la licencia AGPL-3.0. Puedes consultar el repositorio oficial en GitHub a través del siguiente enlace: https://github.com/JuanMartinFajardo/muson_line. Para reportar errores o sugerencias, abre un Issue en el repositorio o envía un correo a callmus.contact@gmail.com.",
+        privacy_p3: "<strong>Política de Privacidad y Cookies</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Datos personales:</strong> Guardamos tu nombre de usuario, país y fecha de nacimiento para crear tu cuenta y mostrarte en la clasificación. <strong>Únicamente el nombre de usuario es público</strong>.</li><li><strong>Registro de partidas:</strong> Guardamos el registro de las jugadas anónimamente para entrenar a una futura IA.</li><li><strong>Cookies:</strong> Usamos cookies técnicas estrictamente necesarias para mantener tu sesión iniciada y recordar tu idioma. No usamos cookies de rastreo publicitario.</li></ul>",
+        privacy_disclaimer: "Al registrarte aceptas las políticas de privacidad, que puedes encontrar en la sección Acerca de CallMus."
 
     },
     en: {
@@ -231,7 +238,14 @@ const dict = {
         txt_hola: "Hello",
         btn_jugar_bot: "Play against bot",
         txt_creando_partida_bot: "Creating game against a bot...",
-        fase_espera_reparto: "Waiting for the deal..."
+        fase_espera_reparto: "Waiting for the deal...",
+        msg_inserta_nombre: "Please enter a name to play.",
+        btn_privacy: "About CallMus",
+        privacy_title: "About CallMus (v0.1)",
+        privacy_p1: "<strong>General Information</strong><br>CallMus is a web application designed for playing the 2-player variant of the traditional card game Mus. The platform allows users to enjoy multiplayer matches against others or challenge an advanced bot trained using the Deep CFR algorithm.",
+        privacy_p2: "<strong>Development</strong><br>This project has been entirely developed by Juan Martín Fajardo. The source code is open-source under the AGPL-3.0 license. Check out the official GitHub repository here: https://github.com/JuanMartinFajardo/muson_line. To report bugs or suggest improvements, please open an Issue or send a mail to callmus.contact@gmail.com.",
+        privacy_p3: "<strong>Privacy and Cookie Policy</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Personal Data:</strong> We collect your username, country, and birthdate to manage your account and global ranking. <strong>Only your username is publicly visible</strong>.</li><li><strong>Game Logs:</strong> We store anonymized game records to train future AI versions.</li><li><strong>Cookies:</strong> We strictly use technical cookies essential for keeping your session active and remembering your language. We do not use tracking cookies.</li></ul>",
+        privacy_disclaimer: "By signing up, you agree to the privacy policies, which you can find in the About CallMus section."
     }
 };
 
@@ -262,7 +276,7 @@ function aplicarTraduccion() {
             if (el.tagName === 'INPUT') {
                 el.placeholder = dict[langActual][clave];
             } else {
-                el.innerText = dict[langActual][clave];
+                el.innerHTML = dict[langActual][clave];
             }
         }
     });
@@ -317,7 +331,11 @@ const menuMsg = document.getElementById('menu-msg');
 socket.emit('pedir_publicas');
 
 btnCrear.addEventListener('click', () => {
-    miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 1";
+    miNombre = document.getElementById('nombre-jugador').value.trim();
+    if (!miNombre) {
+        menuMsg.innerText = t('msg_inserta_nombre');
+        return;
+    }
     let mejorDe = parseInt(document.getElementById('in-mejor-de').value) || 3;
     let esPublico = document.getElementById('in-publico').checked;
     socket.emit('crear_sala', { nombre: miNombre, al_mejor_de: mejorDe, publico: esPublico});
@@ -344,7 +362,11 @@ btnJugarBot.addEventListener('click', () => {
 
 
 btnUnirse.addEventListener('click', () => {
-    miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 2";
+    miNombre = document.getElementById('nombre-jugador').value.trim();
+    if (!miNombre) {
+        menuMsg.innerText = t('msg_inserta_nombre');
+        return;
+    }
     let cod = inCodigo.value.trim().toUpperCase();
     if (!cod) {
         menuMsg.innerText = "Escribe un código primero.";
@@ -387,8 +409,7 @@ socket.on('actualizar_publicas', (lista) => {
     tbody.innerHTML = '';
 
     if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;">' + t('msg_no_publicas') + '</td></tr>';        return;
-    }
+tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;" data-i18n="msg_no_publicas">' + t('msg_no_publicas') + '</td></tr>';    }
 
     lista.forEach(partida => {
         const tr = document.createElement('tr');
@@ -401,9 +422,9 @@ socket.on('actualizar_publicas', (lista) => {
 
         let botonHTML = '';
         if (esMiSala) {
-            botonHTML = `<span style="color: #a3be8c; font-size: 0.85em; font-weight: bold;">${t("txt_tu_sala")}</span>`;
+            botonHTML = `<span data-i18n="txt_tu_sala" style="color: #a3be8c; font-size: 0.85em; font-weight: bold;">${t("txt_tu_sala")}</span>`;
         } else {
-            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">${t("btn_unirse_publica")}</button>`;
+            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" data-i18n="btn_unirse_publica" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">${t("btn_unirse_publica")}</button>`;
         }
 
         tr.innerHTML = `
@@ -420,7 +441,11 @@ socket.on('actualizar_publicas', (lista) => {
     document.querySelectorAll('.btn-unirse-publica').forEach(btn => {
         btn.addEventListener('click', (e) => {
             let cod = e.target.getAttribute('data-codigo');
-            miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 2";
+            miNombre = document.getElementById('nombre-jugador').value.trim();
+            if (!miNombre) {
+                menuMsg.innerText = t('msg_inserta_nombre');
+                return;
+            }
             socket.emit('unirse_sala', { nombre: miNombre, codigo: cod });
             menuMsg.innerText = "Conectando...";
         });
@@ -431,6 +456,21 @@ socket.on('iniciar_partida', (datos) => {
     menuScreen.classList.add('hidden');
     gameScreen.classList.remove('hidden');
     enPartida = true;
+});
+
+
+document.getElementById('btn-show-privacy').addEventListener('click', () => {
+    modalOverlay.style.display = 'flex';
+    modalOverlay.classList.remove('hidden');
+    
+    // Ocultar los demás modales
+    modalLogin.classList.add('hidden');
+    modalSignup.classList.add('hidden');
+    const modalLeaderboard = document.getElementById('modal-leaderboard');
+    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');
+    
+    // Mostrar el nuestro
+    document.getElementById('modal-privacy').classList.remove('hidden');
 });
 
 socket.on('rival_desconectado', () => {
@@ -995,10 +1035,13 @@ function cerrarModales() {
     modalOverlay.classList.add('hidden');
     modalLogin.classList.add('hidden');
     modalSignup.classList.add('hidden');
+    
     const modalLeaderboard = document.getElementById('modal-leaderboard');
     if (modalLeaderboard) modalLeaderboard.classList.add('hidden');
+    
+    const modalPrivacy = document.getElementById('modal-privacy');
+    if (modalPrivacy) modalPrivacy.classList.add('hidden');
 }
-
 let miUsernameLogueado = null; // NUEVO: Variable para recordar quiénes somos
 
 fetch('/auth/sesion').then(res => res.json()).then(datos => {
