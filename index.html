@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CallMus</title>
+    <meta name="description" content="Play the traditional 2-player Mus card game online. Simple, fast, and free. Challenge a friend or an advanced AI bot. No registration required.">
+    
+    <meta property="og:title" content="CallMus - Play 2-Player Mus Online">
+    <meta property="og:description" content="Play the traditional 2-player Mus card game online. Challenge a friend or an advanced AI bot.">
+    <meta property="og:type" content="website">
     <!-- Aquí es donde carga el diseño. Si esto falla, se ve todo blanco -->
     <link rel="stylesheet" href="/static/style.css">
     <!-- Librería de WebSockets (Actualizada a la v4.7.5) -->
@@ -77,6 +82,15 @@
                 <div id="codigo-creado" class="hidden" style="margin-top: 10px;">
                     <p data-i18n="codigo_sala">Código de tu sala:</p>
                     <h2 id="txt-codigo" style="color: #ebcb8b; letter-spacing: 3px; font-size: 2em; margin: 10px 0;"></h2>
+                    
+                    <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 15px;">
+                        <button id="btn-share-copy" title="Copiar enlace" style="background-color: #4c566a; color: #eceff4; padding: 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; border: none; font-size: 1.2em; transition: 0.2s;">📋</button>
+                        
+                        <button id="btn-share-wa" title="WhatsApp" style="background-color: #25D366; color: white; padding: 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; border: none; font-size: 1.4em; transition: 0.2s;">💬</button>
+                        
+                        <button id="btn-share-api" title="Compartir..." style="background-color: #5e81ac; color: white; padding: 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; border: none; font-size: 1.2em; transition: 0.2s;">🔗</button>
+                    </div>
+
                     <p style="font-size: 0.9em; opacity: 0.8;" class="anim-parpadeo" data-i18n="esperando_rival">Esperando a que se una el rival...</p>
                 </div>
             </div>

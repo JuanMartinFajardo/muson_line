@@ -129,8 +129,10 @@ const dict = {
         privacy_title: "Acerca de CallMus (v0.1)",
         privacy_p1: "<strong>Información general</strong><br>CallMus es una aplicación web diseñada para jugar a la variante de dos jugadores del tradicional juego de cartas Mus. La plataforma permite a los usuarios disfrutar de partidas multijugador contra otras personas o enfrentarse a un bot avanzado, entrenado mediante el algoritmo de aprendizaje profundo Deep CFR.",
         privacy_p2: "<strong>Desarrollo</strong><br>Este proyecto ha sido desarrollado en su totalidad por Juan Martín Fajardo. El código fuente es de código abierto y se distribuye bajo la licencia AGPL-3.0. Puedes consultar el repositorio oficial en GitHub a través del siguiente enlace: https://github.com/JuanMartinFajardo/muson_line. Para reportar errores o sugerencias, abre un Issue en el repositorio o envía un correo a callmus.contact@gmail.com.",
-        privacy_p3: "<strong>Política de Privacidad y Cookies</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Datos personales:</strong> Guardamos tu nombre de usuario, país y fecha de nacimiento para crear tu cuenta y mostrarte en la clasificación. <strong>Únicamente el nombre de usuario es público</strong>.</li><li><strong>Registro de partidas:</strong> Guardamos el registro de las jugadas anónimamente para entrenar a una futura IA.</li><li><strong>Cookies:</strong> Usamos cookies técnicas estrictamente necesarias para mantener tu sesión iniciada y recordar tu idioma. No usamos cookies de rastreo publicitario.</li></ul>",
-        privacy_disclaimer: "Al registrarte aceptas las políticas de privacidad, que puedes encontrar en la sección Acerca de CallMus."
+        privacy_p3: "<strong>Política de Privacidad y Cookies</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Datos personales:</strong> Guardamos tu nombre de usuario, país y fecha de nacimiento para crear tu cuenta y mostrarte en la clasificación. <strong>Únicamente el nombre de usuario es público</strong>.</li><li><strong>Registro de partidas:</strong> Guardamos el registro de las jugadas para el entrenamiento de futuras versiones del bot.</li><li><strong>Cookies:</strong> Usamos cookies técnicas estrictamente necesarias para mantener tu sesión iniciada y recordar tu idioma. No usamos cookies de rastreo publicitario.</li></ul>",
+        privacy_disclaimer: "Al registrarte aceptas las políticas de privacidad, que puedes encontrar en la sección Acerca de CallMus.",
+        msg_link_copied: "¡Enlace copiado al portapapeles!",
+        msg_nombre_invitacion: "Escribe tu nombre para entrar a la partida."
 
     },
     en: {
@@ -244,8 +246,10 @@ const dict = {
         privacy_title: "About CallMus (v0.1)",
         privacy_p1: "<strong>General Information</strong><br>CallMus is a web application designed for playing the 2-player variant of the traditional card game Mus. The platform allows users to enjoy multiplayer matches against others or challenge an advanced bot trained using the Deep CFR algorithm.",
         privacy_p2: "<strong>Development</strong><br>This project has been entirely developed by Juan Martín Fajardo. The source code is open-source under the AGPL-3.0 license. Check out the official GitHub repository here: https://github.com/JuanMartinFajardo/muson_line. To report bugs or suggest improvements, please open an Issue or send a mail to callmus.contact@gmail.com.",
-        privacy_p3: "<strong>Privacy and Cookie Policy</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Personal Data:</strong> We collect your username, country, and birthdate to manage your account and global ranking. <strong>Only your username is publicly visible</strong>.</li><li><strong>Game Logs:</strong> We store anonymized game records to train future AI versions.</li><li><strong>Cookies:</strong> We strictly use technical cookies essential for keeping your session active and remembering your language. We do not use tracking cookies.</li></ul>",
-        privacy_disclaimer: "By signing up, you agree to the privacy policies, which you can find in the About CallMus section."
+        privacy_p3: "<strong>Privacy and Cookie Policy</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Personal Data:</strong> We collect your username, country, and birthdate to manage your account and global ranking. <strong>Only your username is publicly visible</strong>.</li><li><strong>Game Logs:</strong> We store game records to train future AI versions.</li><li><strong>Cookies:</strong> We strictly use technical cookies essential for keeping your session active and remembering your language. We do not use tracking cookies.</li></ul>",
+        privacy_disclaimer: "By signing up, you agree to the privacy policies, which you can find in the About CallMus section.",
+        msg_link_copied: "Link copied to clipboard!",
+        msg_nombre_invitacion: "Enter your name to join the game."
     }
 };
 
@@ -336,6 +340,7 @@ btnCrear.addEventListener('click', () => {
         menuMsg.innerText = t('msg_inserta_nombre');
         return;
     }
+    localStorage.setItem('callmus_nombre', miNombre);
     let mejorDe = parseInt(document.getElementById('in-mejor-de').value) || 3;
     let esPublico = document.getElementById('in-publico').checked;
     socket.emit('crear_sala', { nombre: miNombre, al_mejor_de: mejorDe, publico: esPublico});
@@ -372,12 +377,15 @@ btnUnirse.addEventListener('click', () => {
         menuMsg.innerText = "Escribe un código primero.";
         return;
     }
+    localStorage.setItem('callmus_nombre', miNombre);
+    localStorage.setItem('callmus_sala', cod);
     socket.emit('unirse_sala', { nombre: miNombre, codigo: cod });
     menuMsg.innerText = "Conectando...";
 });
 
 document.getElementById('btn-volver-menu').addEventListener('click', () => {
     enPartida = false;
+    localStorage.removeItem('callmus_sala');
     socket.emit('abandonar_sala_limpiamente');
     setTimeout(() => { window.location.reload(); }, 100);
 });
@@ -393,6 +401,7 @@ socket.on('sala_creada', (datos) => {
     document.getElementById('codigo-creado').classList.remove('hidden');
     document.getElementById('txt-codigo').innerText = datos.codigo;
     menuMsg.innerText = "";
+    localStorage.setItem('callmus_sala', datos.codigo);
     btnCrear.disabled = true;
     btnUnirse.disabled = true;
 });
@@ -401,6 +410,7 @@ socket.on('error_sala', (datos) => {
     menuMsg.innerText = datos.mensaje;
     btnCrear.disabled = false;
     btnUnirse.disabled = false;
+    localStorage.removeItem('callmus_sala');
 });
 
 // Dibujar la tabla de partidas públicas
@@ -449,6 +459,8 @@ tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;" data
                 menuMsg.innerText = t('msg_inserta_nombre');
                 return;
             }
+            localStorage.setItem('callmus_nombre', miNombre); // <--- AÑADIR
+            localStorage.setItem('callmus_sala', cod);
             socket.emit('unirse_sala', { nombre: miNombre, codigo: cod });
             menuMsg.innerText = "Conectando...";
         });
@@ -480,6 +492,7 @@ socket.on('rival_desconectado', () => {
     if (enPartida) {
         alert("Tu rival se ha desconectado o ha abandonado la partida. Volviendo al menú principal.");
         enPartida = false;
+        localStorage.removeItem('callmus_sala');
         window.location.reload();
     }
 });
@@ -1280,3 +1293,96 @@ if (oppCardsContainer) {
         oppCardsContainer.classList.remove('cartas-ampliadas-rival');
     });
 }
+
+
+// ==========================================
+// SISTEMA DE INVITACIONES
+// ==========================================
+
+// 1. Leer la URL al abrir la página por si venimos de un enlace
+const urlParams = new URLSearchParams(window.location.search);
+const urlRoom = urlParams.get('room');
+
+if (urlRoom) {
+    // Si entramos con enlace, lo guardamos para que el sistema de auto-reconexión lo pille
+    localStorage.setItem('callmus_sala', urlRoom.toUpperCase());
+    
+    // Rellenamos la casilla del código visualmente por si acaso
+    const codInput = document.getElementById('in-codigo');
+    if (codInput) codInput.value = urlRoom.toUpperCase();
+    
+    // Limpiamos la URL para que no quede fea en el navegador
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    // Si NO está logueado y NO tiene nombre guardado, le pedimos amablemente el nombre
+    setTimeout(() => {
+        if (!miUsernameLogueado && !localStorage.getItem('callmus_nombre')) {
+            document.getElementById('nombre-jugador').focus();
+            const menuMsg = document.getElementById('menu-msg');
+            if (menuMsg) menuMsg.innerText = t('msg_nombre_invitacion');
+        } else {
+            // Si ya tiene nombre, forzamos que intente unirse
+            document.getElementById('btn-unirse').click();
+        }
+    }, 600); // Esperamos a que la sesión haya cargado
+}
+
+// 2. Funciones de los botones de compartir
+document.getElementById('btn-share-copy').addEventListener('click', () => {
+    const cod = document.getElementById('txt-codigo').innerText;
+    const link = window.location.origin + "/?room=" + cod;
+    
+    navigator.clipboard.writeText(link).then(() => {
+        document.getElementById('menu-msg').style.color = "#a3be8c";
+        document.getElementById('menu-msg').innerText = t('msg_link_copied');
+    });
+});
+
+document.getElementById('btn-share-wa').addEventListener('click', () => {
+    const cod = document.getElementById('txt-codigo').innerText;
+    const link = window.location.origin + "/?room=" + cod;
+    
+    // Texto predefinido para WhatsApp
+    const mensaje = encodeURIComponent(`🃏 ¡Únete a mi partida de Mus en CallMus!\nCódigo de sala: ${cod}\n\nEntra directo aquí: ${link}`);
+    window.open(`https://api.whatsapp.com/send?text=${mensaje}`, '_blank');
+});
+
+document.getElementById('btn-share-api').addEventListener('click', () => {
+    const cod = document.getElementById('txt-codigo').innerText;
+    const link = window.location.origin + "/?room=" + cod;
+    
+    // Esto abre el menú nativo de compartir del móvil (iOS/Android)
+    if (navigator.share) {
+        navigator.share({
+            title: 'CallMus - Partida Privada',
+            text: `¡Únete a mi partida de Mus! Código: ${cod}`,
+            url: link
+        }).catch(err => console.log('Compartir cancelado', err));
+    } else {
+        alert("Tu navegador no soporta el menú de compartir nativo. Usa el botón de copiar.");
+    }
+});
+
+
+
+// ==========================================
+// AUTO-RECONEXIÓN MÁGICA
+// ==========================================
+socket.on('connect', () => {
+    // Este evento es a prueba de balas: solo se dispara cuando
+    // la conexión con el servidor está 100% establecida y lista.
+    
+    const salaGuardada = localStorage.getItem('callmus_sala');
+    const nombreGuardado = localStorage.getItem('callmus_nombre');
+
+    // Si tenemos una sala guardada y no estamos ya jugando
+    if (salaGuardada && nombreGuardado && !enPartida) {
+        const msgEl = document.getElementById('menu-msg');
+        if (msgEl) msgEl.innerText = "Reconectando a tu partida automáticamente...";
+        
+        console.log(`🔌 Conexión establecida. Reclamando sala oculta: ${salaGuardada}`);
+        
+        // Enviamos la petición sin temporizadores
+        socket.emit('unirse_sala', { nombre: nombreGuardado, codigo: salaGuardada });
+    }
+});
