@@ -1,7 +1,7 @@
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, render_template, request, session, jsonify
+from flask import Flask, render_template, request, session, jsonify, send_from_directory
 import base_datos
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
@@ -12,6 +12,13 @@ from bot_ml import SmartBot
 app = Flask(__name__, static_folder='static', template_folder='.')
 app.config['SECRET_KEY'] = 'clave_secreta_mus'
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+@app.after_request
+def add_header(response):
+    # Verificamos la ruta de la petición de forma segura
+    if request.path.startswith('/static/img/'):
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return response
 
 # --- NUEVA ARQUITECTURA MULTIJUGADOR ---
 # jugadores = { 'sid': {'nombre': 'Juan', 'sala': 'A1B2'} }

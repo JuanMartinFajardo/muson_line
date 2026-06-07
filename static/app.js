@@ -1,3 +1,29 @@
+// ==========================================
+// PRE-CARGA SILENCIOSA DE CARTAS
+// ==========================================
+// Usamos setTimeout para no bloquear el hilo principal ni la conexión de WebSockets.
+// Esperará 2 segundos a que la web ya esté totalmente operativa antes de bajar las cartas.
+setTimeout(() => {
+    const palos = ['coins', 'cups', 'swords', 'clubs'];
+    const valores = ['01', '02', '03', '04', '05', '06', '07', '10', '11', '12'];
+    
+    palos.forEach(palo => {
+        valores.forEach(valor => {
+            const img = new Image();
+            img.src = `/static/img/card_${palo}_${valor}.webp`;
+        });
+    });
+    const back = new Image();
+    back.src = '/static/img/card_back.webp';
+    
+    console.log("Cartas cacheadas en segundo plano.");
+}, 2000);
+
+// ==========================================
+// 0. CONEXIÓN AL SERVIDOR
+// ==========================================
+
+
 const socket = io({ closeOnBeforeunload: false });
 
 let miNombre = "";
