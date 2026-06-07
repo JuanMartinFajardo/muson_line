@@ -8,6 +8,11 @@
     <link rel="stylesheet" href="/static/style.css">
     <!-- Librería de WebSockets (Actualizada a la v4.7.5) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <link rel="apple-touch-icon" sizes="180x180" href="static/favicon_io/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="static/favicon_io/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="static/favicon_io/favicon-16x16.png">
+<link rel="manifest" href="static/favicon_io/site.webmanifest">
+
 </head>
 <body>
 
@@ -45,7 +50,7 @@
 
         </div>
 
-        <h1 style="margin-top: 0;">🎴 CallMus</h1>
+        <h1 style="margin-top: 0;">CallMus</h1>
 
 
         <div class="panel">
@@ -125,7 +130,7 @@
         <div id="opponent-area" class="area">
             <!-- <p>Rival - Pts: <span id="puntos-rival" class="highlight">0</span>/40 | Partidas: <span id="partidas-rival" class="highlight">0</span> <span class="mejor-de-texto"></span></p> -->
             <p>
-                <span data-i18n="txt_rival">Rival</span> 
+                <span id="nombre-rival-ui" style="font-weight: bold; color: #ebcb8b; font-size: 1.1em;">Rival</span> 
                 <span id="rol-rival" class="highlight"></span> - 
                 <span data-i18n="txt_pts">Pts:</span> 
                 <span id="puntos-rival" class="highlight">0</span>/40 | 

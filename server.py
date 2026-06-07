@@ -389,6 +389,7 @@ def enviar_estado_a_jugadores(codigo_sala):
         # === EL ARREGLO ESTÁ AQUÍ ===
         payload = {
             'para_sid': sid,  # Añadimos a quién va dirigido
+            'nombre_rival': partida_actual.nombres_ia.get(rival_sid, jugadores.get(rival_sid, {}).get('nombre', 'Rival')),
             'fase': partida_actual.fase,
             'puede_pedrete': puede_pedrete_ahora,
             'es_mi_turno': es_mi_turno,

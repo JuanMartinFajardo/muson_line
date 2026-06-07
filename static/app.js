@@ -536,6 +536,10 @@ socket.on('actualizar_mesa', (datos) => {
         enPartida = true;
     }
     
+    if (datos.nombre_rival) {
+        document.getElementById('nombre-rival-ui').innerText = datos.nombre_rival;
+    }
+
     faseJuego = datos.fase;
 
     const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
