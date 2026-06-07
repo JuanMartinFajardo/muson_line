@@ -481,18 +481,48 @@ class PartidaMus:
 
         elif accion == 'nover':
             deje = self.apuesta_vista if self.apuesta_vista > 0 else 1
-            self.estado[rival]['puntos'] += deje
-            self.ganadores_fase[nombre_fase] = rival
-            if not hasattr(self, 'dejes_fase'):
-                self.dejes_fase = {'Grande': None, 'Chica': None, 'Pares': None, 'Juego': None}
-            self.dejes_fase[nombre_fase] = {'ganador': rival, 'valor': deje}
-            self.avanzar_subfase(0)
+            
+            # --- NUEVA REGLA: OBLIGADO A VER SI CUESTA LA PARTIDA ---
+            if self.estado[rival]['puntos'] + deje >= 40:
+                print(f"⚠️ {jugador} obligado a ver. El deje de {deje} da la partida al rival.")
+                # Transformamos la acción en "ver" automáticamente
+                if self.subida_pendiente == 'ÓRDAGO':
+                    self.botes[nombre_fase] = 40
+                    self.ordago_aceptado_en = nombre_fase
+                    self.fase = 'recuento'
+                else:
+                    self.botes[nombre_fase] += (self.apuesta_vista + self.subida_pendiente)
+                    self.avanzar_subfase(0)
+            else:
+                # Comportamiento normal del "No ver"
+                self.estado[rival]['puntos'] += deje
+                self.ganadores_fase[nombre_fase] = rival
+                if not hasattr(self, 'dejes_fase'):
+                    self.dejes_fase = {'Grande': None, 'Chica': None, 'Pares': None, 'Juego': None}
+                self.dejes_fase[nombre_fase] = {'ganador': rival, 'valor': deje}
+                self.avanzar_subfase(0)
 
         elif accion == 'envidar' or accion == 'subir':
             self.pases_consecutivos = 0
+            
+            # --- BLINDAJE 2: TOPE NUMÉRICO PARA JUGADORES E IA ---
+            pts_maximos = max(self.estado[jugador]['puntos'], self.estado[rival]['puntos'])
+            
             if accion == 'subir':
                 self.apuesta_vista += self.subida_pendiente
-            self.subida_pendiente = cantidad
+                
+            # Calculamos cuántos puntos faltan para que la partida se acabe
+            tope_legal = 40 - pts_maximos - self.apuesta_vista
+            
+            if tope_legal <= 0:
+                # Si ya estamos en 40, cualquier intento de subir se convierte en Órdago automáticamente
+                print(f"⚠️ {jugador} (o Bot) intentó subir sin margen. Convertido a ÓRDAGO.")
+                self.subida_pendiente = 'ÓRDAGO'
+            else:
+                # Capamos la apuesta de la IA o del jugador al máximo legal permitido
+                cantidad_real = min(cantidad, tope_legal)
+                self.subida_pendiente = max(1, cantidad_real) # Evitamos números negativos o ceros
+                
             self.quien_sube = jugador
             self.turno_de = rival
 

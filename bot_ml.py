@@ -197,31 +197,49 @@ class SmartBot:
 
 
     def get_valid_actions_cfr(self, partida, cartas, subida_pendiente):
-        """Filters illegal moves and applies the dynamic action abstraction rule."""
-        fase_actual = partida.fases_apuesta[partida.indice_fase]
-        
-        # Rule constraints: check if player has pairs or game
-        if fase_actual == 'Pares' and not tiene_pares(cartas):
-            return ['pasar'] if subida_pendiente == 0 else ['nover']
-        if fase_actual == 'Juego' and not tiene_juego(cartas) and not getattr(partida, 'juego_es_punto', False):
-            return ['pasar'] if subida_pendiente == 0 else ['nover']
+            """Filters illegal moves and applies the dynamic action abstraction rule."""
+            fase_actual = partida.fases_apuesta[partida.indice_fase]
+            rival = partida.id_postre if self.sid == partida.id_mano else partida.id_mano
+            
+            # Rule constraints: check if player has pairs or game
+            if fase_actual == 'Pares' and not tiene_pares(cartas):
+                return ['pasar'] if subida_pendiente == 0 else ['nover']
+            if fase_actual == 'Juego' and not tiene_juego(cartas) and not getattr(partida, 'juego_es_punto', False):
+                return ['pasar'] if subida_pendiente == 0 else ['nover']
 
-        # Dynamic action abstraction based on points remaining to win
-        puntos_propios = partida.estado[self.sid]['puntos']
-        puntos_restantes = 40 - puntos_propios
-        bote_actual = partida.apuesta_vista + (subida_pendiente if isinstance(subida_pendiente, int) else 0)
+            # NUEVO: Lógica de topes globales y deje forzado
+            puntos_propios = partida.estado[self.sid]['puntos']
+            puntos_rival = partida.estado[rival]['puntos']
+            pts_maximos = max(puntos_propios, puntos_rival)
+            puntos_restantes_global = 40 - pts_maximos
 
-        if subida_pendiente == 0:
-            if puntos_restantes <= 2:
-                return ['pasar', 'ordago']
-            return ['pasar', 'envidar', 'ordago']
-        elif subida_pendiente == 'ÓRDAGO':
-            return ['ver', 'nover']
-        else:
-            if bote_actual >= 8 or bote_actual >= puntos_restantes:
-                return ['ver', 'nover', 'ordago']
+            bote_actual = partida.apuesta_vista + (subida_pendiente if isinstance(subida_pendiente, int) else 0)
+            
+            # Calculamos si tirar las cartas cuesta la partida
+            deje = partida.apuesta_vista if partida.apuesta_vista > 0 else 1
+            obligado_a_ver = (puntos_rival + deje >= 40)
+
+            if subida_pendiente == 0:
+                if puntos_restantes_global <= 2:
+                    return ['pasar', 'ordago']
+                return ['pasar', 'envidar', 'ordago']
+                
+            elif subida_pendiente == 'ÓRDAGO':
+                # Si el deje cuesta la partida, eliminamos la opción de 'nover' del cerebro
+                return ['ver'] if obligado_a_ver else ['ver', 'nover']
+                
             else:
-                return ['ver', 'nover', 'subir', 'ordago']
+                acciones = ['ver']
+                if not obligado_a_ver:
+                    acciones.append('nover')
+                    
+                # Si las apuestas superan los puntos restantes globales, eliminamos 'subir'
+                if bote_actual >= 8 or bote_actual >= puntos_restantes_global:
+                    acciones.append('ordago')
+                else:
+                    acciones.extend(['subir', 'ordago'])
+                    
+                return acciones
 
     def decidir_apuesta_cfr(self, partida, cartas, subida_pendiente):
         """Runs inference on the Strategy Network and samples an action based on Nash Equilibrium."""

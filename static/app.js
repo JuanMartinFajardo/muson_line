@@ -764,11 +764,14 @@ socket.on('actualizar_mesa', (datos) => {
 
     apuestaVistaActual = datos.apuestas ? datos.apuestas.apuesta_vista : 0;
 
-    let maxApuesta = 40 - datos.mis_puntos;
+    // Calculamos el tope real teniendo en cuenta también los puntos del rival
+    let ptsMaximos = Math.max(datos.mis_puntos, datos.puntos_rival);
+    let maxApuesta = 40 - ptsMaximos;
+    
     let inEnvidar = document.getElementById('in-envidar');
     let inSubir = document.getElementById('in-subir');
 
-    if (inEnvidar) inEnvidar.max = maxApuesta;
+    if (inEnvidar) inEnvidar.max = maxApuesta > 0 ? maxApuesta : 1;
     if (inSubir) {
         let topeSubida = maxApuesta - apuestaVistaActual;
         inSubir.max = topeSubida > 0 ? topeSubida : 1;
@@ -831,18 +834,39 @@ socket.on('actualizar_mesa', (datos) => {
         } else if (datos.fase === 'mus') {
             botonesActivos.push('btn-mus', 'btn-nomus');
             
-        } else if (datos.fase === 'apuestas') {
+        } else if (datos.fase === 'apuestas' && datos.apuestas) {
+            
+            // Hacemos visible el contenedor principal de botones
             document.getElementById('action-buttons').classList.remove('hidden');
 
-            if (datos.apuestas && datos.apuestas.subida === 0) {
+            if (datos.apuestas.subida === 0) {
+                // --- FASE 1: INICIAR APUESTA (Nadie ha apostado, subida es 0) ---
                 document.getElementById('apuesta-iniciar').classList.remove('hidden');
-            } else if (datos.apuestas) {
+                
+            } else {
+                // --- FASE 2: RESPONDER APUESTA (Alguien ya ha envidado/subido) ---
                 document.getElementById('apuesta-responder').classList.remove('hidden');
 
-                let ocultarSubir = datos.apuestas.subida === 'ÓRDAGO';
-                document.getElementById('in-subir').classList.toggle('hidden', ocultarSubir);
-                document.getElementById('btn-subir').classList.toggle('hidden', ocultarSubir);
-                document.getElementById('btn-ordago-resp').classList.toggle('hidden', ocultarSubir);
+                let esOrdago = datos.apuestas.subida === 'ÓRDAGO';
+                
+                // Calculamos el total de puntos que ya están en juego en esta fase si se acepta
+                let totalApuestaActual = datos.apuestas.apuesta_vista + (esOrdago ? 0 : datos.apuestas.subida);
+                
+                // Si esos puntos ya hacen que tú o el rival paséis de 40, la subida numérica ya no tiene sentido
+                let yaPasaDe40 = (datos.mis_puntos + totalApuestaActual >= 40 || datos.puntos_rival + totalApuestaActual >= 40);
+
+                // Ocultamos la subida numérica (input y botón) si ya es Órdago o si ya se cubren los 40 puntos
+                let ocultarSubirNumerico = esOrdago || yaPasaDe40;
+                document.getElementById('in-subir').classList.toggle('hidden', ocultarSubirNumerico);
+                document.getElementById('btn-subir').classList.toggle('hidden', ocultarSubirNumerico);
+                
+                // El botón de Órdago de respuesta solo se oculta si la apuesta ya era un Órdago
+                document.getElementById('btn-ordago-resp').classList.toggle('hidden', esOrdago);
+
+                // --- Ocultar "No ver" si el deje le da la partida al rival ---
+                let deje = datos.apuestas.apuesta_vista > 0 ? datos.apuestas.apuesta_vista : 1;
+                let obligadoAVer = (datos.puntos_rival + deje >= 40);
+                document.getElementById('btn-nover').classList.toggle('hidden', obligadoAVer);
             }
         }
     }
@@ -947,7 +971,11 @@ function mostrarRecuentoEstatico(datos) {
             }
         }
     } else {
-        mensajes.push({ texto: `${t('msg_error_ronda')}<br>`, puntos: 0 });
+        if (datos.mis_puntos >= 40 || datos.puntos_rival >= 40) {
+             // Solo mostramos el mensaje de victoria/derrota
+        } else {
+             mensajes.push({ texto: `${t('msg_error_ronda')}<br>`, puntos: 0 });
+        }
     }
 
     let btnNext = document.getElementById('btn-next-round');

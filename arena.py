@@ -64,19 +64,34 @@ def obtener_acciones_validas(partida, jugador):
     subida = partida.subida_pendiente
     cartas = partida.estado[jugador]['cartas']
     fase_actual = partida.fases_apuesta[partida.indice_fase]
+    rival = partida.id_postre if jugador == partida.id_mano else partida.id_mano
     
     if fase_actual == 'Pares' and not tiene_pares(cartas): return ['pasar'] if subida == 0 else ['nover']
     if fase_actual == 'Juego' and not tiene_juego(cartas) and not getattr(partida, 'juego_es_punto', False): return ['pasar'] if subida == 0 else ['nover']
 
-    p_propios = partida.estado[jugador]['puntos']
-    p_restantes = 40 - p_propios
+    puntos_propios = partida.estado[jugador]['puntos']
+    puntos_rival = partida.estado[rival]['puntos']
+    pts_maximos = max(puntos_propios, puntos_rival)
+    puntos_restantes_global = 40 - pts_maximos
+
     bote_actual = partida.apuesta_vista + (subida if isinstance(subida, int) else 0)
+    deje = partida.apuesta_vista if partida.apuesta_vista > 0 else 1
+    obligado_a_ver = (puntos_rival + deje >= 40)
 
     if subida == 0:
-        return ['pasar', 'ordago'] if p_restantes <= 2 else ['pasar', 'envidar', 'ordago']
-    elif subida == 'ÓRDAGO': return ['ver', 'nover']
+        return ['pasar', 'ordago'] if puntos_restantes_global <= 2 else ['pasar', 'envidar', 'ordago']
+    elif subida == 'ÓRDAGO': 
+        return ['ver'] if obligado_a_ver else ['ver', 'nover']
     else:
-        return ['ver', 'nover', 'ordago'] if (bote_actual >= 8 or bote_actual >= p_restantes) else ['ver', 'nover', 'subir', 'ordago']
+        acciones = ['ver']
+        if not obligado_a_ver:
+            acciones.append('nover')
+            
+        if bote_actual >= 8 or bote_actual >= puntos_restantes_global:
+            acciones.append('ordago')
+        else:
+            acciones.extend(['subir', 'ordago'])
+        return acciones
 
 def elegir_accion(modelo, partida, jugador):
     rival = partida.id_postre if jugador == partida.id_mano else partida.id_mano

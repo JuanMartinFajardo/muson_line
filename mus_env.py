@@ -106,8 +106,7 @@ class MusBettingEnv:
         jugador = self.partida.turno_de
         cartas = self.partida.estado[jugador]['cartas']
         fase_actual = self.partida.fases_apuesta[self.partida.indice_fase]
-        
-        
+        rival = self.partida.id_postre if jugador == self.partida.id_mano else self.partida.id_mano
         
         # 1. Filtros de las Leyes del Mus
         if fase_actual == 'Pares' and not tiene_pares(cartas):
@@ -115,27 +114,36 @@ class MusBettingEnv:
         if fase_actual == 'Juego' and not tiene_juego(cartas) and not getattr(self.partida, 'juego_es_punto', False):
             return ['pasar'] if subida == 0 else ['nover']
 
-        # 2. Lógica de Poda Dinámica (Límite de 8 piedras o fin de partida)
+        # 2. Lógica de Poda Dinámica y Leyes de Deje
         puntos_propios = self.partida.estado[jugador]['puntos']
-        puntos_restantes = 40 - puntos_propios
+        puntos_rival = self.partida.estado[rival]['puntos']
+        pts_maximos = max(puntos_propios, puntos_rival)
+        puntos_restantes_global = 40 - pts_maximos
+
         bote_actual = self.partida.apuesta_vista + (subida if isinstance(subida, int) else 0)
+        
+        deje = self.partida.apuesta_vista if self.partida.apuesta_vista > 0 else 1
+        obligado_a_ver = (puntos_rival + deje >= 40)
 
         if subida == 0:
-            # Si nos quedan 2 puntos o menos, cualquier apuesta cierra la partida matemáticamente
-            if puntos_restantes <= 2:
+            if puntos_restantes_global <= 2:
                 return ['pasar', 'ordago']
             return ['pasar', 'envidar', 'ordago']
             
         elif subida == 'ÓRDAGO':
-            return ['ver', 'nover']
+            return ['ver'] if obligado_a_ver else ['ver', 'nover']
             
         else:
-            # Cortamos la opción de 'subir' si llegamos al tope de 8 piedras,
-            # o si el bote actual ya cubre los puntos que nos quedan para ganar.
-            if bote_actual >= 8 or bote_actual >= puntos_restantes:
-                return ['ver', 'nover', 'ordago']
+            acciones = ['ver']
+            if not obligado_a_ver:
+                acciones.append('nover')
+                
+            if bote_actual >= 8 or bote_actual >= puntos_restantes_global:
+                acciones.append('ordago')
             else:
-                return ['ver', 'nover', 'subir', 'ordago']
+                acciones.extend(['subir', 'ordago'])
+                
+            return acciones
 
     def step(self, accion_str):
         """Aplica la acción, avanza el juego y devuelve el resultado"""
