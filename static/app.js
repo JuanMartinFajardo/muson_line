@@ -322,6 +322,12 @@ if (btnFullscreen) {
     });
 }
 
+// Quitar el foco de cualquier botón tras hacer clic para evitar que se quede "atascado" (marcado en blanco)
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (btn) btn.blur();
+});
+
 
 // ==========================================
 // 1. LÓGICA DEL MENÚ Y SALAS
