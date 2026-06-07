@@ -62,27 +62,45 @@ All three models were trained using a random forest method. The first two perfor
 
 ## 3.2 Deep CFR
 
-The Counterfactual Regret Minimization (CFR Minimization) algorithm consists roughly on moving randomly through the game tree and storing the regrets of each choide. Trying to minimize this regret, we would reach the Nash Equilibrium, that by applying it we can play 'deffensively': meaning that our expected value is $\geq 0$.
-In general, this game tree is too large. In [1] the authors develope a model called Deep CFR that combines two neural networks (regret network and strategy network) to try to reach this nash equilibrium (stored in the strategy network). I implemented this model to approach the Nash Equilibrium. In particular I implemented the Linear CFR.
+The Counterfactual Regret Minimization (CFR) algorithm roughly consists of iteratively traversing the game tree and storing the counterfactual regrets of each possible action. By minimizing this regret over time, the strategy converges to a **Nash Equilibrium**. Playing according to this equilibrium guarantees a "defensive" optimal strategy, meaning that our expected value against any rational opponent is strictly $\geq 0$.
+
+Since the Mus game tree is astronomically large, storing a traditional CFR table in RAM is computationally infeasible. To solve this, the authors in [1] developed a model called **Deep CFR**. This architecture approximates the tabular CFR algorithm using two neural networks: 
+* A **Regret Network**, which predicts the regret vector for each possible action in a given state.
+* A **Strategy Network**, which distills these regrets into a probability distribution that represents the approximate Nash Equilibrium.
+
+I implemented this architecture from scratch to solve the betting phase of Mus. In particular, I incorporated **Linear CFR (LCFR)**, which linearly scales the weights of recent iterations during the loss calculation to significantly accelerate convergence.
 
 ## 3.3. Implementation of the Deep CFR
-Given my computing performance limitations, I use fine-tunning, to make the process faster.
-Comment on reservoir sampling ...
 
-The structure goes as follows. Fix a number of iterations (in our case 5000).
-For each iteration we run 500 random games in the game situation tree, and for each one of them we explore the tree of posibilities with `transverse`. Then we train both networks using a Stochastic Gradient Descent.
+Given local computing performance limitations (Apple M1 chip), I adapted the strict formulation of the original paper to maximize efficiency. Instead of retraining the Regret Network from scratch in every iteration (*Tabula Rasa*), I implemented **continuous fine-tuning**. By maintaining the weights of the network across iterations, the model preserves its fundamental understanding of the game rules, dedicating the computational power exclusively to refining complex bluffing strategies.
 
-The variables considered are:
-- Who is Mano
-- My cards (4 values)
-- The phase (High, Low, Pair, Game)
-- Last amount bet
-- The bet called for each phase
-- Who received the bet called (me, the opponen, or no one yet)
-- My points
-- The opponent's points
-- The amount of mus rounds
-- The amount of cards discarded by the opponent
+**Reservoir Sampling:** To prevent catastrophic forgetting during this continuous training, both networks use Replay Buffers with *Reservoir Sampling*. Since the buffer has a fixed capacity (100,000 memories), once it fills up, new game states do not systematically overwrite the oldest ones. Instead, they replace existing memories probabilistically. This guarantees that the neural networks are always training over a uniform, unbiased sample of the *entire* training history.
+
+### Training Structure
+The training loop goes as follows. We set a total of 5,000 iterations.
+1. **Data Generation:** For each iteration, we run 1,000 game traversals. We bypass the pre-flop (Mus and Discards) by fast-forwarding to a random betting state to ensure high variance.
+2. **External Sampling MCCFR:** The algorithm explores the tree using the `traverse` function. When it is our turn, the universe branches out to evaluate all possible valid actions and calculate their regrets. When it is the opponent's turn, we sample a single action based on their current strategy probability distribution.
+3. **Network Training:** Finally, we perform 2,000 steps of Stochastic Gradient Descent (using the Adam optimizer) to train both the Regret and Strategy networks over random batches from their respective buffers.
+
+### Information Set (Neural Network Inputs)
+The state of the game is mapped into a normalized 18-dimensional PyTorch tensor. The variables considered are:
+
+**Contextual Variables:**
+- `es_mano`: Binary (1 if we are 'Mano', 0 if we are 'Postre').
+- `cartas`: The 4 values of our cards (normalized).
+- `puntos_propios`: Our current score in the match.
+- `puntos_rival`: The opponent's current score.
+
+**Pre-Flop History:**
+- `rondas_mus`: The amount of 'Mus' rounds that occurred before the betting started.
+- `descartes_rival`: The number of cards discarded by the opponent in the last round.
+
+**Betting Phase State:**
+- `indice_fase`: The current phase (Grande, Chica, Pares, or Juego).
+- `apuesta_vista`: The amount of stones currently on the table to be matched.
+- `subida_pendiente`: The pending raise amount we are facing (or an Órdago flag).
+- `bote_grande`, `bote_chica`, `bote_pares`: The current accumulated pots for the previous phases.
+- `owner_grande`, `owner_chica`, `owner_pares`: Who is currently winning the bets of the previous phases (1.0 if it's us, 0.0 if it's the opponent, 0.5 if it was a check/pass and it's still contested).
 
 
 ## 3.4 Deciding Mus vs no Mus and discarding
