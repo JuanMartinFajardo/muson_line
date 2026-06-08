@@ -33,12 +33,6 @@ By default it is hosted in port 5001
 5. Run the server: `python3 server.py`
 
 
-To run it locally and make tests, I personally use ngrok.
-1. Download and configure ngrok
-2. Get your server running on your computer `ngrok http 5001`.
-
-
-
 
 
 
@@ -122,7 +116,7 @@ Once we have the expected value, we say mus if it is over certain fixed threshol
 Mus is a classic Spanish card game traditionally played in partnerships, but the two-player variant offers a fast-paced, psychological duel. This version emphasizes bluffing and tactical betting.
 
 ## 4.1. The Basics
-* **The Deck:** If you use the Spanish deck, the used cards are 1 (Ace),2, 3, 4, 5, 6, 7, 10 (Sota), 11 (Caballo), 12 (Rey). If you use a Poker one: 1, 2, 3, 4, 5, 6, 7, Jack, Queen, King.
+* **The Deck:** If you use the Spanish deck, the used cards are 1 (Ace),2, 3, 4, 5, 6, 7, 10 (Jack), 11 (Knight), 12 (Rey). If you use a Poker one: 1, 2, 3, 4, 5, 6, 7, Jack, Queen, King.
 * **Special Card Values:** * **3s** are considered **Kings**.
     * **2s** are considered **Aces**.
     * This means there are effectively 8 Kings and 8 Aces in the deck.
