@@ -1,3 +1,5 @@
+#para consola importar pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
 import random
 import pandas as pd
 import joblib
