@@ -57,11 +57,6 @@ class SmartBot:
         else:
             print("⚠️ [BOT] No se encontró mus_data.json.")
             
-        # 2. Cargar Cerebro de Descartes
-        self.modelo_descartes = None
-        if os.path.exists('learn/models/modelo_descartes.pkl'):
-            self.modelo_descartes = joblib.load('learn/models/modelo_descartes.pkl')
-            print("🧠 [BOT] Cerebro de Descartes cargado.")
 
     def update_meta_variables(self, show = False):
         """Actualiza las meta-variables de la IA al final de cada mano para introducir variabilidad en su comportamiento.
@@ -109,60 +104,6 @@ class SmartBot:
             return "no_mus"
         else:
             return "mus"
-
-
-    def predecir_descartes_ia(self, partida, cartas):
-        es_mano = 1 if partida.id_mano == self.sid else 0
-        
-        # 1. Asociamos el valor de cada carta con su índice original en la mano
-        cartas_con_indices = [(i, 12 if c['valor'] == 3 else 1 if c['valor'] == 2 else c['valor']) for i, c in enumerate(cartas)]
-        
-        # 2. Ordenamos por valor (para que coincida con cómo entrenamos al modelo)
-        cartas_ordenadas_con_indices = sorted(cartas_con_indices, key=lambda x: x[1], reverse=True)
-        c_ord = [x[1] for x in cartas_ordenadas_con_indices]
-        
-        cat_pares, val_pares = evaluar_pares(c_ord)
-        estado_juego = calcular_valor_juego(c_ord)
-        
-        try:
-            prob_g = calcular_probabilidad_grande(cartas, self.memoria['mis_descartes'], es_mano==1).get('prob_ganar', 0.0)
-            prob_c = calcular_probabilidad_chica(cartas, self.memoria['mis_descartes'], es_mano==1).get('prob_ganar', 0.0)
-            prob_p = calcular_probabilidad_pares(cartas, False, es_mano==1, self.memoria['mis_descartes']).get('prob_ganar', 0.0)
-            res_j = calcular_probabilidad_juego(cartas, 0, False, es_mano==1, self.memoria['mis_descartes'])
-            prob_j = res_j.get('prob_ganar', 0.0) if isinstance(res_j, dict) else 0.0
-        except:
-            prob_g, prob_c, prob_p, prob_j = 0.0, 0.0, 0.0, 0.0
-
-        # Features exactas del modelo de descarte (13 features)
-        features = [
-            es_mano, c_ord[0], c_ord[1], c_ord[2], c_ord[3],
-            1 if cat_pares > 0 else 0, cat_pares, 
-            1 if estado_juego['tiene_juego'] else 0, estado_juego['suma'],
-            prob_g, prob_c, prob_p, prob_j
-        ]
-        
-        df_input = pd.DataFrame([features], columns=[
-            'es_mano', 'c1', 'c2', 'c3', 'c4', 'tengo_pares', 'tipo_pares', 
-            'tengo_juego', 'suma_puntos', 'prob_grande', 'prob_chica', 'prob_pares', 'prob_juego'
-        ])
-        
-        # Predecir máscara (el modelo devuelve un int, ej: 11 o 1111)
-        mascara_raw = self.modelo_descartes.predict(df_input)[0]
-        
-        if isinstance(mascara_raw, float):
-            mascara_raw = int(mascara_raw)
-
-        # Lo convertimos a texto y forzamos 4 dígitos (11 -> "0011")
-        mascara_str = str(mascara_raw).zfill(4)
-        
-        # Mapear los '1' de la máscara a los índices originales
-        indices_a_tirar = []
-        for i, bit in enumerate(mascara_str):
-            if bit == '1':
-                indice_original = cartas_ordenadas_con_indices[i][0]
-                indices_a_tirar.append(indice_original)
-                
-        return indices_a_tirar
 
 
     def predecir_descarte(self, partida, cartas):
@@ -323,13 +264,8 @@ class SmartBot:
         # ==========================================
         if fase == 'descarte':
             if not estado['descartes_listos']:
-                if self.modelo_descartes is not None:
-                    indices = self.predecir_descarte(partida, cartas)
-                    print(f"🎴 [BOT DESCARTE] Tirando {len(indices)} cartas. Índices: {indices}")
-                else:
-                    # Respaldo aleatorio
-                    indices = self.predecir_descarte(partida, cartas)
-                    print(f"🎴 [BOT DESCARTE] Tirando {len(indices)} cartas. Índices: {indices}")
+                indices = self.predecir_descarte(partida, cartas)
+                print(f"🎴 [BOT DESCARTE] Tirando {len(indices)} cartas. Índices: {indices}")
                 
                 self.memoria['mis_descartes'].extend([cartas[i]['valor'] for i in indices])
                 return {'accion': 'descartar', 'indices': indices}
