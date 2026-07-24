@@ -1,17 +1,89 @@
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, render_template, request, session, jsonify, send_from_directory
-import base_datos
-from flask_socketio import SocketIO, emit, join_room, leave_room
+import os
+import re
+import ssl
+import time
 import random
 import string
+import smtplib
+import secrets
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import timedelta
+
+from flask import (Flask, render_template, request, session, jsonify,
+                   send_from_directory, redirect, url_for)
+import base_datos
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from mus_mecanicas import PartidaMus
 from bot_ml import SmartBot
 
+
+# ==========================================
+# CONFIGURACIÓN (secretos vía variables de entorno / .env)
+# ==========================================
+
+def _cargar_dotenv():
+    """Carga un archivo .env sin depender de python-dotenv (opcional)."""
+    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if not os.path.exists(ruta):
+        return
+    try:
+        with open(ruta, 'r', encoding='utf-8') as f:
+            for linea in f:
+                linea = linea.strip()
+                if not linea or linea.startswith('#') or '=' not in linea:
+                    continue
+                clave, _, valor = linea.partition('=')
+                clave = clave.strip()
+                valor = valor.strip().strip('"').strip("'")
+                # No pisamos variables ya definidas en el entorno real
+                os.environ.setdefault(clave, valor)
+    except OSError as e:
+        print(f"⚠️  No se pudo leer .env: {e}")
+
+_cargar_dotenv()
+
+SECRET_KEY = os.environ.get('SECRET_KEY')
+SMTP_USER = os.environ.get('SMTP_USER')          # p.ej. callmus.contact@gmail.com
+SMTP_PASS = os.environ.get('SMTP_PASS')          # contraseña de aplicación de Gmail (16 letras)
+SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '465'))
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+
+# Avisos de arranque para no descubrir la falta de config en producción por sorpresa
+if not SECRET_KEY:
+    print("⚠️  SECRET_KEY no definida: usando clave de desarrollo INSEGURA. Define SECRET_KEY en producción.")
+    SECRET_KEY = 'clave_secreta_mus_dev'
+if not (SMTP_USER and SMTP_PASS):
+    print("⚠️  SMTP_USER/SMTP_PASS no definidos: el envío de correos (verificación y reseteo) está DESACTIVADO.")
+if not (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET):
+    print("⚠️  GOOGLE_CLIENT_ID/SECRET no definidos: el login con Google está DESACTIVADO.")
+
 app = Flask(__name__, static_folder='static', template_folder='.')
-app.config['SECRET_KEY'] = 'clave_secreta_mus'
+app.config['SECRET_KEY'] = SECRET_KEY
+app.permanent_session_lifetime = timedelta(days=30)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# --- Google OAuth (Authlib). Solo se registra si hay credenciales. ---
+oauth = None
+if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+    try:
+        from authlib.integrations.flask_client import OAuth
+        oauth = OAuth(app)
+        oauth.register(
+            name='google',
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET,
+            server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+            client_kwargs={'scope': 'openid email profile'},
+        )
+    except ImportError:
+        print("⚠️  Authlib no está instalado; el login con Google no funcionará. Instala 'Authlib'.")
+        oauth = None
 
 @app.after_request
 def add_header(response):
@@ -48,23 +120,238 @@ def api_leaderboard():
     return jsonify({'exito': True, 'leaderboard': datos})
 
 
+# --- Helpers de correo, validación y códigos temporales ---
+
+# codigos_pendientes[email] = {'code': '123456', 'datos': {...}, 'ts': epoch, 'tipo': 'registro'|'reset'}
+codigos_pendientes = {}
+# solicitudes_por_email[email] = [epoch, epoch, ...]  (para limitar peticiones)
+solicitudes_por_email = {}
+
+CODIGO_VALIDEZ_SEG = 15 * 60      # el código caduca a los 15 minutos
+MAX_SOLICITUDES_HORA = 3          # máximo de códigos por email y hora
+
+EMAIL_REGEX = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+USERNAME_REGEX = re.compile(r'^[A-Za-z0-9_]{3,20}$')
+
+
+def validar_registro(username, email, password):
+    """Validación de servidor (espejo de la del cliente). Devuelve mensaje de error o None."""
+    if not username or not USERNAME_REGEX.match(username):
+        return "El usuario debe tener 3-20 caracteres (letras, números o _)."
+    if not email or not EMAIL_REGEX.match(email):
+        return "Introduce un correo electrónico válido."
+    if not password or len(password) < 6:
+        return "La contraseña debe tener al menos 6 caracteres."
+    return None
+
+
+def rate_limit_ok(email):
+    """True si el email no ha superado el número de solicitudes por hora."""
+    ahora = time.time()
+    recientes = [t for t in solicitudes_por_email.get(email, []) if ahora - t < 3600]
+    solicitudes_por_email[email] = recientes
+    if len(recientes) >= MAX_SOLICITUDES_HORA:
+        return False
+    recientes.append(ahora)
+    return True
+
+
+def enviar_correo(destino, asunto, cuerpo_texto):
+    """Envía un correo por SMTP (Gmail SSL). Devuelve True/False."""
+    if not (SMTP_USER and SMTP_PASS):
+        print(f"✉️  [SIMULADO — sin SMTP] Para {destino} | {asunto}\n{cuerpo_texto}")
+        return False
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"CallMus <{SMTP_USER}>"
+        msg['To'] = destino
+        msg['Subject'] = asunto
+        msg.attach(MIMEText(cuerpo_texto, 'plain', 'utf-8'))
+
+        contexto = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=contexto) as servidor:
+            servidor.login(SMTP_USER, SMTP_PASS)
+            servidor.sendmail(SMTP_USER, destino, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"❌ Error enviando correo a {destino}: {e}")
+        return False
+
+
+def generar_codigo_verificacion():
+    return ''.join(secrets.choice(string.digits) for _ in range(6))
+
+
+@app.route('/auth/solicitar_codigo', methods=['POST'])
+def auth_solicitar_codigo():
+    """Paso 1 del registro: valida, comprueba duplicados y manda un código al correo."""
+    datos = request.json or {}
+    username = (datos.get('username') or '').strip()
+    email = (datos.get('email') or '').strip()
+    password = datos.get('password') or ''
+
+    error = validar_registro(username, email, password)
+    if error:
+        return jsonify({'exito': False, 'mensaje': error})
+
+    # Duplicados ANTES de enviar el código
+    existe, msg = base_datos.existe_usuario(username, email)
+    if existe:
+        return jsonify({'exito': False, 'mensaje': msg})
+
+    if not rate_limit_ok(email):
+        return jsonify({'exito': False, 'mensaje': 'Demasiadas solicitudes. Inténtalo de nuevo en una hora.'})
+
+    codigo = generar_codigo_verificacion()
+    codigos_pendientes[email] = {'code': codigo, 'ts': time.time(), 'tipo': 'registro'}
+
+    cuerpo = (f"¡Bienvenido a CallMus!\n\n"
+              f"Tu código de verificación es: {codigo}\n\n"
+              f"Caduca en 15 minutos. Si no has solicitado esto, ignora este correo.")
+    enviado = enviar_correo(email, "Tu código de verificación de CallMus", cuerpo)
+
+    if not enviado and not (SMTP_USER and SMTP_PASS):
+        # En desarrollo sin SMTP configurado, no bloqueamos: el código sale por consola.
+        return jsonify({'exito': True, 'mensaje': 'Código generado (modo desarrollo: revisa la consola del servidor).'})
+    if not enviado:
+        return jsonify({'exito': False, 'mensaje': 'No se pudo enviar el correo. Revisa la dirección e inténtalo de nuevo.'})
+
+    return jsonify({'exito': True, 'mensaje': '¡Código enviado!'})
+
+
 @app.route('/auth/registro', methods=['POST'])
 def auth_registro():
-    datos = request.json
-    exito, msg = base_datos.registrar_usuario(datos.get('username'), datos.get('password'), datos.get('country'), datos.get('birthdate'))
+    """Paso 2 del registro: verifica el código y crea la cuenta (con auto-login)."""
+    datos = request.json or {}
+    email = (datos.get('email') or '').strip()
+    username = (datos.get('username') or '').strip()
+    password = datos.get('password') or ''
+    codigo_recibido = (datos.get('code') or '').strip()
+
+    error = validar_registro(username, email, password)
+    if error:
+        return jsonify({'exito': False, 'mensaje': error})
+
+    pendiente = codigos_pendientes.get(email)
+    if not pendiente or pendiente.get('tipo') != 'registro':
+        return jsonify({'exito': False, 'mensaje': 'No hay ninguna verificación pendiente para este correo.'})
+    if time.time() - pendiente['ts'] > CODIGO_VALIDEZ_SEG:
+        codigos_pendientes.pop(email, None)
+        return jsonify({'exito': False, 'mensaje': 'El código ha caducado. Solicita uno nuevo.'})
+    if codigo_recibido != pendiente['code']:
+        return jsonify({'exito': False, 'mensaje': 'Código incorrecto.'})
+
+    exito, msg = base_datos.registrar_usuario(
+        username, password, datos.get('country'), datos.get('birthdate'), email)
+
+    if exito:
+        codigos_pendientes.pop(email, None)
+        solicitudes_por_email.pop(email, None)
+        session.permanent = True
+        session['username'] = username
+
     return jsonify({'exito': exito, 'mensaje': msg})
+
 
 @app.route('/auth/login', methods=['POST'])
 def auth_login():
-    datos = request.json
-    user = datos.get('username')
-    
-    if base_datos.verificar_login(user, datos.get('password')):
-        session.permanent = datos.get('remember', False)
-        session['username'] = user
+    """Acepta username O email como identificador."""
+    datos = request.json or {}
+    identificador = (datos.get('username') or '').strip()
+
+    username = base_datos.verificar_login(identificador, datos.get('password') or '')
+    if username:
+        session.permanent = bool(datos.get('remember', False))
+        session['username'] = username
         return jsonify({'exito': True})
-        
-    return jsonify({'exito': False, 'mensaje': 'Usuario o contraseña incorrectos'})
+
+    return jsonify({'exito': False, 'mensaje': 'Usuario/correo o contraseña incorrectos'})
+
+
+@app.route('/auth/solicitar_reset', methods=['POST'])
+def auth_solicitar_reset():
+    """Paso 1 de recuperación: manda un código al correo si existe una cuenta."""
+    datos = request.json or {}
+    email = (datos.get('email') or '').strip()
+
+    if not email or not EMAIL_REGEX.match(email):
+        return jsonify({'exito': False, 'mensaje': 'Introduce un correo electrónico válido.'})
+
+    if not rate_limit_ok(email):
+        return jsonify({'exito': False, 'mensaje': 'Demasiadas solicitudes. Inténtalo de nuevo en una hora.'})
+
+    username = base_datos.email_registrado(email)
+    if username:
+        codigo = generar_codigo_verificacion()
+        codigos_pendientes[email] = {'code': codigo, 'ts': time.time(), 'tipo': 'reset'}
+        cuerpo = (f"Hola {username},\n\n"
+                  f"Tu código para restablecer la contraseña de CallMus es: {codigo}\n\n"
+                  f"Caduca en 15 minutos. Si no has pedido esto, ignora este correo y tu cuenta seguirá segura.")
+        enviar_correo(email, "Restablece tu contraseña de CallMus", cuerpo)
+
+    # Respuesta idéntica exista o no la cuenta: no revelamos qué correos están registrados.
+    return jsonify({'exito': True, 'mensaje': 'Si ese correo tiene una cuenta, te hemos enviado un código.'})
+
+
+@app.route('/auth/reset', methods=['POST'])
+def auth_reset():
+    """Paso 2 de recuperación: verifica el código y cambia la contraseña."""
+    datos = request.json or {}
+    email = (datos.get('email') or '').strip()
+    codigo_recibido = (datos.get('code') or '').strip()
+    nueva = datos.get('password') or ''
+
+    if len(nueva) < 6:
+        return jsonify({'exito': False, 'mensaje': 'La nueva contraseña debe tener al menos 6 caracteres.'})
+
+    pendiente = codigos_pendientes.get(email)
+    if not pendiente or pendiente.get('tipo') != 'reset':
+        return jsonify({'exito': False, 'mensaje': 'No hay ninguna solicitud de reseteo para este correo.'})
+    if time.time() - pendiente['ts'] > CODIGO_VALIDEZ_SEG:
+        codigos_pendientes.pop(email, None)
+        return jsonify({'exito': False, 'mensaje': 'El código ha caducado. Solicita uno nuevo.'})
+    if codigo_recibido != pendiente['code']:
+        return jsonify({'exito': False, 'mensaje': 'Código incorrecto.'})
+
+    if base_datos.actualizar_password(email, nueva):
+        codigos_pendientes.pop(email, None)
+        solicitudes_por_email.pop(email, None)
+        return jsonify({'exito': True, 'mensaje': 'Contraseña actualizada. Ya puedes iniciar sesión.'})
+    return jsonify({'exito': False, 'mensaje': 'No se pudo actualizar la contraseña.'})
+
+
+# --- Google OAuth ---
+
+@app.route('/auth/google/login')
+def google_login():
+    if not oauth:
+        return "El login con Google no está configurado en este servidor.", 503
+    redireccion = url_for('google_callback', _external=True)
+    return oauth.google.authorize_redirect(redireccion)
+
+
+@app.route('/auth/google/callback')
+def google_callback():
+    if not oauth:
+        return redirect('/')
+    try:
+        token = oauth.google.authorize_access_token()
+        info = token.get('userinfo') or oauth.google.userinfo()
+    except Exception as e:
+        print(f"❌ Error en el callback de Google: {e}")
+        return redirect('/?auth_error=google')
+
+    google_id = info.get('sub')
+    email = info.get('email')
+    nombre = info.get('name') or info.get('given_name') or ''
+    if not google_id:
+        return redirect('/?auth_error=google')
+
+    username = base_datos.registrar_o_loguear_google(google_id, email, nombre)
+    session.permanent = True
+    session['username'] = username
+    return redirect('/')
+
 
 @app.route('/auth/sesion', methods=['GET'])
 def auth_sesion():

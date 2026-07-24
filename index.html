@@ -78,7 +78,7 @@
                 
                 <button id="btn-jugar-bot" data-i18n="btn_jugar_bot" style="margin-left: 10px; background-color: #b48ead; border: none; color: #eceff4; font-weight: bold; padding: 10px 15px; border-radius: 4px; cursor: pointer; transition: 0.3s;">Jugar contra bot</button>
                 
-                <button id="btn-tutorial" style="margin-top: 15px; width: 100%; background-color: #f3e0bf; color: #2e3440; font-weight: bold; padding: 12px; border-radius: 8px; font-size: 1.1em; border: none; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">🎓 How to Play (Tutorial)</button>
+                <button id="btn-tutorial" data-i18n="btn_tutorial" style="margin-top: 15px; width: 100%; background-color: #f3e0bf; color: #2e3440; font-weight: bold; padding: 12px; border-radius: 8px; font-size: 1.1em; border: none; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">🎓 How to Play (Tutorial)</button>
 
                 <div id="codigo-creado" class="hidden" style="margin-top: 10px;">
                     <p data-i18n="codigo_sala">Código de tu sala:</p>
@@ -229,15 +229,32 @@
             
             <h2 style="color: #88c0d0; margin-top: 5px; margin-bottom: 20px;" data-i18n="btn_login">Iniciar Sesión</h2>
             
-            <input type="text" id="login-user" placeholder="Usuario" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="user_name">
+            <input type="text" id="login-user" placeholder="Usuario o correo" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="user_or_email">
             <input type="password" id="login-pass" placeholder="Contraseña" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="password">
-            
-            <div style="margin-bottom: 20px; text-align: left; padding-left: 5%; display: flex; align-items: center;">
+
+            <div style="margin-bottom: 15px; text-align: left; padding-left: 5%; display: flex; align-items: center;">
                 <input type="checkbox" id="login-remember" style="transform: scale(1.2); margin-right: 10px;">
                 <label for="login-remember" style="color: #eceff4; font-size: 0.95em; cursor: pointer;" data-i18n="login_remember">Mantener la sesión iniciada</label>
             </div>
-            
+
             <button id="btn-submit-login" style="width: 90%; background-color: #81a1c1; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;" data-i18n="btn_login">Entrar</button>
+
+            <p style="margin: 12px 0 0 0;">
+                <a href="#" id="link-forgot" style="color: #88c0d0; font-size: 0.85em; text-decoration: underline; cursor: pointer;" data-i18n="forgot_password">¿Olvidaste tu contraseña?</a>
+            </p>
+
+            <!-- Separador "o" -->
+            <div style="display: flex; align-items: center; margin: 18px 0 12px 0;">
+                <div style="flex: 1; height: 1px; background: #4c566a;"></div>
+                <span style="padding: 0 10px; color: #eceff4; opacity: 0.6; font-size: 0.85em;" data-i18n="o_bien">o</span>
+                <div style="flex: 1; height: 1px; background: #4c566a;"></div>
+            </div>
+
+            <button id="btn-google-login" class="btn-google" style="width: 90%; display: flex; align-items: center; justify-content: center; gap: 10px; background-color: #ffffff; color: #3c4043; font-weight: bold; font-size: 1em; padding: 10px; border: none; border-radius: 4px; cursor: pointer;">
+                <img src="/static/img/google_logo.svg" alt="Google" style="width: 18px; height: 18px;" onerror="this.style.display='none'">
+                <span data-i18n="continue_google">Continuar con Google</span>
+            </button>
+
             <p id="msg-login" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
         </div>
 
@@ -249,7 +266,8 @@
             <h2 style="color: #a3be8c; margin-top: 5px; margin-bottom: 20px;" data-i18n="btn_signup">Registrarse</h2>
             
             <input type="text" id="signup-user" placeholder="Nombre de usuario" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="user_name">
-            <input type="password" id="signup-pass" placeholder="Contraseña" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="password">
+            <input type="email" id="signup-email" placeholder="Correo electrónico" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="email_label">
+            <input type="password" id="signup-pass" placeholder="Contraseña (mín. 6)" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="password_min">
             <input type="text" id="signup-country" placeholder="País de nacimiento" style="width: 90%; margin-bottom: 12px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="pais_nacimiento">
             
             <div style="margin-bottom: 20px; text-align: left; padding-left: 5%;">
@@ -261,7 +279,51 @@
             <p style="font-size: 0.8em; color: #eceff4; opacity: 0.7; margin-bottom: 15px; padding: 0 15px; line-height: 1.4;" data-i18n="privacy_disclaimer">Al registrarte aceptas las políticas de privacidad, que puedes encontrar en la sección Política de Privacidad.</p>
 
             <button id="btn-submit-signup" style="width: 90%; background-color: #a3be8c; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;" data-i18n="btn_cuenta">Crear cuenta</button>
+
+            <!-- Separador "o" -->
+            <div style="display: flex; align-items: center; margin: 18px 0 12px 0;">
+                <div style="flex: 1; height: 1px; background: #4c566a;"></div>
+                <span style="padding: 0 10px; color: #eceff4; opacity: 0.6; font-size: 0.85em;" data-i18n="o_bien">o</span>
+                <div style="flex: 1; height: 1px; background: #4c566a;"></div>
+            </div>
+
+            <button id="btn-google-signup" class="btn-google" style="width: 90%; display: flex; align-items: center; justify-content: center; gap: 10px; background-color: #ffffff; color: #3c4043; font-weight: bold; font-size: 1em; padding: 10px; border: none; border-radius: 4px; cursor: pointer;">
+                <img src="/static/img/google_logo.svg" alt="Google" style="width: 18px; height: 18px;" onerror="this.style.display='none'">
+                <span data-i18n="continue_google">Continuar con Google</span>
+            </button>
+
             <p id="msg-signup" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
+        </div>
+
+        <!-- Modal Verificar Correo (paso 2 del registro) -->
+        <div id="modal-verify" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            <h2 style="color: #a3be8c; margin-top: 5px; margin-bottom: 12px;" data-i18n="verify_title">Verifica tu correo</h2>
+            <p style="font-size: 0.9em; color: #eceff4; opacity: 0.8; margin-bottom: 18px; line-height: 1.4;" data-i18n="verify_intro">Te hemos enviado un código de 6 dígitos. Introdúcelo para terminar el registro.</p>
+            <input type="text" id="verify-code" inputmode="numeric" maxlength="6" placeholder="______" style="width: 90%; letter-spacing: 8px; text-align: center; margin-bottom: 15px; padding: 10px; font-size: 1.4em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            <button id="btn-submit-verify" style="width: 90%; background-color: #a3be8c; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;" data-i18n="btn_verify">Verificar y crear cuenta</button>
+            <p id="msg-verify" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
+        </div>
+
+        <!-- Modal ¿Olvidaste tu contraseña? (paso 1: pedir correo) -->
+        <div id="modal-forgot" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            <h2 style="color: #88c0d0; margin-top: 5px; margin-bottom: 12px;" data-i18n="forgot_title">Recuperar contraseña</h2>
+            <p style="font-size: 0.9em; color: #eceff4; opacity: 0.8; margin-bottom: 18px; line-height: 1.4;" data-i18n="forgot_intro">Introduce el correo de tu cuenta y te enviaremos un código para restablecer la contraseña.</p>
+            <input type="email" id="forgot-email" placeholder="Correo electrónico" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="email_label">
+            <button id="btn-submit-forgot" style="width: 90%; background-color: #81a1c1; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;" data-i18n="btn_send_code">Enviar código</button>
+            <p id="msg-forgot" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
+        </div>
+
+        <!-- Modal Restablecer contraseña (paso 2: código + nueva contraseña) -->
+        <div id="modal-reset" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            <h2 style="color: #88c0d0; margin-top: 5px; margin-bottom: 12px;" data-i18n="reset_title">Nueva contraseña</h2>
+            <p style="font-size: 0.9em; color: #eceff4; opacity: 0.8; margin-bottom: 18px; line-height: 1.4;" data-i18n="reset_intro">Introduce el código que te hemos enviado y tu nueva contraseña.</p>
+            <input type="text" id="reset-code" inputmode="numeric" maxlength="6" placeholder="Código de 6 dígitos" style="width: 90%; text-align: center; margin-bottom: 12px; padding: 10px; font-size: 1.1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;">
+            <input type="password" id="reset-pass" placeholder="Nueva contraseña (mín. 6)" style="width: 90%; margin-bottom: 15px; padding: 10px; font-size: 1em; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px; box-sizing: border-box;" data-i18n="password_min">
+            <button id="btn-submit-reset" style="width: 90%; background-color: #81a1c1; color: #2e3440; font-weight: bold; font-size: 1.1em; padding: 10px;" data-i18n="btn_reset">Cambiar contraseña</button>
+            <p id="msg-reset" style="color: #bf616a; font-size: 0.9em; margin-top: 15px; font-weight: bold;"></p>
         </div>
 
 
@@ -323,6 +385,7 @@
     </div>
 
     <script src="/static/app.js?=v6"></script>
+    <script src="/static/auth.js?=v2"></script>
     <script src="/static/tutorial.js"></script> </body>
 
 </body>

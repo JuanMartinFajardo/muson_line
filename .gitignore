@@ -1,6 +1,10 @@
 __pycache__
 mus.db
 recycle
+.env
+.muslab
+.obsidian
+.DS_Store
 learn/oldmodels
 learn/__pycache__
 learn/datasets

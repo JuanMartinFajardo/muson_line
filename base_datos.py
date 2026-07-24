@@ -1,4 +1,5 @@
 import sqlite3
+import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
@@ -12,6 +13,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            email TEXT,
+            google_id TEXT,
             country TEXT,
             birthdate TEXT,
             victorias INTEGER DEFAULT 0,
@@ -21,7 +24,31 @@ def init_db():
         )
     ''')
     conexion.commit()
+    _migrar_columnas(conexion)
     conexion.close()
+
+def _migrar_columnas(conexion):
+    """Añade columnas nuevas a bases de datos antiguas sin perder datos existentes."""
+    cursor = conexion.cursor()
+    cursor.execute("PRAGMA table_info(Usuarios)")
+    columnas = {fila[1] for fila in cursor.fetchall()}
+
+    if 'email' not in columnas:
+        cursor.execute("ALTER TABLE Usuarios ADD COLUMN email TEXT")
+    if 'google_id' not in columnas:
+        cursor.execute("ALTER TABLE Usuarios ADD COLUMN google_id TEXT")
+
+    # Índices únicos (case-insensitive) para email y google_id.
+    # Se crean como parciales para que los NULL no colisionen entre sí.
+    cursor.execute('''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email
+        ON Usuarios (email COLLATE NOCASE) WHERE email IS NOT NULL
+    ''')
+    cursor.execute('''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_google
+        ON Usuarios (google_id) WHERE google_id IS NOT NULL
+    ''')
+    conexion.commit()
 
 # --- FUNCIONES MATEMÁTICAS ELO ---
 def calcular_probabilidad(elo_jugador, elo_oponente):
@@ -70,34 +97,141 @@ def registrar_partida_completa(ganador_user, perdedor_user):
     conexion.commit()
     conexion.close()
 
-def registrar_usuario(username, password, country, birthdate):
+def existe_usuario(username, email):
+    """Comprueba, ANTES de mandar el código, si el usuario o el email ya existen.
+    Devuelve (existe:bool, mensaje:str)."""
+    conexion = sqlite3.connect(DB_NAME)
+    cursor = conexion.cursor()
+    cursor.execute('SELECT 1 FROM Usuarios WHERE username = ? COLLATE NOCASE', (username,))
+    if cursor.fetchone():
+        conexion.close()
+        return True, "El nombre de usuario ya está en uso."
+    if email:
+        cursor.execute('SELECT 1 FROM Usuarios WHERE email = ? COLLATE NOCASE', (email,))
+        if cursor.fetchone():
+            conexion.close()
+            return True, "Ya existe una cuenta con ese correo."
+    conexion.close()
+    return False, ""
+
+def registrar_usuario(username, password, country, birthdate, email=None):
     conexion = sqlite3.connect(DB_NAME)
     cursor = conexion.cursor()
     hash_pass = generate_password_hash(password)
-    fecha_actual = datetime.now().strftime("%Y-%m-%d") 
-    
+    fecha_actual = datetime.now().strftime("%Y-%m-%d")
+
     try:
         cursor.execute('''
-            INSERT INTO Usuarios (username, password_hash, country, birthdate, fecha_registro)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (username, hash_pass, country, birthdate, fecha_actual))
+            INSERT INTO Usuarios (username, password_hash, email, country, birthdate, fecha_registro)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (username, hash_pass, email, country, birthdate, fecha_actual))
         conexion.commit()
         exito, mensaje = True, "Usuario registrado correctamente."
-    except sqlite3.IntegrityError:
-        exito, mensaje = False, "El nombre de usuario ya está en uso."
+    except sqlite3.IntegrityError as e:
+        # Diferenciamos si el choque fue por username o por email
+        if 'email' in str(e).lower():
+            exito, mensaje = False, "Ya existe una cuenta con ese correo."
+        else:
+            exito, mensaje = False, "El nombre de usuario ya está en uso."
     finally:
         conexion.close()
     return exito, mensaje
 
-def verificar_login(username, password):
+def verificar_login(identificador, password):
+    """Acepta username O email como identificador.
+    Devuelve el username canónico si las credenciales son válidas, o None."""
     conexion = sqlite3.connect(DB_NAME)
     cursor = conexion.cursor()
-    cursor.execute('SELECT password_hash FROM Usuarios WHERE username = ?', (username,))
+    cursor.execute('''
+        SELECT username, password_hash FROM Usuarios
+        WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE
+    ''', (identificador, identificador))
     resultado = cursor.fetchone()
     conexion.close()
-    
-    if resultado is None: return False 
-    return check_password_hash(resultado[0], password)
+
+    if resultado is None:
+        return None
+    if check_password_hash(resultado[1], password):
+        return resultado[0]
+    return None
+
+def obtener_email(username):
+    conexion = sqlite3.connect(DB_NAME)
+    cursor = conexion.cursor()
+    cursor.execute('SELECT email FROM Usuarios WHERE username = ? COLLATE NOCASE', (username,))
+    fila = cursor.fetchone()
+    conexion.close()
+    return fila[0] if fila else None
+
+def email_registrado(email):
+    """Devuelve el username asociado a un email, o None. Se usa en el reset de contraseña."""
+    conexion = sqlite3.connect(DB_NAME)
+    cursor = conexion.cursor()
+    cursor.execute('SELECT username FROM Usuarios WHERE email = ? COLLATE NOCASE', (email,))
+    fila = cursor.fetchone()
+    conexion.close()
+    return fila[0] if fila else None
+
+def actualizar_password(email, nueva_password):
+    """Cambia la contraseña de la cuenta ligada a ese email (flujo de recuperación)."""
+    conexion = sqlite3.connect(DB_NAME)
+    cursor = conexion.cursor()
+    hash_pass = generate_password_hash(nueva_password)
+    cursor.execute('UPDATE Usuarios SET password_hash = ? WHERE email = ? COLLATE NOCASE',
+                   (hash_pass, email))
+    filas = cursor.rowcount
+    conexion.commit()
+    conexion.close()
+    return filas > 0
+
+def _generar_username_libre(cursor, base):
+    """Deriva un username único a partir de una base (p.ej. el nombre de Google)."""
+    limpio = ''.join(c for c in base if c.isalnum()) or 'jugador'
+    limpio = limpio[:20]
+    candidato = limpio
+    intento = 0
+    while True:
+        cursor.execute('SELECT 1 FROM Usuarios WHERE username = ? COLLATE NOCASE', (candidato,))
+        if not cursor.fetchone():
+            return candidato
+        intento += 1
+        sufijo = str(intento)
+        candidato = (limpio[:20 - len(sufijo)]) + sufijo
+
+def registrar_o_loguear_google(google_id, email, nombre):
+    """Encuentra la cuenta por google_id o email; si no existe, la crea.
+    Devuelve el username canónico."""
+    conexion = sqlite3.connect(DB_NAME)
+    cursor = conexion.cursor()
+
+    # 1. ¿Ya la vinculamos antes por google_id?
+    cursor.execute('SELECT username FROM Usuarios WHERE google_id = ?', (google_id,))
+    fila = cursor.fetchone()
+    if fila:
+        conexion.close()
+        return fila[0]
+
+    # 2. ¿Hay una cuenta con ese email (registro clásico previo)? La vinculamos.
+    if email:
+        cursor.execute('SELECT username FROM Usuarios WHERE email = ? COLLATE NOCASE', (email,))
+        fila = cursor.fetchone()
+        if fila:
+            cursor.execute('UPDATE Usuarios SET google_id = ? WHERE username = ?', (google_id, fila[0]))
+            conexion.commit()
+            conexion.close()
+            return fila[0]
+
+    # 3. Cuenta nueva. Password aleatoria inutilizable (login solo vía Google hasta que resetee).
+    username = _generar_username_libre(cursor, nombre or (email.split('@')[0] if email else 'jugador'))
+    hash_pass = generate_password_hash(secrets.token_urlsafe(32))
+    fecha_actual = datetime.now().strftime("%Y-%m-%d")
+    cursor.execute('''
+        INSERT INTO Usuarios (username, password_hash, email, google_id, fecha_registro)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (username, hash_pass, email, google_id, fecha_actual))
+    conexion.commit()
+    conexion.close()
+    return username
 
 def obtener_usuario(username):
     conexion = sqlite3.connect(DB_NAME)

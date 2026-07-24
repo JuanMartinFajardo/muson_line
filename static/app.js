@@ -51,6 +51,7 @@ const dict = {
         btn_crear: "Crear partida nueva",
         btn_unirse: "Unirse con código",
         btn_show_leaderboard: "Ver Leaderboard",
+        btn_tutorial: "🎓 Cómo Jugar (Tutorial)",
         btn_deal: "Repartir Cartas",
         btn_nomus: "Corto",
         btn_descartar: "Descartar",
@@ -147,6 +148,38 @@ const dict = {
         msg_no_publicas: "No hay partidas públicas ahora mismo. ¡Crea tú una!",
         txt_cartas_sin_repartir: "[Cartas sin repartir]",
         txt_hola: "Hola",
+        // --- Autenticación (auth.js) ---
+        user_or_email: "Usuario o correo",
+        email_label: "Correo electrónico",
+        password_min: "Contraseña (mín. 6)",
+        forgot_password: "¿Olvidaste tu contraseña?",
+        o_bien: "o",
+        continue_google: "Continuar con Google",
+        verify_title: "Verifica tu correo",
+        verify_intro: "Te hemos enviado un código de 6 dígitos. Introdúcelo para terminar el registro.",
+        btn_verify: "Verificar y crear cuenta",
+        forgot_title: "Recuperar contraseña",
+        forgot_intro: "Introduce el correo de tu cuenta y te enviaremos un código para restablecer la contraseña.",
+        btn_send_code: "Enviar código",
+        reset_title: "Nueva contraseña",
+        reset_intro: "Introduce el código que te hemos enviado y tu nueva contraseña.",
+        btn_reset: "Cambiar contraseña",
+        fill_all_fields: "Rellena todos los campos.",
+        invalid_username: "El usuario debe tener 3-20 caracteres (letras, números o _).",
+        invalid_email: "Introduce un correo electrónico válido.",
+        invalid_password: "La contraseña debe tener al menos 6 caracteres.",
+        sending_code: "Enviando código",
+        code_sent: "¡Código enviado!",
+        enter_full_code: "Introduce el código completo.",
+        session_expired: "La sesión ha caducado, vuelve a empezar el registro.",
+        verifying: "Verificando",
+        account_created: "¡Cuenta creada! Iniciando sesión...",
+        enter_user_pass: "Introduce usuario/correo y contraseña.",
+        checking: "Comprobando",
+        saving: "Guardando",
+        password_changed: "Contraseña cambiada. Ya puedes iniciar sesión.",
+        network_error: "Error de conexión. Inténtalo de nuevo.",
+        google_error: "No se pudo iniciar sesión con Google. Inténtalo de nuevo.",
         btn_jugar_bot: "Jugar contra bot",
         txt_creando_partida_bot: "Creando partida contra un bot...",
         fase_espera_reparto: "Esperando el reparto...",
@@ -155,7 +188,7 @@ const dict = {
         privacy_title: "Acerca de CallMus (v0.1)",
         privacy_p1: "<strong>Información general</strong><br>CallMus es una aplicación web diseñada para jugar a la variante de dos jugadores del tradicional juego de cartas Mus. La plataforma permite a los usuarios disfrutar de partidas multijugador contra otras personas o enfrentarse a un bot avanzado, entrenado mediante el algoritmo de aprendizaje profundo Deep CFR.",
         privacy_p2: "<strong>Desarrollo</strong><br>Este proyecto ha sido desarrollado en su totalidad por Juan Martín Fajardo. El código fuente es de código abierto y se distribuye bajo la licencia AGPL-3.0. Puedes consultar el repositorio oficial en GitHub a través del siguiente enlace: https://github.com/JuanMartinFajardo/muson_line. Para reportar errores o sugerencias, abre un Issue en el repositorio o envía un correo a callmus.contact@gmail.com.",
-        privacy_p3: "<strong>Política de Privacidad y Cookies</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Datos personales:</strong> Guardamos tu nombre de usuario, país y fecha de nacimiento para crear tu cuenta y mostrarte en la clasificación. <strong>Únicamente el nombre de usuario es público</strong>.</li> <li><strong>Contraseña:</strong> No almacenamos tu contraseña, sino un hash. Por lo tanto, no es posible recuperarla.</li><li><strong>Registro de partidas:</strong> Guardamos el registro de las jugadas para el entrenamiento de futuras versiones del bot.</li><li><strong>Cookies:</strong> Usamos cookies técnicas estrictamente necesarias para mantener tu sesión iniciada y recordar tu idioma. No usamos cookies de rastreo publicitario.</li></ul>",
+        privacy_p3: "<strong>Política de Privacidad y Cookies</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Datos personales:</strong> Guardamos tu nombre de usuario, correo electrónico, país y fecha de nacimiento para crear tu cuenta y mostrarte en la clasificación. <strong>Únicamente el nombre de usuario es público</strong>; tu correo solo se usa para verificar la cuenta y recuperar la contraseña.</li> <li><strong>Contraseña:</strong> No almacenamos tu contraseña, sino un hash. Si la olvidas, puedes restablecerla mediante un código enviado a tu correo.</li><li><strong>Acceso con Google:</strong> Si entras con Google, recibimos tu correo y nombre para crear o vincular tu cuenta; nunca vemos tu contraseña de Google.</li><li><strong>Registro de partidas:</strong> Guardamos el registro de las jugadas para el entrenamiento de futuras versiones del bot.</li><li><strong>Cookies:</strong> Usamos cookies técnicas estrictamente necesarias para mantener tu sesión iniciada y recordar tu idioma. No usamos cookies de rastreo publicitario.</li></ul>",
         privacy_disclaimer: "Al registrarte aceptas las políticas de privacidad, que puedes encontrar en la sección Acerca de CallMus.",
         msg_link_copied: "¡Enlace copiado al portapapeles!",
         msg_nombre_invitacion: "Escribe tu nombre para entrar a la partida."
@@ -168,6 +201,7 @@ const dict = {
         btn_crear: "Create new game",
         btn_unirse: "Join with code",
         btn_show_leaderboard: "View Leaderboard",
+        btn_tutorial: "🎓 How to Play (Tutorial)",
         btn_deal: "Deal Cards",
         btn_nomus: "Cut",
         btn_descartar: "Discard",
@@ -264,6 +298,38 @@ const dict = {
         msg_no_publicas: "There are no public games right now. Create one!",
         txt_cartas_sin_repartir: "[Cards not dealt yet]",
         txt_hola: "Hello",
+        // --- Authentication (auth.js) ---
+        user_or_email: "Username or email",
+        email_label: "Email address",
+        password_min: "Password (min. 6)",
+        forgot_password: "Forgot your password?",
+        o_bien: "or",
+        continue_google: "Continue with Google",
+        verify_title: "Verify your email",
+        verify_intro: "We sent you a 6-digit code. Enter it to finish signing up.",
+        btn_verify: "Verify and create account",
+        forgot_title: "Reset password",
+        forgot_intro: "Enter your account email and we'll send you a code to reset your password.",
+        btn_send_code: "Send code",
+        reset_title: "New password",
+        reset_intro: "Enter the code we sent you and your new password.",
+        btn_reset: "Change password",
+        fill_all_fields: "Please fill in all fields.",
+        invalid_username: "Username must be 3-20 characters (letters, numbers or _).",
+        invalid_email: "Enter a valid email address.",
+        invalid_password: "Password must be at least 6 characters.",
+        sending_code: "Sending code",
+        code_sent: "Code sent!",
+        enter_full_code: "Enter the full code.",
+        session_expired: "Your session expired, please start signup again.",
+        verifying: "Verifying",
+        account_created: "Account created! Logging you in...",
+        enter_user_pass: "Enter your username/email and password.",
+        checking: "Checking",
+        saving: "Saving",
+        password_changed: "Password changed. You can now log in.",
+        network_error: "Connection error. Please try again.",
+        google_error: "Could not sign in with Google. Please try again.",
         btn_jugar_bot: "Play against bot",
         txt_creando_partida_bot: "Creating game against a bot...",
         fase_espera_reparto: "Waiting for the deal...",
@@ -272,7 +338,7 @@ const dict = {
         privacy_title: "About CallMus (v0.1)",
         privacy_p1: "<strong>General Information</strong><br>CallMus is a web application designed for playing the 2-player variant of the traditional card game Mus. The platform allows users to enjoy multiplayer matches against others or challenge an advanced bot trained using the Deep CFR algorithm.",
         privacy_p2: "<strong>Development</strong><br>This project has been entirely developed by Juan Martín Fajardo. The source code is open-source under the AGPL-3.0 license. Check out the official GitHub repository here: https://github.com/JuanMartinFajardo/muson_line. To report bugs or suggest improvements, please open an Issue or send a mail to callmus.contact@gmail.com.",
-        privacy_p3: "<strong>Privacy and Cookie Policy</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Personal Data:</strong> We collect your username, country, and birthdate to manage your account and global ranking. <strong>Only your username is publicly visible</strong>.</li> <li><strong>Password:</strong> We do not store your password, but only a Hash. So it is not possible to recover it.</li> <li><strong>Game Logs:</strong> We store game records to train future AI versions.</li><li><strong>Cookies:</strong> We strictly use technical cookies essential for keeping your session active and remembering your language. We do not use tracking cookies.</li></ul>",
+        privacy_p3: "<strong>Privacy and Cookie Policy</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Personal Data:</strong> We collect your username, email, country, and birthdate to manage your account and global ranking. <strong>Only your username is publicly visible</strong>; your email is used only to verify your account and reset your password.</li> <li><strong>Password:</strong> We do not store your password, only a hash. If you forget it, you can reset it via a code sent to your email.</li><li><strong>Google Sign-in:</strong> If you sign in with Google, we receive your email and name to create or link your account; we never see your Google password.</li> <li><strong>Game Logs:</strong> We store game records to train future AI versions.</li><li><strong>Cookies:</strong> We strictly use technical cookies essential for keeping your session active and remembering your language. We do not use tracking cookies.</li></ul>",
         privacy_disclaimer: "By signing up, you agree to the privacy policies, which you can find in the About CallMus section.",
         msg_link_copied: "Link copied to clipboard!",
         msg_nombre_invitacion: "Enter your name to join the game."
@@ -1117,98 +1183,17 @@ function cerrarModales() {
     
     const modalPrivacy = document.getElementById('modal-privacy');
     if (modalPrivacy) modalPrivacy.classList.add('hidden');
+
+    // Modales de autenticación añadidos (verificación / recuperación)
+    ['modal-verify', 'modal-forgot', 'modal-reset'].forEach(id => {
+        const m = document.getElementById(id);
+        if (m) m.classList.add('hidden');
+    });
 }
 let miUsernameLogueado = null; // NUEVO: Variable para recordar quiénes somos
-
-fetch('/auth/sesion').then(res => res.json()).then(datos => {
-    if (datos.exito) {
-        miUsernameLogueado = datos.usuario.username; // Guardamos nuestro nombre real
-        actualizarInterfazLogueado(datos.usuario);
-    }
-});
-
-
-function actualizarInterfazLogueado(usuario) {
-    document.getElementById('user-buttons').classList.add('hidden');
-    document.getElementById('user-info-logged').classList.remove('hidden');
-    document.getElementById('txt-user-stats').innerText = t('txt_hola') + `, ${usuario.username}`;
-
-    let inNombre = document.getElementById('nombre-jugador');
-    if (inNombre) {
-        inNombre.value = usuario.username;
-        inNombre.disabled = true;
-        inNombre.style.backgroundColor = '#3b4252';
-        inNombre.style.color = '#a3be8c';
-    }
-    cerrarModales();
-}
-
-if (document.getElementById('btn-submit-signup')) {
-    document.getElementById('btn-submit-signup').addEventListener('click', () => {
-        const user = document.getElementById('signup-user').value.trim();
-        const pass = document.getElementById('signup-pass').value;
-        const country = document.getElementById('signup-country').value.trim();
-        const birth = document.getElementById('signup-birth').value;
-
-        if (!user || !pass || !country || !birth) {
-            document.getElementById('msg-signup').innerText = "Rellena todos los campos.";
-            return;
-        }
-
-        document.getElementById('msg-signup').innerText = "Registrando...";
-
-        fetch('/auth/registro', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user, password: pass, country: country, birthdate: birth })
-        }).then(res => res.json()).then(datos => {
-            let msgEl = document.getElementById('msg-signup');
-            msgEl.innerText = datos.mensaje;
-            if (datos.exito) {
-                msgEl.style.color = "#a3be8c";
-                setTimeout(() => {
-                    document.getElementById('btn-show-login').click();
-                    document.getElementById('login-user').value = user;
-                }, 1500);
-            } else {
-                msgEl.style.color = "#bf616a";
-            }
-        });
-    });
-}
-
-if (document.getElementById('btn-submit-login')) {
-    document.getElementById('btn-submit-login').addEventListener('click', () => {
-        const user = document.getElementById('login-user').value.trim();
-        const pass = document.getElementById('login-pass').value;
-        const remember = document.getElementById('login-remember').checked;
-
-        if (!user || !pass) {
-            document.getElementById('msg-login').innerText = "Introduce usuario y contraseña.";
-            return;
-        }
-
-        document.getElementById('msg-login').innerText = "Comprobando...";
-
-        fetch('/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user, password: pass, remember: remember })
-        }).then(res => res.json()).then(datos => {
-            if (datos.exito) {
-                window.location.reload();
-            } else {
-                document.getElementById('msg-login').innerText = datos.mensaje;
-            }
-        });
-    });
-}
-
-document.getElementById('btn-logout').addEventListener('click', () => {
-    fetch('/auth/logout', { method: 'POST' }).then(() => {
-        window.location.reload();
-    });
-});
+// La lógica de autenticación (sesión, registro, login, logout, recuperación y
+// Google) vive ahora en static/auth.js, que se carga después de este archivo.
+// Comparte con app.js: miUsernameLogueado, actualizarInterfazLogueado, cerrarModales, t().
 
 // ==========================================
 // 6. LÓGICA DE LA LEADERBOARD

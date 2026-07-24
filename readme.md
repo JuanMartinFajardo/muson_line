@@ -30,7 +30,10 @@ By default it is hosted in port 5001
 2. Create a virtual enviroment: `virtualenv .musenv`
 3. Activate the enviroment: `source .musenv/bin/activate`
 4. Install the requirements: `pip install -r requirements.txt`
-5. Run the server: `python3 server.py`
+5. (Optional) Copy `.env.example` to `.env` and fill in the secrets to enable email
+   verification and Google login: `cp .env.example .env`. Without it the server still runs
+   (those features are just disabled). See `wiki/Setup-and-Deployment.md` for details.
+6. Run the server: `python3 server.py`
 
 
 
