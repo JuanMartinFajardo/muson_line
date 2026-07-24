@@ -16,6 +16,7 @@ from datetime import timedelta
 from flask import (Flask, render_template, request, session, jsonify,
                    send_from_directory, redirect, url_for)
 import base_datos
+import social
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from mus_mecanicas import PartidaMus
 from bot_ml import SmartBot
@@ -779,6 +780,12 @@ def handle_abandonar_limpiamente():
 @socketio.on('disconnect')
 def handle_disconnect():
     sid = request.sid
+    # Presencia social: actualizar amigos conectados antes de la limpieza del juego.
+    try:
+        social.presencia_disconnect()
+    except Exception as e:
+        print(f"⚠️ Error en presencia_disconnect: {e}")
+
     if sid in jugadores:
         codigo = jugadores[sid]['sala']
         nombre = jugadores[sid]['nombre']
@@ -811,6 +818,18 @@ def handle_disconnect():
                 emit('rival_desconectado', room=codigo)
                 del salas[codigo]
                 emitir_lista_publicas()
+
+
+# ==========================================
+# CAPA SOCIAL (Roadmap #3): amigos, mensajería, grupos.
+# Se engancha aquí, ya definidos socketio, salas, jugadores y helpers.
+# ==========================================
+social.init_social(app, socketio, {
+    'salas': salas,
+    'jugadores': jugadores,
+    'generar_codigo': generar_codigo,
+    'emitir_lista_publicas': emitir_lista_publicas,
+})
 
 
 if __name__ == '__main__':

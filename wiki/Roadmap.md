@@ -76,7 +76,53 @@ Baraja Española", nav button ↔ "Siguiente →") without closing it; no cross-
 
 ---
 
-## 3. Friends, messaging, groups, and group leaderboards
+## 3. Friends, messaging, groups, and group leaderboards — ✅ DONE (2026-07-24)
+
+**Current state:** implemented and verified end-to-end. Registered users can add friends,
+chat in real time and offline, form groups, chat in groups, see a group-only ELO
+leaderboard, and invite a friend straight into a game. See [log.md](../log.md) for the
+change entry and [Implementing-Friends-Messaging-Groups](Implementing-Friends-Messaging-Groups.md)
+for the design that was followed.
+
+**What was done:**
+- **Schema (`base_datos.py` `init_db()`):** `Friendships` (canonical `user_low`/`user_high`),
+  `Messages` (DMs + group), `Groups` (+ `invite_policy`), `GroupMembers` (`last_read_id`
+  cursor), and `Partidas` (per-match history) + indexes, all `CREATE TABLE IF NOT EXISTS`;
+  plus the full set of data functions (friendships, DMs with unread counts, groups with
+  owner-transfer-on-leave, role management, and a **group-scoped** `leaderboard_grupo`).
+  Limits: 200 friends, 50 groups, message ≤ 500.
+- **Group-scoped leaderboard:** the group ELO/winrate is **not** the global stats filtered by
+  membership — it is computed from scratch (base 1200) replaying only the matches played
+  *between group members* and *after both joined the group* (`Partidas.fecha >= joined_at`),
+  recorded by `registrar_partida_completa`. A subtle `ⓘ` button with a light hover/tap
+  tooltip explains this in the leaderboard view.
+- **Group admin/roles & permissions:** owner/admins can promote members to admin, demote
+  admins to member, and remove members — never the original owner; a per-group
+  `invite_policy` (`admins`|`all`, admin-editable) governs who may add members.
+- **`social.py` (new, additive Blueprint-style module):** `init_social(app, socketio, ctx)`
+  registers all session-gated `/api/friends*`, `/api/messages/<id>`, `/api/groups*` routes;
+  presence via `usuarios_conectados`; a `notificar` helper and `notificacion` types
+  (`mensaje`, `mensaje_grupo`, `solicitud_amistad`, `amistad_aceptada`, `presencia`,
+  `invitacion_grupo`, `invitacion_partida`); and an `invitar_amigo` socket event that
+  creates a private room reusing `crear_sala` internals. Persist-first, notify-if-online.
+- **`server.py`:** wires `social.init_social(...)`; the game `disconnect` handler calls
+  `social.presencia_disconnect()` (Flask-SocketIO 5.x allows only one handler per event).
+- **Frontend:** `index.html` gains the **👥 Amigos** button (unread badge), `#modal-social`
+  (Friends/Groups tabs), a toast and an incoming game-invite popup; new `static/social.js`
+  holds all social UI (message bodies rendered via `textContent`, never `innerHTML`);
+  `app.js` gets the i18n keys (es+en) and `cerrarModales()` hides the social modal.
+
+**Acceptance:** ✅ two logged users befriend each other, chat live and offline (with unread
+badges), form a group, see a group-only ELO table, and start a game via invite; server-side
+abuse checks (DM to non-friend, self-add, over-length, foreign-group read, no-auth) all
+reject correctly.
+
+
+
+---
+
+
+<summary>Original plan (kept for reference)</summary>
 
 **Current state:** no social features; only a global leaderboard (`/api/leaderboard`).
 
@@ -92,6 +138,7 @@ GroupMembers(group_id, user_id, role TEXT('owner'|'member'), joined_at TEXT, UNI
 Store user IDs (add lookups by `Usuarios.id`), not usernames.
 
 **Backend steps:**
+
 1. REST endpoints (all session-gated): `POST /api/friends/request`, `POST /api/friends/respond` (accept/decline), `GET /api/friends` (list + online status), `DELETE /api/friends/<id>`; `GET/POST /api/messages/<friend_id>` (paginated, e.g. 50 latest); `POST /api/groups`, `POST /api/groups/<id>/invite`, `POST /api/groups/<id>/join`, `GET /api/groups/<id>/leaderboard`, `GET/POST /api/groups/<id>/messages`.
 2. **Presence:** maintain `usuarios_conectados = {username: sid}` updated on Socket.IO `connect`/`disconnect` (read `session.get('username')` in the connect handler). Used for online dots and real-time delivery.
 3. **Real-time events:** on new message / friend request / game invite, if the recipient is connected, `socketio.emit('notificacion', {...}, room=their_sid)`. Messages are always persisted first (delivery on next login for offline users: unread counts from `Messages.read`).
@@ -106,7 +153,10 @@ Store user IDs (add lookups by `Usuarios.id`), not usernames.
 
 **Acceptance:** two logged users can befriend each other, chat in real time and offline, form a group, see a group-only ELO table, and start a game via invite.
 
+
+
 ---
+
 
 ## 4. Tournaments
 

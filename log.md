@@ -4,6 +4,98 @@ Historial cronológico de cambios relevantes del proyecto. El más reciente arri
 
 ---
 
+## 2026-07-24 — Amigos, mensajería, grupos y clasificación de grupo (Roadmap #3)
+
+Capa social completa para usuarios registrados: añadir amigos, chatear (en vivo y
+offline), formar grupos, chat de grupo, clasificación ELO solo del grupo e invitar a
+un amigo directamente a una partida. Todo aditivo — no se tocaron los manejadores del
+juego. Arquitectura: persistencia + REST (fuente de la verdad en SQLite) con una capa
+de presencia/notificaciones Socket.IO por encima (entrega en vivo, nunca la verdad).
+
+### Backend
+
+- **`base_datos.py`**
+  - Nuevas tablas en `init_db()` (todas `CREATE TABLE IF NOT EXISTS`): `Friendships`
+    (con orden canónico `user_low`/`user_high` para que una amistad sea una sola fila),
+    `Messages` (DMs y mensajes de grupo), `Groups`, `GroupMembers` (con `last_read_id`
+    como cursor de no-leídos por usuario). Índices para DMs y grupos.
+  - Conjunto de funciones de datos: amistades (enviar/responder/eliminar/bloquear
+    solicitud, `listar_amigos`, `son_amigos`…), DMs (`enviar_mensaje_dm`,
+    `obtener_conversacion` que marca leídos, `contar_no_leidos`), grupos (crear, invitar,
+    salir con transferencia de propiedad, listar, mensajes) y `leaderboard_grupo` (mismo
+    formato que `obtener_leaderboard()`). Límites: 200 amigos, 50 grupos, mensajes ≤ 500.
+- **`social.py`** (nuevo módulo, se engancha con `init_social(app, socketio, ctx)` desde
+  `server.py` una vez definidos `socketio`, `salas`, `jugadores` y helpers)
+  - Rutas HTTP con sesión (`@login_requerido`): `/api/friends*`, `/api/messages/<id>`,
+    `/api/groups*` (detalle, invitar, salir, mensajes, `leaderboard`). La identidad "yo"
+    siempre sale de la sesión, nunca del cuerpo de la petición.
+  - **Presencia:** `usuarios_conectados = {username: set(sids)}`. Se registra un handler
+    `connect` propio; el `disconnect` del juego en `server.py` llama a
+    `social.presencia_disconnect()` (Flask-SocketIO 5.x no permite dos handlers para el
+    mismo evento, así que se enlaza por llamada). Se avisa a los amigos al conectar/salir.
+  - **Notificaciones** (`socketio.emit('notificacion', …, room=sid)`): tipos `mensaje`,
+    `mensaje_grupo`, `solicitud_amistad`, `amistad_aceptada`, `presencia`,
+    `invitacion_grupo`, `invitacion_partida`. Siempre se persiste primero.
+  - **Invitación a partida:** evento socket `invitar_amigo {friend_id, al_mejor_de}` crea
+    una sala **privada** reutilizando el flujo de `crear_sala` (asiento 0 = anfitrión) y
+    manda el código al amigo; el invitado se une con el `unirse_sala` normal. Sin cambios
+    en el motor de juego.
+  - Rate-limit en memoria por usuario para mensajes y solicitudes; DMs solo entre amigos;
+    comprobación de pertenencia/rol en toda ruta de grupo (403 si no).
+- **`server.py`**: `import social` + `social.init_social(...)` al final; llamada a
+  `presencia_disconnect()` dentro de `handle_disconnect`.
+
+### Frontend
+
+- **`index.html`**: botón **👥 Amigos** (con insignia de no-leídos) en la barra de usuario
+  logueado; modal `#modal-social` con pestañas Amigos/Grupos; toast flotante y popup de
+  invitación a partida entrante.
+- **`static/social.js`** (nuevo): toda la UI social — lista de amigos con punto de
+  presencia, solicitudes, añadir amigo, chat DM y de grupo (mismo componente),
+  crear/abrir grupos, invitar, salir, clasificación de grupo y gestión de las
+  notificaciones en vivo. Los cuerpos de mensaje se pintan con `textContent` (nunca
+  `innerHTML`) para evitar XSS.
+- **`static/app.js`**: claves i18n de la capa social en `dict.es` y `dict.en`;
+  `cerrarModales()` también oculta `#modal-social`.
+
+### Ajustes posteriores (mismo día, tras revisión)
+
+- **Clasificación PROPIA del grupo (no la global filtrada):** se añadió la tabla
+  `Partidas(id, fecha, ganador_id, perdedor_id, vs_bot)` y `registrar_partida_completa`
+  ahora inserta una fila por cada partida humano-vs-humano entre usuarios registrados.
+  `leaderboard_grupo` se reescribió: reproduce en orden cronológico solo las partidas
+  jugadas **entre miembros del grupo** y únicamente las disputadas **después de que ambos
+  se unieran** (`fecha >= joined_at` de los dos); cada jugador arranca de 1200. Así, si A
+  ya le ganó 30-1 a B antes de que B entrara al grupo, esas partidas no cuentan en la
+  clasificación del grupo (sí en la global). Un botón sutil `ⓘ` en la cabecera de la
+  clasificación muestra un tooltip ligero que lo explica (aparece al pasar el ratón y se
+  oculta al salir en escritorio; el clic lo alterna en móvil).
+- **Roles de grupo:** admins/owner pueden ascender miembros a admin y degradar admins a
+  miembro (`cambiar_rol_miembro`), y expulsar miembros (`expulsar_miembro`) — nunca sobre
+  el **propietario original** (intocable). Nuevos endpoints
+  `POST /api/groups/<id>/members/<uid>/role` y `.../remove`; botones por miembro en la UI.
+- **Permiso de invitación configurable:** columna `Groups.invite_policy` (`'admins'`|`'all'`)
+  con migración idempotente; solo admins la editan (`POST /api/groups/<id>/settings`).
+  `añadir_miembro` respeta la política (`puede_invitar`). Selector "Quién puede añadir" en
+  la vista de grupo para admins.
+- **Fix de alternancia:** el botón *Clasificación del grupo* ahora es un toggle — al
+  volver a pulsarlo se oculta la tabla y reaparece la lista de miembros.
+
+### Verificación
+
+- Probado end-to-end (localhost:5001, clientes REST + Socket.IO): solicitud/aceptación de
+  amistad, DM en vivo y offline con no-leídos, presencia online/offline al conectar y
+  desconectar, creación de grupo, invitación, mensajes de grupo en vivo, clasificación de
+  grupo ordenada por ELO, e invitación a partida completa (anfitrión sentado → invitado
+  acepta → ambos entran a un 2p normal). Casos límite rechazados en servidor: DM a
+  no-amigo, añadirse a sí mismo, mensaje de 600 caracteres, leer grupo ajeno (403),
+  invitar sin permiso, sin sesión (401). Sin errores en consola ni en el servidor.
+- **Cuentas de prueba creadas** (para probar lo social sin la confirmación por correo,
+  aún pendiente de despliegue): `test_ana`/`mustest1`, `test_beto`/`mustest2`,
+  `test_carla`/`mustest3`, `test_dani`/`mustest4`, `test_eva`/`mustest5`.
+
+---
+
 ## 2026-07-24 — Tutorial bilingüe ES/EN (Roadmap #2)
 
 Se tradujo el tutorial y se integró en el motor de idioma existente. Ojo: la

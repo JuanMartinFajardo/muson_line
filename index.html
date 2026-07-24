@@ -50,6 +50,10 @@
             
             <div id="user-info-logged" class="hidden" style="color: #eceff4; display: flex; align-items: center; gap: 15px;">
                 <span id="txt-user-stats" style="font-weight: bold; color: #ebcb8b; font-size: 1.1em;"></span>
+                <button id="btn-amigos" style="position: relative; background-color: transparent; border: 1px solid #88c0d0; color: #88c0d0; padding: 5px 15px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">
+                    <span data-i18n="btn_amigos">👥 Amigos</span>
+                    <span id="amigos-badge" class="hidden" style="position: absolute; top: -8px; right: -8px; background: #bf616a; color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 0.7em; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px;">0</span>
+                </button>
                 <button id="btn-logout" data-i18n="btn_logout" style="background-color: transparent; border: 1px solid #bf616a; color: #bf616a; padding: 5px 15px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">Cerrar Sesión</button>
             </div>
 
@@ -351,6 +355,22 @@
             </div>
         </div>
 
+        <!-- Modal Social (amigos, grupos, chat) -->
+        <div id="modal-social" class="hidden" style="position: relative; background: #2e3440; padding: 25px 20px 20px 20px; border-radius: 8px; border: 1px solid #4c566a; width: 460px; max-width: 95vw; height: 82vh; max-height: 640px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8); display: flex; flex-direction: column;">
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+
+            <h2 id="social-title" style="color: #88c0d0; margin-top: 5px; margin-bottom: 15px;" data-i18n="btn_amigos">👥 Amigos</h2>
+
+            <!-- Pestañas -->
+            <div id="social-tabs" style="display: flex; gap: 8px; margin-bottom: 12px; justify-content: center;">
+                <button id="tab-amigos" class="social-tab" data-i18n="tab_amigos" style="flex: 1; padding: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; background: #5e81ac; color: #eceff4;">Amigos</button>
+                <button id="tab-grupos" class="social-tab" data-i18n="tab_grupos" style="flex: 1; padding: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; background: #3b4252; color: #d8dee9;">Grupos</button>
+            </div>
+
+            <!-- Contenido dinámico (lo rellena social.js) -->
+            <div id="social-body" style="flex-grow: 1; overflow-y: auto; text-align: left; padding-right: 4px;"></div>
+        </div>
+
         <!-- Modal Política de privacidad -->
         <div id="modal-privacy" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 600px; max-width: 90vw; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-height: 80vh; display: flex; flex-direction: column;">
             <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
@@ -384,8 +404,21 @@
 
     </div>
 
+    <!-- Toast flotante de notificaciones sociales (mensajes, solicitudes) -->
+    <div id="social-toast" class="hidden" style="position: fixed; bottom: 20px; right: 20px; z-index: 2000; background: #3b4252; color: #eceff4; border: 1px solid #88c0d0; border-radius: 8px; padding: 12px 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); max-width: 300px; font-size: 0.95em;"></div>
+
+    <!-- Popup de invitación a partida entrante -->
+    <div id="invite-popup" class="hidden" style="position: fixed; bottom: 20px; right: 20px; z-index: 2001; background: #2e3440; color: #eceff4; border: 2px solid #a3be8c; border-radius: 10px; padding: 18px; box-shadow: 0 8px 22px rgba(0,0,0,0.7); max-width: 320px; text-align: center;">
+        <p id="invite-popup-text" style="margin: 0 0 14px 0; font-size: 1em;"></p>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+            <button id="invite-accept" data-i18n="btn_aceptar_partida" style="background: #a3be8c; color: #2e3440; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">Aceptar</button>
+            <button id="invite-decline" data-i18n="btn_rechazar" style="background: #bf616a; color: #eceff4; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">Rechazar</button>
+        </div>
+    </div>
+
     <script src="/static/app.js?=v6"></script>
     <script src="/static/auth.js?=v2"></script>
+    <script src="/static/social.js?=v2"></script>
     <script src="/static/tutorial.js"></script> </body>
 
 </body>
