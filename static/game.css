@@ -1,0 +1,764 @@
+/* ============================================================================
+   game.css — El tapete: mesa de 1v1 (#game-screen) y de 2v2 (#game-screen-4).
+   Se carga DESPUÉS de style.css, style4.css y menu.css.
+
+   Continúa el lenguaje de "tinta de medianoche" del menú (ver menu.css): fondo
+   casi negro, tipografía con serifa en versalitas, filetes de 1px, el oro como
+   único acento y el rojo reservado al órdago y a los errores. Aquí se añaden
+   dos ideas propias de la mesa:
+
+     · La CHAPA del jugador (.cm-plate): nombre, tanteo grande con serifa y las
+       "piedras" (los amarrakos de toda la vida) en vez de un contador seco.
+     · El TANTEADOR de lances (.cm-botes): Grande · Chica · Pares · Juego en
+       cuatro columnas separadas por filetes, con el lance en curso en oro.
+
+   Reparto de responsabilidades: style.css y style4.css mantienen la RETÍCULA
+   (flex, grid, medidas, animaciones); este archivo pone el ASPECTO de las dos
+   mesas y de los overlays de partida. Convenio de nombres: .cm-  (CallMus).
+   ========================================================================== */
+
+/* ============================================================
+   1. La superficie de la mesa
+   ============================================================ */
+
+#game-screen:not(.hidden),
+#game-screen-4:not(.hidden) {
+    max-width: 100%;
+    padding-top: 18px;   /* aire para el aviso de turno y las esquinas */
+    background: var(--cm-ink);
+    color: var(--cm-bone);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Un halo de luz muy tenue en el centro, como una lámpara sobre el tapete:
+   da profundidad sin recurrir a degradados de color ni a texturas. */
+#game-screen:not(.hidden)::before,
+#game-screen-4:not(.hidden)::before {
+    content: "";
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 70% 55% at 50% 45%,
+                rgba(237, 233, 220, 0.045) 0%, transparent 70%);
+}
+/* Sólo el contenido en flujo se pone por delante del halo: los botones fijos de
+   las esquinas y los overlays llevan su propio z-index y no deben tocarse. */
+#game-screen > .area,
+#game-screen > .turno-indicador,
+#game-screen-4 > #score-bar-4,
+#game-screen-4 > #mesa-4 { position: relative; z-index: 1; }
+
+/* ============================================================
+   2. Esquinas de la mesa: ayuda (izq.) y salir (dcha.)
+   ============================================================ */
+
+/* Reaprovechamos el botón de icono del menú; sólo cambian la posición y, en el
+   de salir, el color al pasar por encima. */
+.cm-mesa-btn {
+    position: fixed; top: 13px; z-index: 1000;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; padding: 0; margin: 0;
+    background: rgba(237, 233, 220, 0.03);
+    border: 1px solid var(--cm-hair-2); border-radius: 2px;
+    color: var(--cm-bone);
+    font-family: var(--cm-serif); font-size: 1.05rem; font-weight: 400;
+    line-height: 1; cursor: pointer;
+    transition: border-color .2s, color .2s, background .2s;
+    -webkit-tap-highlight-color: transparent;
+}
+.cm-mesa-btn:hover {
+    background: rgba(201, 162, 39, 0.09);
+    border-color: var(--cm-gold);
+    color: var(--cm-gold-hi);
+}
+.cm-mesa-ayuda { left: 15px; }
+
+/* El «✕» de abandonar: mismo hueco de siempre (a la izquierda del de pantalla
+   completa), pero en rojo al pasar por encima porque es una salida. */
+.btn-salir-mesa {
+    right: 62px;
+    width: 34px; height: 34px;
+    background: rgba(237, 233, 220, 0.03);
+    border: 1px solid var(--cm-hair-2); border-radius: 2px;
+    color: var(--cm-dim);
+    font-size: 1.05rem; font-weight: 400;
+    box-shadow: none;
+    transition: border-color .2s, color .2s, background .2s;
+}
+.btn-salir-mesa:hover {
+    background: rgba(194, 53, 46, 0.12);
+    border-color: var(--cm-red);
+    color: #E06862;
+    transform: none;
+}
+
+/* ============================================================
+   3. La chapa del jugador (1v1)
+   ============================================================ */
+
+/* La chapa se estrecha respecto al ancho que traía #opponent-area / #my-area
+   (800px) para quedar a la anchura de las cuatro cartas. Van con id porque el
+   ancho antiguo lo fija #opponent-area / #my-area en style.css. */
+#opponent-area.cm-plate, #my-area.cm-plate {
+    display: flex; flex-direction: column; gap: 8px;
+    max-width: 620px; padding: 0;
+}
+
+.cm-plate-head {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%; padding: 5px 14px 5px 11px;
+    box-sizing: border-box;
+    background: rgba(237, 233, 220, 0.018);
+    border: 1px solid var(--cm-hair);
+    border-left: 2px solid var(--cm-hair-2);
+    border-radius: 2px;
+    transition: border-color .25s, background .25s;
+}
+
+.cm-plate-who {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 0; flex: 1;
+}
+.cm-plate-who .pinta { color: var(--cm-dim-2); }
+#my-area .cm-plate-who .pinta { color: var(--cm-gold); }
+
+.cm-plate-name {
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.95rem; letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--cm-bone);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* El rol (mano / postre) se escribe entre paréntesis desde app.js. */
+.cm-plate-rol {
+    font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cm-gold);
+    white-space: nowrap;
+}
+.cm-plate-rol:empty { display: none; }
+
+/* El tanteo: 32 grande con serifa, el /40 discreto al lado. */
+.cm-plate-score {
+    flex: 0 0 auto;
+    display: flex; align-items: baseline; gap: 1px;
+    font-family: var(--cm-serif);
+}
+.cm-pts {
+    font-size: 1.5rem; line-height: 1;
+    color: var(--cm-bone);
+    font-variant-numeric: tabular-nums;
+}
+.cm-pts-max {
+    font-size: 0.82rem;
+    color: var(--cm-dim-2);
+}
+
+.cm-plate-games {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 10px;
+}
+.cm-plate-meta {
+    font-size: 0.63rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--cm-dim-2);
+    white-space: nowrap;
+}
+
+/* Las piedras (amarrakos): una por partida necesaria para llevarse el match;
+   se rellenan de oro a medida que se ganan. Las pinta pintarPiedras(). */
+.cm-piedras { display: inline-flex; align-items: center; gap: 5px; }
+.piedra {
+    width: 8px; height: 8px;
+    border: 1px solid var(--cm-hair-2); border-radius: 50%;
+    transition: background .3s, border-color .3s;
+}
+.piedra.es-ganada {
+    background: var(--cm-gold);
+    border-color: var(--cm-gold);
+}
+
+/* --- A quién le toca hablar --- */
+/* Los avisos viven justo antes de su chapa en el HTML, así que el hermano
+   adyacente nos deja marcar la chapa activa sin tocar el JavaScript. */
+#turno-rival:not(.hidden) + #opponent-area .cm-plate-head,
+#mi-turno:not(.hidden) + #my-area .cm-plate-head {
+    border-color: var(--cm-hair-2);
+    border-left-color: var(--cm-gold);
+    background: rgba(201, 162, 39, 0.05);
+}
+
+#game-screen .turno-indicador {
+    margin: 6px 0 3px;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.7rem; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--cm-gold);
+    animation: cm-respirar 2.4s ease-in-out infinite;
+}
+#turno-rival { color: var(--cm-dim) !important; animation: none !important; }
+
+@keyframes cm-respirar {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
+}
+
+/* --- Las cartas --- */
+.cards-placeholder {
+    font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cm-dim-2);
+}
+/* Sin sombra: la carta ya destaca sola sobre la tinta, y sobre el halo del
+   centro cualquier sombra negra se recortaba como un cuadrado sucio. */
+#game-screen .carta img {
+    border: 1px solid rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    box-shadow: none;
+}
+#game-screen .carta.seleccionada img {
+    border-color: var(--cm-gold);
+    box-shadow: 0 6px 30px rgba(201, 162, 39, 0.3);
+}
+#my-cards:not(:has(.carta)) {
+    font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cm-dim-2);
+}
+
+/* ============================================================
+   4. El centro de la mesa
+   ============================================================ */
+
+/* Sin mensaje no reserva línea: la mesa se aprieta sola en pantallas cortas. */
+#game-log:empty, #game-log-4:empty { display: none; }
+#game-log, #game-log-4 {
+    margin: 0 0 4px;
+    font-family: var(--cm-serif);
+    font-size: 1rem; line-height: 1.6; letter-spacing: 0.03em;
+    color: var(--cm-dim);
+    min-height: 1.2em;
+}
+#game-log b, #game-log-4 b { color: var(--cm-bone); font-weight: 400; }
+#game-log i, #game-log em { color: var(--cm-dim-2); }
+
+/* Rótulo de transición ("Nadie tiene Pares", "Fase de recuento"…) */
+.cm-transicion {
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 1.12rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--cm-bone);
+}
+/* Recuento: el titular y los dos remates (gana la partida / gana el match). */
+.cm-res-title {
+    display: inline-block; margin-bottom: 6px;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.78rem; letter-spacing: 0.26em; text-transform: uppercase;
+    color: var(--cm-dim);
+}
+.cm-res-big {
+    display: inline-block; margin-top: 8px;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 1.3rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--cm-gold);
+}
+.cm-nota-mesa {
+    font-size: 0.78rem; font-style: normal;
+    color: var(--cm-dim-2);
+}
+
+/* --- El tanteador de lances --- */
+#betting-log, #betting-log-4 {
+    width: 100%; max-width: 460px;
+    box-sizing: border-box;
+    margin: 6px auto 12px;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--cm-hair);
+    border-radius: 2px;
+    box-shadow: none;
+}
+#betting-log-4 { max-width: 100%; }
+
+/* La apuesta en el aire. Sin apuesta no ocupa nada (antes reservaba 65px de
+   hueco vacío que hundía la mesa). */
+.cm-aire {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--cm-hair);
+    text-align: center;
+}
+.cm-aire:empty { display: none; }
+.cm-aire-vista {
+    margin: 0;
+    font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--cm-dim-2);
+}
+.cm-aire-vista b {
+    font-family: var(--cm-serif); font-size: 1.05rem; letter-spacing: 0.05em;
+    color: var(--cm-bone); font-weight: 400;
+}
+.cm-aire-sube {
+    margin: 0;
+    font-family: var(--cm-serif);
+    font-size: 1.05rem; letter-spacing: 0.08em;
+    color: var(--cm-dim);
+}
+.cm-aire-sube.es-mia { color: var(--cm-gold-hi); }
+
+.cm-botes { display: flex; }
+.cm-bote {
+    flex: 1 1 0; min-width: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 8px 4px 9px;
+    border-left: 1px solid var(--cm-hair);
+    transition: background .25s;
+}
+.cm-bote:first-child { border-left: 0; }
+.cm-bote-fase {
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.64rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--cm-dim-2);
+    white-space: nowrap;
+    transition: color .25s;
+}
+.cm-bote-val {
+    font-family: var(--cm-serif);
+    font-size: 1.3rem; line-height: 1;
+    color: var(--cm-dim);
+    font-variant-numeric: tabular-nums;
+    transition: color .25s;
+}
+/* El lance que se está jugando: en oro, con su filete debajo. */
+.cm-bote.is-activa {
+    background: rgba(201, 162, 39, 0.06);
+    box-shadow: inset 0 -2px 0 var(--cm-gold);
+}
+.cm-bote.is-activa .cm-bote-fase { color: var(--cm-gold-hi); }
+.cm-bote.is-activa .cm-bote-val { color: var(--cm-bone); }
+/* Lance ya resuelto por un deje: 3(+) lo ganamos, 3(−) lo perdimos. */
+.cm-bote.es-deje .cm-bote-val { color: var(--cm-bone); }
+.cm-bote-signo { font-size: 0.7em; vertical-align: super; margin-left: 1px; }
+.cm-bote-signo.es-mas  { color: var(--cm-live); }
+.cm-bote-signo.es-menos { color: var(--cm-red); }
+
+/* ============================================================
+   5. Los botones de la mesa
+   ============================================================ */
+
+#game-screen button:not(.cm-mesa-btn):not(.btn-salir-mesa),
+#center-table-4 button {
+    margin: 0;
+    padding: 11px 20px;
+    background: rgba(237, 233, 220, 0.025);
+    border: 1px solid var(--cm-hair-2);
+    border-radius: 2px;
+    color: var(--cm-bone);
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase;
+    cursor: pointer;
+    transition: background .2s, border-color .2s, color .2s;
+    -webkit-tap-highlight-color: transparent;
+}
+#game-screen button:not(.cm-mesa-btn):not(.btn-salir-mesa):hover,
+#center-table-4 button:hover {
+    background: rgba(201, 162, 39, 0.1);
+    border-color: var(--cm-gold);
+    color: var(--cm-gold-hi);
+}
+#game-screen button:disabled,
+#center-table-4 button:disabled {
+    opacity: 0.35; cursor: default;
+    background: rgba(237, 233, 220, 0.025) !important;
+    border-color: var(--cm-hair) !important;
+    color: var(--cm-dim) !important;
+}
+
+/* La acción que hace avanzar la partida va en oro macizo: repartir, siguiente
+   ronda, ver la apuesta. Sólo hay una a la vez, así que no compiten. */
+#game-screen :is(#btn-deal, #btn-next-round, #btn-descartar, #btn-ver),
+#center-table-4 :is(#btn-deal-4, #btn-next-round-4, #btn-descartar-4, #btn-ver-4) {
+    background: var(--cm-gold);
+    border-color: var(--cm-gold);
+    color: var(--cm-ink);
+}
+#game-screen :is(#btn-deal, #btn-next-round, #btn-descartar, #btn-ver):hover,
+#center-table-4 :is(#btn-deal-4, #btn-next-round-4, #btn-descartar-4, #btn-ver-4):hover {
+    background: var(--cm-gold-hi);
+    border-color: var(--cm-gold-hi);
+    color: var(--cm-ink);
+}
+
+/* El órdago es lo único rojo de la mesa: se juega la partida entera. */
+#game-screen :is(#btn-ordago, #btn-ordago-resp),
+#center-table-4 :is(#btn-ordago-4, #btn-ordago-resp-4) {
+    border-color: rgba(194, 53, 46, 0.55);
+    color: #D9645E;
+}
+#game-screen :is(#btn-ordago, #btn-ordago-resp):hover,
+#center-table-4 :is(#btn-ordago-4, #btn-ordago-resp-4):hover {
+    background: var(--cm-red);
+    border-color: var(--cm-red);
+    color: #FFF6F5;
+}
+
+/* Volver al menú al acabar el match: un botón de salida, no de juego. */
+#game-screen #btn-volver-menu,
+#center-table-4 #btn-volver-menu-4 {
+    background-color: transparent !important;
+    border-color: var(--cm-hair-2);
+    color: var(--cm-dim);
+}
+#game-screen #btn-volver-menu:hover,
+#center-table-4 #btn-volver-menu-4:hover {
+    border-color: var(--cm-bone);
+    color: var(--cm-bone);
+    background-color: transparent !important;
+}
+
+/* ¡Pedrete! aparece de pronto en cualquier turno: merece un guiño en oro. */
+#game-screen #btn-pedrete,
+#center-table-4 #btn-pedrete-4 {
+    border-color: rgba(201, 162, 39, 0.5);
+    color: var(--cm-gold-hi);
+}
+
+/* La cantidad que se envida o se sube. */
+#game-screen input[type="number"],
+#center-table-4 input[type="number"] {
+    width: 58px; margin: 0;
+    padding: 10px 4px;
+    background: var(--cm-ink-3);
+    border: 1px solid var(--cm-hair-2);
+    border-radius: 2px;
+    color: var(--cm-bone);
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 1.15rem; text-align: center;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+#game-screen input[type="number"]:focus,
+#center-table-4 input[type="number"]:focus {
+    outline: none; border-color: var(--cm-gold);
+}
+#game-screen input[type="number"]::-webkit-outer-spin-button,
+#game-screen input[type="number"]::-webkit-inner-spin-button,
+#center-table-4 input[type="number"]::-webkit-outer-spin-button,
+#center-table-4 input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+}
+
+/* El centro es una columna flexible con scroll propio: si algo crece (el
+   recuento va escribiendo línea a línea), sus vecinos no deben encogerse por
+   debajo de su contenido o el texto se monta encima del tanteador. */
+#center-table > * { flex: 0 0 auto; }
+
+#action-buttons { gap: 9px; }
+
+/* El importe va pegado a su acción (2 | ENVIDAR): así se lee que ese número es
+   lo que se envida, y no un dato suelto de la mesa. */
+.panel-apuestas { gap: 0; }
+.panel-apuestas > * { margin-left: 9px; }
+.panel-apuestas > :first-child { margin-left: 0; }
+#game-screen :is(#in-envidar, #in-subir) { border-radius: 2px 0 0 2px; }
+#game-screen :is(#btn-envidar, #btn-subir),
+#center-table-4 :is(#btn-envidar-4, #btn-subir-4) {
+    margin-left: 0;
+    border-left: 0;
+    border-radius: 0 2px 2px 0;
+}
+/* En el 1v1 el tanteador va ENCIMA de los botones (como en el 2v2): primero se
+   lee cómo va el lance y luego se decide. */
+#center-table { gap: 2px; }
+
+/* ============================================================
+   6. Mesa de 2v2: marcador de equipos
+   ============================================================ */
+
+#score-bar-4 { gap: 14px; margin: 2px 0 8px; }
+
+.team-score {
+    gap: 11px;
+    padding: 6px 14px;
+    background: rgba(237, 233, 220, 0.018);
+    border: 1px solid var(--cm-hair) !important;
+    border-left: 2px solid var(--cm-hair-2) !important;
+    border-radius: 2px;
+    font-weight: 400;
+}
+#score-team-a { border-left-color: var(--equipo-a) !important; }
+#score-team-b { border-left-color: var(--equipo-b) !important; }
+/* Mi equipo: el fondo se ilumina un punto, sin sombras de color. */
+.team-score.mi-equipo {
+    box-shadow: none;
+    background: rgba(237, 233, 220, 0.055);
+    border-color: var(--cm-hair-2) !important;
+}
+
+.team-score .team-label {
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase;
+}
+.team-score .team-pts {
+    font-family: var(--cm-serif);
+    font-size: 1.35rem; line-height: 1;
+    color: var(--cm-bone);
+    font-variant-numeric: tabular-nums;
+}
+.team-score .team-pts .cm-pts-max { font-size: 0.72rem; }
+/* El contador de partidas es ahora una hilera de piedras (ver pintarPiedras). */
+.team-score .team-games {
+    background: none; color: inherit;
+    min-width: 0; height: auto;
+    border-radius: 0;
+    font-size: 1em;
+}
+#score-mejor-de-4 {
+    opacity: 1;
+    font-size: 0.63rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cm-dim-2);
+}
+
+/* ============================================================
+   7. Mesa de 2v2: los cuatro asientos
+   ============================================================ */
+
+/* Los asientos no llevan caja: en la rejilla ocupan toda su fila y un marco
+   los convertía en paneles enormes. Lo que se marca es el nombre. */
+.seat-4 {
+    padding: 7px 6px;
+    border: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+}
+.seat-4.ausente { opacity: 0.35; }
+
+/* A quién le toca: su nombre pasa a oro con un filete debajo. */
+.seat-4.turno-activo { animation: none; }
+.seat-4.turno-activo .seat-name {
+    color: var(--cm-gold-hi) !important;
+    border-bottom: 1px solid var(--cm-gold);
+    padding-bottom: 3px;
+    animation: cm-respirar 2.4s ease-in-out infinite;
+}
+
+.seat-name {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.8rem; letter-spacing: 0.11em; text-transform: uppercase;
+    color: var(--cm-bone);
+}
+.seat-4.equipo-A .seat-name { color: var(--equipo-a); }
+.seat-4.equipo-B .seat-name { color: var(--equipo-b); }
+.seat-name .mano-badge {
+    margin: 0;
+    padding: 1px 5px;
+    border: 1px solid rgba(201, 162, 39, 0.45); border-radius: 2px;
+    color: var(--cm-gold);
+    font-size: 0.6rem; letter-spacing: 0.12em;
+}
+.seat-name .partner-tag, .seat-name .you-tag {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--cm-dim-2); opacity: 1; font-weight: 400;
+}
+
+.chip {
+    padding: 2px 8px;
+    background: none;
+    border: 1px solid var(--cm-hair);
+    border-radius: 2px;
+    color: var(--cm-dim);
+    font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.chip.si {
+    background: rgba(201, 162, 39, 0.1);
+    border-color: rgba(201, 162, 39, 0.45);
+    color: var(--cm-gold-hi);
+    font-weight: 400;
+}
+.chip.no { background: none; border-color: var(--cm-hair); color: var(--cm-dim-2); }
+.chip.descartes {
+    background: none;
+    border-color: rgba(124, 147, 184, 0.4);
+    color: #9FB0CB;
+}
+
+.seat-cards .carta-4 img {
+    border: 1px solid rgba(0, 0, 0, 0.5);
+    border-radius: 3px;
+    box-shadow: none;
+}
+#seat-bottom .carta-4.seleccionada img {
+    border-color: var(--cm-gold);
+    box-shadow: 0 5px 24px rgba(201, 162, 39, 0.3);
+}
+
+/* --- El centro de la mesa de 2v2 --- */
+#center-table-4 {
+    gap: 6px;
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--cm-hair);
+    border-radius: 2px;
+}
+#betting-log-4 { background: none; border: 0; margin: 0; }
+#betting-log-4 .cm-botes { border-top: 1px solid var(--cm-hair); }
+
+/* Cuenta atrás del turno: la vía se ve siempre, así el oro que se acorta se
+   lee como tiempo y no como un adorno. */
+#turno-timer-4 {
+    width: 55%; height: 3px;
+    background: rgba(237, 233, 220, 0.09);
+    border-radius: 0;
+}
+#turno-timer-bar-4 { background: var(--cm-gold); border-radius: 0; }
+#turno-timer-bar-4.urgente { background: var(--cm-red); }
+
+.puntos-flotantes {
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 1.5em; letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   8. Overlays de partida (pausa, salida, sustituciones)
+   ============================================================ */
+
+.overlay-partida {
+    background: rgba(5, 6, 8, 0.86);
+    backdrop-filter: blur(6px);
+}
+
+.overlay-partida .caja-overlay,
+.cm-pausa-caja {
+    position: relative;
+    max-width: 430px; width: 100%;
+    padding: 26px 26px 22px;
+    background: var(--cm-ink-2);
+    border: 1px solid var(--cm-hair-2);
+    border-radius: 2px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+    text-align: center;
+}
+.overlay-partida .caja-overlay::before,
+.cm-pausa-caja::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cm-gold), transparent);
+    opacity: 0.75;
+}
+
+.overlay-partida h3, .cm-pausa-caja h3 {
+    margin: 0 0 12px;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 1.1rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--cm-bone);
+}
+.overlay-partida p, .cm-pausa-caja p {
+    margin: 0 0 8px;
+    font-size: 0.86rem; line-height: 1.6;
+    color: var(--cm-dim);
+}
+.overlay-partida .cuenta-atras, .cm-pausa-cont {
+    margin: 12px 0 0;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 1.35rem; letter-spacing: 0.1em;
+    color: var(--cm-gold);
+}
+
+/* El giro de espera, en un filete de oro. */
+.overlay-partida .spinner-reconexion, .cm-pausa-spinner {
+    width: 34px; height: 34px;
+    margin: 0 auto 18px;
+    border: 1px solid var(--cm-hair-2);
+    border-top-color: var(--cm-gold);
+    border-radius: 50%;
+    animation: girar-reconexion 1.1s linear infinite;
+}
+
+.acciones-overlay { gap: 9px; margin-top: 20px; }
+.acciones-overlay button {
+    min-width: 130px;
+    padding: 11px 16px;
+    background: transparent;
+    border: 1px solid var(--cm-hair-2);
+    border-radius: 2px;
+    color: var(--cm-bone);
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.76rem; letter-spacing: 0.16em; text-transform: uppercase;
+    transition: background .2s, border-color .2s, color .2s;
+}
+.acciones-overlay button:hover { filter: none; }
+.acciones-overlay .btn-ok {
+    background: var(--cm-gold); border-color: var(--cm-gold); color: var(--cm-ink);
+}
+.acciones-overlay .btn-ok:hover {
+    background: var(--cm-gold-hi); border-color: var(--cm-gold-hi);
+}
+.acciones-overlay .btn-peligro {
+    background: transparent; border-color: rgba(194, 53, 46, 0.55); color: #D9645E;
+}
+.acciones-overlay .btn-peligro:hover {
+    background: var(--cm-red); border-color: var(--cm-red); color: #FFF6F5;
+}
+.acciones-overlay .btn-neutro {
+    background: transparent; border-color: var(--cm-hair-2); color: var(--cm-dim);
+}
+.acciones-overlay .btn-neutro:hover { border-color: var(--cm-bone); color: var(--cm-bone); }
+
+/* Pausa por caída de un jugador (antes iba con estilos en línea en el HTML). */
+.cm-pausa {
+    position: absolute; inset: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    background: rgba(5, 6, 8, 0.86);
+    backdrop-filter: blur(6px);
+}
+.cm-pausa.hidden { display: none; }
+
+/* ============================================================
+   9. Responsivo
+   ============================================================ */
+
+/* Con la ventana estrecha, la chapa del rival llegaría por debajo de los
+   botones fijos de las esquinas: entonces —y sólo entonces— se les reserva una
+   banda arriba. En pantallas anchas no hace falta y sería alto desperdiciado. */
+@media screen and (max-width: 830px) {
+    #game-screen:not(.hidden), #game-screen-4:not(.hidden) { padding-top: 52px; }
+}
+
+@media screen and (max-width: 600px) {
+    .cm-plate-head { gap: 9px; padding: 6px 10px 6px 9px; }
+    .cm-plate-name { font-size: 0.82rem; letter-spacing: 0.09em; }
+    .cm-pts { font-size: 1.35rem; }
+    .cm-plate-meta { display: none; }   /* las piedras ya lo cuentan todo */
+    .cm-bote { padding: 8px 2px 9px; }
+    .cm-bote-fase { font-size: 0.56rem; letter-spacing: 0.08em; }
+    .cm-bote-val { font-size: 1.1rem; }
+    #game-screen .turno-indicador { font-size: 0.62rem; letter-spacing: 0.2em; }
+
+    #game-screen button:not(.cm-mesa-btn):not(.btn-salir-mesa),
+    #center-table-4 button {
+        padding: 9px 13px !important;
+        font-size: 0.72rem !important;
+        letter-spacing: 0.12em;
+    }
+    #game-screen input[type="number"],
+    #center-table-4 input[type="number"] { width: 48px; padding: 8px 2px !important; font-size: 1rem !important; }
+
+    .seat-name { font-size: 0.7rem; letter-spacing: 0.06em; }
+    .team-score .team-pts { font-size: 1.15rem; }
+    #center-table-4 { padding: 9px 8px; }
+}
+
+/* Ventana baja (portátil pequeño, móvil en horizontal): el centro de la mesa
+   tiene que caber sin scroll, así que se recorta todo el aire sobrante. */
+@media screen and (max-height: 620px) {
+    #opponent-area.cm-plate, #my-area.cm-plate { gap: 5px; }
+    .cm-plate-head { padding: 3px 12px 3px 9px; }
+    .cm-pts { font-size: 1.25rem; }
+    #center-table { padding: 2px 0 !important; }
+    #betting-log { margin: 4px auto 8px; }
+    .cm-aire { padding: 8px 10px; }
+    .cm-bote { padding: 6px 3px 7px; gap: 3px; }
+    .cm-bote-val { font-size: 1.15rem; }
+    #game-screen .turno-indicador { margin: 3px 0 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #game-screen .turno-indicador { animation: none; opacity: 1; }
+    .overlay-partida .spinner-reconexion, .cm-pausa-spinner { animation: none; }
+}

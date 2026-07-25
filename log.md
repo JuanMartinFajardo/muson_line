@@ -4,6 +4,36 @@ Historial cronológico de cambios relevantes del proyecto. El más reciente arri
 
 ---
 
+## 2026-07-25 — Estrategia ML del bot 2v2 (análisis y hoja de ruta) — solo documentación
+
+Dos páginas nuevas en la wiki, sin cambios de código:
+
+- **[Bot-AI-4p-ML-Strategy](wiki/Bot-AI-4p-ML-Strategy.md)** — análisis en profundidad
+  del bot profesional para mus 2v2: viabilidad de Deep CFR en juego de equipos
+  (suma cero entre dos equipos, TMECor; comparación con el repo de Deep CFR para
+  hold'em de 6 jugadores), combinación con RL (best responses, reward shaping por
+  probabilidad de ganar la partida, DREAM/R-NaD), cómo medir la distancia a Nash
+  (explotabilidad, LBR, ancla tabular exacta en 2p), interpretabilidad (PCA,
+  importancia por permutación, SHAP, clustering de estrategias), rediseño del formato
+  de logs (v2, *event sourcing* reproducible — hoy `mus_mecanicas_4.py` **no registra
+  nada**), otras técnicas (clonación de comportamiento, modelado de oponentes,
+  destilación) y el plan para señas (bloques de entrada reservados desde ya).
+- **[Bot-AI-4p-Roadmap](wiki/Bot-AI-4p-Roadmap.md)** — plan por fases: P0 bot heurístico
+  jugable ya + fontanería de asientos, P1 logs v2 + motor rápido (`fork()` en vez de
+  `deepcopy`, puerta de ≥10×) + arnés de medición, P1.5 CFR tabular 2p como ancla
+  exacta, P2 reglas 2v2 completas + primera generación Deep CFR (`4g1`), P3 programa
+  de fuerza, P4 capas explotadora y humana (bot paramétrico con diales), P5 programa
+  de interpretabilidad, P6 señas. Decisiones del propietario incorporadas: nube de
+  pago OK (presupuesto pequeño; el análisis estima $5–15 por tanda en CPU alquilada),
+  reglas tradicionales completas, ruptura limpia del formato de logs, y bot final
+  paramétrico (near-Nash + explotador + humano). Sustituye a Roadmap #7/#8 y absorbe
+  la parte de IA de #20.
+
+También se corrige de paso una imprecisión de [Bot-AI](wiki/Bot-AI.md): la red de
+regrets **sí** se reinicializa en cada iteración de `train_cfr.py`.
+
+---
+
 ## 2026-07-25 — Panel de administración online (Roadmap #13)
 
 Gestionar el juego desde el navegador en vez de por SSH: cuentas, salas en curso,

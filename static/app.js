@@ -36,6 +36,9 @@ let enPartida = false;
 // que el texto de confirmación es distinto (se pierde la partida sin más).
 let esPartidaContraBot = false;
 let recuentoTimeout;
+// Al mejor de N: lo guardamos para poder pintar las piedras (los amarrakos) en
+// el recuento, donde el paquete del servidor no siempre lo repite.
+let alMejorDeActual = 3;
 
 // PANTALLAS CORRECTAS
 const menuScreen = document.getElementById('menu-screen');
@@ -75,7 +78,7 @@ const dict = {
         esperando_rival: "Esperando a que se una el rival...",
         in_publico: "Hacer pública (visible para todos)",
         partidas: "partidas",
-        mi_turno: "⚠️ Tú hablas",
+        mi_turno: "Tú hablas",
         my_cards: "Tus cartas aparecerán aquí",
         watermark: "Creado por Juan Martín Fajardo",
         login_remember: "Mantener la sesión iniciada",
@@ -83,7 +86,7 @@ const dict = {
         elo_colname: "ELO 🔽",
         wins_colname: "Victorias ↕️",
         winrate_colname: "Winrate ↕️",
-        loading_players: "Loading players...",
+        loading_players: "Cargando jugadores…",
         codigo_sala: "Código de tu sala:",
         tu_nombre: "Tu nombre...",
         password: "Contraseña",
@@ -91,7 +94,7 @@ const dict = {
         user_name: "Nombre de usuario",
         pais_nacimiento: "País de nacimiento",
         btn_cuenta: "Crear cuenta",
-        opponent_speaks: "⚠️ El rival habla",
+        opponent_speaks: "El rival habla",
         cartas_rival_ocultas: "[Cartas del rival ocultas]",
         txt_tu: "Tú",
         txt_pts: "Pts:",
@@ -410,7 +413,7 @@ const dict = {
         esperando_rival: "Waiting for opponent to join...",
         in_publico: "Make public (visible to everyone)",
         partidas: "games",
-        mi_turno: "⚠️ Your turn",
+        mi_turno: "Your turn",
         my_cards: "Your cards will appear here",
         watermark: "Created by Juan Martín Fajardo",
         login_remember: "Keep me logged in",
@@ -426,7 +429,7 @@ const dict = {
         user_name: "Username",
         pais_nacimiento: "Country of birth",
         btn_cuenta: "Create account",
-        opponent_speaks: "⚠️ Opponent speaks",
+        opponent_speaks: "Opponent speaks",
         cartas_rival_ocultas: "[Opponent's cards hidden]",
         txt_tu: "You", 
         txt_pts: "Pts:",
@@ -810,12 +813,32 @@ const btnUnirse = document.getElementById('btn-unirse');
 const inCodigo = document.getElementById('in-codigo');
 const menuMsg = document.getElementById('menu-msg');
 
+/** Escapa un texto que va a viajar dentro de innerHTML. Los nombres de mesa los
+ *  escribe cualquiera sin registrarse, así que no pueden entrar en crudo en las
+ *  listas de partidas ni en la clasificación (misma regla que social.js). */
+function escHtml(texto) {
+    return String(texto == null ? '' : texto).replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+
+/** Los avisos tienen dos casas: el menú y la ventana de Jugar, que tapa el menú
+ *  mientras está abierta. Se escribe en las dos para que el jugador lea el aviso
+ *  esté donde esté (antes solo existía #menu-msg, invisible tras un modal). */
+function menuMensaje(texto, color) {
+    [menuMsg, document.getElementById('play-msg')].forEach(el => {
+        if (!el) return;
+        el.innerText = texto || '';
+        el.style.color = color || '';
+    });
+}
+
 socket.emit('pedir_publicas');
 
 btnCrear.addEventListener('click', () => {
     miNombre = document.getElementById('nombre-jugador').value.trim();
     if (!miNombre) {
-        menuMsg.innerText = t('msg_inserta_nombre');
+        menuMensaje(t('msg_inserta_nombre'));
         return;
     }
     localStorage.setItem('callmus_nombre', miNombre);
@@ -824,7 +847,7 @@ btnCrear.addEventListener('click', () => {
     socket.emit('crear_sala', { nombre: miNombre, al_mejor_de: mejorDe, publico: esPublico});
     btnCrear.disabled = true;
     btnUnirse.disabled = true;
-    menuMsg.innerText = "Creando sala...";
+    menuMensaje(t('msg_creando_sala'));
 });
 
 const btnJugarBot = document.getElementById('btn-jugar-bot');
@@ -832,7 +855,7 @@ const btnJugarBot = document.getElementById('btn-jugar-bot');
 btnJugarBot.addEventListener('click', () => {
     miNombre = document.getElementById('nombre-jugador').value.trim() || "Jugador 1";
     let mejorDe = parseInt(document.getElementById('in-mejor-de').value) || 3;
-    
+
     // Emitimos un nuevo evento específico para el bot
     esPartidaContraBot = true;
     socket.emit('crear_partida_bot', { nombre: miNombre, al_mejor_de: mejorDe });
@@ -840,7 +863,7 @@ btnJugarBot.addEventListener('click', () => {
     btnCrear.disabled = true;
     btnUnirse.disabled = true;
     btnJugarBot.disabled = true;
-    menuMsg.innerText = t('txt_creando_partida_bot');
+    menuMensaje(t('txt_creando_partida_bot'));
 });
 
 
@@ -848,18 +871,18 @@ btnJugarBot.addEventListener('click', () => {
 btnUnirse.addEventListener('click', () => {
     miNombre = document.getElementById('nombre-jugador').value.trim();
     if (!miNombre) {
-        menuMsg.innerText = t('msg_inserta_nombre');
+        menuMensaje(t('msg_inserta_nombre'));
         return;
     }
     let cod = inCodigo.value.trim().toUpperCase();
     if (!cod) {
-        menuMsg.innerText = "Escribe un código primero.";
+        menuMensaje(t('msg_escribe_codigo'));
         return;
     }
     localStorage.setItem('callmus_nombre', miNombre);
     localStorage.setItem('callmus_sala', cod);
     socket.emit('unirse_sala', { nombre: miNombre, codigo: cod });
-    menuMsg.innerText = "Conectando...";
+    menuMensaje(t('msg_conectando'));
 });
 
 document.getElementById('btn-volver-menu').addEventListener('click', () => {
@@ -1019,9 +1042,14 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 socket.on('sala_creada', (datos) => {
+    // La sala pasa a ser la única vista de la ventana de Jugar: se guarda el
+    // formulario y se muestra el código a compartir.
+    const setup = document.getElementById('play-setup');
+    if (setup) setup.classList.add('hidden');
     document.getElementById('codigo-creado').classList.remove('hidden');
     document.getElementById('txt-codigo').innerText = datos.codigo;
-    menuMsg.innerText = "";
+    if (typeof marcarEsperaPlay === 'function') marcarEsperaPlay(true);
+    menuMensaje("");
     localStorage.setItem('callmus_sala', datos.codigo);
     if (datos.token) localStorage.setItem('callmus_token', datos.token);  // reconexión
     btnCrear.disabled = true;
@@ -1029,14 +1057,18 @@ socket.on('sala_creada', (datos) => {
 });
 
 socket.on('error_sala', (datos) => {
-    menuMsg.innerText = datos.mensaje;
+    menuMensaje(datos.mensaje);
+    // Si la sala se creó y luego falló, se vuelve al formulario.
+    const setup = document.getElementById('play-setup');
+    if (setup) setup.classList.remove('hidden');
+    document.getElementById('codigo-creado').classList.add('hidden');
     btnCrear.disabled = false;
     btnUnirse.disabled = false;
     localStorage.removeItem('callmus_sala');
     localStorage.removeItem('callmus_token');   // token viejo inservible
 });
 
-// Dibujar la tabla de partidas públicas
+// Dibujar la lista de partidas públicas (dentro de la ventana de Jugar)
 socket.on('actualizar_publicas', (lista) => {
     const tbody = document.getElementById('lista-partidas-publicas');
     if (!tbody) return;
@@ -1044,64 +1076,71 @@ socket.on('actualizar_publicas', (lista) => {
     tbody.innerHTML = '';
 
     if (lista.length === 0) {
-tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;" data-i18n="msg_no_publicas">' + t('msg_no_publicas') + '</td></tr>';    }
+        tbody.innerHTML = `<tr><td colspan="2" class="cm-live-empty">${t('msg_no_publicas')}</td></tr>`;
+        return;
+    }
 
     lista.forEach(partida => {
         const tr = document.createElement('tr');
-        
-        // SISTEMA ROBUSTO: Es nuestra sala si el ID de conexión es el nuestro, 
+
+        // SISTEMA ROBUSTO: Es nuestra sala si el ID de conexión es el nuestro,
         // o si estamos logueados y la sala pertenece a nuestra misma cuenta.
         let esMiSala = false;
         if (partida.creador_sid === socket.id) esMiSala = true;
         if (miUsernameLogueado && partida.creador_username === miUsernameLogueado) esMiSala = true;
 
-        let botonHTML = '';
-        if (esMiSala) {
-            // NUEVO: Ahora es un botón funcional verde para reclamar tu trono
-            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #a3be8c; color: #2e3440; border-radius: 4px; cursor: pointer; border: none; font-weight: bold;">${t("txt_tu_sala")}</button>`;
-        } else {
-            botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">${t("btn_unirse_publica")}</button>`;
-        }
-
         // Partida EN CURSO con hueco: se anuncia con el marcador que heredarías.
         let etiqueta = '';
-        let columnaMedia = partida.al_mejor_de;
+        let meta = t_dinamico('live_mejor_de', { n: partida.al_mejor_de });
         if (partida.en_curso) {
             tr.className = 'fila-en-curso';
             etiqueta = `<span class="badge-en-curso">${t('txt_en_curso')}</span>`;
             if (partida.marcador) {
-                columnaMedia = `${partida.al_mejor_de}<br><small style="opacity:0.75;">${t('txt_marcador')} ${partida.marcador[0]}-${partida.marcador[1]}</small>`;
+                meta += ` · ${t('txt_marcador')} ${partida.marcador[0]}-${partida.marcador[1]}`;
             }
         }
 
         tr.innerHTML = `
-            <td style="padding: 8px; border-bottom: 1px solid #4c566a; color: #ebcb8b;">${partida.creador}${etiqueta}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #4c566a;">${columnaMedia}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #4c566a;">
-                ${botonHTML}
+            <td>
+                <span class="cm-live-name">${escHtml(partida.creador)}</span>${etiqueta}
+                <span class="cm-live-meta">${meta}</span>
+            </td>
+            <td class="cm-live-cell-act">
+                <button class="btn-unirse-publica cm-live-join${esMiSala ? ' es-mia' : ''}" data-codigo="${partida.codigo}">
+                    ${esMiSala ? t('txt_tu_sala') : t('btn_unirse_publica')}
+                </button>
             </td>
         `;
         tbody.appendChild(tr);
     });
 
     // Darle funcionalidad a los botones generados
-    document.querySelectorAll('.btn-unirse-publica').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            let cod = e.target.getAttribute('data-codigo');
+    tbody.querySelectorAll('.btn-unirse-publica').forEach(btn => {
+        btn.addEventListener('click', () => {
+            let cod = btn.getAttribute('data-codigo');
             miNombre = document.getElementById('nombre-jugador').value.trim();
             if (!miNombre) {
-                menuMsg.innerText = t('msg_inserta_nombre');
+                menuMensaje(t('msg_inserta_nombre'));
                 return;
             }
             localStorage.setItem('callmus_nombre', miNombre); // <--- AÑADIR
             localStorage.setItem('callmus_sala', cod);
             socket.emit('unirse_sala', { nombre: miNombre, codigo: cod });
-            menuMsg.innerText = "Conectando...";
+            menuMensaje(t('msg_conectando'));
         });
     });
 });
 
 socket.on('iniciar_partida', (datos) => {
+    // La ventana de Jugar se cierra y queda lista para la próxima: antes vivía
+    // dentro del menú y desaparecía con él; ahora es un modal y hay que bajarlo
+    // a mano (si no, la sala creada se queda flotando sobre la mesa).
+    cerrarModales();
+    document.getElementById('codigo-creado').classList.add('hidden');
+    const setup = document.getElementById('play-setup');
+    if (setup) setup.classList.remove('hidden');
+    if (typeof marcarEsperaPlay === 'function') marcarEsperaPlay(false);
+
     menuScreen.classList.add('hidden');
     gameScreen.classList.remove('hidden');
     enPartida = true;
@@ -1109,17 +1148,7 @@ socket.on('iniciar_partida', (datos) => {
 
 
 document.getElementById('btn-show-privacy').addEventListener('click', () => {
-    modalOverlay.style.display = 'flex';
-    modalOverlay.classList.remove('hidden');
-    
-    // Ocultar los demás modales
-    modalLogin.classList.add('hidden');
-    modalSignup.classList.add('hidden');
-    const modalLeaderboard = document.getElementById('modal-leaderboard');
-    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');
-    
-    // Mostrar el nuestro
-    document.getElementById('modal-privacy').classList.remove('hidden');
+    abrirModal('modal-privacy');
 });
 
 socket.on('rival_desconectado', (d) => {
@@ -1317,56 +1346,25 @@ socket.on('actualizar_mesa', (datos) => {
             document.getElementById('in-subir').value = 2;
         }
 
-        const getColStyle = (isActive) => isActive 
-            ? 'color:#000000; background:#ffffff; font-weight:bold; border-radius:3px; padding:2px 5px; margin-bottom:5px; text-align:center; font-size:1.1em; letter-spacing:1px;' 
-            : 'color:#888888; font-weight:normal; padding:2px 5px; margin-bottom:5px; text-align:center; font-size:1em; letter-spacing:1px;';
-
-        let htmlApuestaEnAire = `<div id="caja-en-aire" style="min-height: 65px; display: flex; flex-direction: column; justify-content: center; align-items: center; margin-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 10px;">`;
+        // La apuesta en el aire: si no hay ninguna, la caja se queda vacía y el
+        // CSS la colapsa (antes reservaba 65px de hueco muerto).
+        let htmlApuestaEnAire = '<div id="caja-en-aire" class="cm-aire">';
 
         if (datos.apuestas && (datos.apuestas.subida > 0 || datos.apuestas.subida === 'ÓRDAGO')) {
-            const cantidadStr = datos.apuestas.subida === 'ÓRDAGO' ? 'un ÓRDAGO' : datos.apuestas.subida;
+            const cantidadStr = datos.apuestas.subida === 'ÓRDAGO' ? t('un_ordago') : datos.apuestas.subida;
             const textoSube = datos.apuestas.soy_quien_sube ? t('has_subido') + cantidadStr : t('te_suben') + cantidadStr;
-            const colorSube = datos.apuestas.soy_quien_sube ? `#ffffff` : `#aaaaaa`;
 
             htmlApuestaEnAire += `
-                <p style="font-size: 1.1em; margin: 0 0 5px 0;">${t('info_apuesta_vista')} <span class="highlight">${datos.apuestas.apuesta_vista}</span></p>
-                <p style="font-size: 1.2em; font-weight: bold; color: ${colorSube}; margin: 0;">${textoSube}</p>
+                <p class="cm-aire-vista">${t('info_apuesta_vista')} <b>${datos.apuestas.apuesta_vista}</b></p>
+                <p class="cm-aire-sube${datos.apuestas.soy_quien_sube ? ' es-mia' : ''}">${textoSube}</p>
             `;
         }
-        htmlApuestaEnAire += `</div>`;
-        
-        const getBoteTexto = (fase, apuestas) => {
-            if (apuestas.dejes && apuestas.dejes[fase]) {
-                const deje = apuestas.dejes[fase];
-                return deje.gano_yo ? `${deje.valor}(+)` : `${deje.valor}(-)`;
-            }
-            return apuestas.botes[fase] || 0;
-        };
-        
-        let labelJuego = (datos.apuestas && datos.apuestas.juego_es_punto) ? t('fase_punto') : t('fase_juego');
+        htmlApuestaEnAire += '</div>';
 
-        let htmlBotes = `
-            <div style="display: flex; justify-content: space-around; width: 100%;">
-                <div style="display: flex; flex-direction: column; flex: 1;">
-                    <div style="${getColStyle(fAct === 'Grande')}">${t('fase_grande')}</div>
-                    <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Grande', datos.apuestas)}</div>
-                </div>
-                <div style="display: flex; flex-direction: column; flex: 1;">
-                    <div style="${getColStyle(fAct === 'Chica')}">${t('fase_chica')}</div>
-                    <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Chica', datos.apuestas)}</div>
-                </div>
-                <div style="display: flex; flex-direction: column; flex: 1;">
-                    <div style="${getColStyle(fAct === 'Pares')}">${t('fase_pares')}</div>
-                    <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Pares', datos.apuestas)}</div>
-                </div>
-                <div style="display: flex; flex-direction: column; flex: 1;">
-                    <div style="${getColStyle(fAct === 'Juego')}">${labelJuego}</div>
-                    <div style="text-align: center; font-size: 1.2em;">${getBoteTexto('Juego', datos.apuestas)}</div>
-                </div>
-            </div>
-        `;
-
-        logDiv.innerHTML = htmlApuestaEnAire + htmlBotes;
+        logDiv.innerHTML = htmlApuestaEnAire + htmlTanteador(datos.apuestas, fAct, (fase, ap) => {
+            const deje = ap.dejes && ap.dejes[fase];
+            return deje ? { valor: deje.valor, gano: deje.gano_yo } : null;
+        });
     } else {
         if (logDiv) logDiv.classList.add('hidden');
     }
@@ -1381,7 +1379,7 @@ socket.on('actualizar_mesa', (datos) => {
             textoTrans = t('msg_' + datos.mensaje_transicion.code);
         }
         
-        gameLog.innerHTML = `<strong style="color:#ffffff; font-weight: 300; font-size: 1.2em; letter-spacing: 1px;">${textoTrans}</strong>`;
+        gameLog.innerHTML = `<strong class="cm-transicion">${textoTrans}</strong>`;
         mostrarBotones([]);
         if (datos.es_mi_turno) {
             setTimeout(() => socket.emit('accion_juego', { accion: 'continuar_transicion' }), 3000);
@@ -1468,8 +1466,9 @@ socket.on('actualizar_mesa', (datos) => {
     }
 
     if(document.getElementById('partidas-mios')) {
-        document.getElementById('partidas-mios').innerText = datos.mis_partidas;
-        document.getElementById('partidas-rival').innerText = datos.partidas_rival;
+        pintarPiedras(document.getElementById('partidas-mios'), datos.mis_partidas, datos.al_mejor_de);
+        pintarPiedras(document.getElementById('partidas-rival'), datos.partidas_rival, datos.al_mejor_de);
+        alMejorDeActual = datos.al_mejor_de;
         document.querySelectorAll('.mejor-de-texto').forEach(el => el.innerText = `${t('al_mejor_de')} ${datos.al_mejor_de }`);
     }
 
@@ -1492,7 +1491,7 @@ socket.on('actualizar_mesa', (datos) => {
         gameLog.innerText = textoMsg;
 
         if (datos.descartes_rival > 0 && datos.fase === 'mus') {
-            gameLog.innerHTML += `<br><span style="color:#aaaaaa; font-size:0.9em; font-style: italic;">(${t('info_rival_cambio')} ${datos.descartes_rival} ${t('cartas')})</span>`;
+            gameLog.innerHTML += `<br><span class="cm-nota-mesa">(${t('info_rival_cambio')} ${datos.descartes_rival} ${t('cartas')})</span>`;
         }
     }
 
@@ -1570,6 +1569,67 @@ socket.on('actualizar_mesa', (datos) => {
 // ==========================================
 // 4. UTILIDADES VISUALES
 // ==========================================
+
+/**
+ * Tanteador de lances: Grande · Chica · Pares · Juego en cuatro columnas con el
+ * lance en curso en oro (ver .cm-botes en static/game.css). Lo comparten la
+ * mesa de 1v1 y la de 2v2 (table4.js lo llama con su propio lector de dejes).
+ *
+ * @param {object}   apuestas   bloque `apuestas` del estado del servidor.
+ * @param {string}   faseActual lance que se está jugando ('Grande', 'Chica'…).
+ * @param {Function} dejeDe     (fase, apuestas) → {valor, gano} | null. El deje
+ *                              de ese lance, si alguien no quiso ver; cada mesa
+ *                              lo mira a su manera (gano_yo / gano_mi_equipo).
+ */
+function htmlTanteador(apuestas, faseActual, dejeDe) {
+    const ap = apuestas || {};
+    const lances = [
+        ['Grande', t('fase_grande')],
+        ['Chica',  t('fase_chica')],
+        ['Pares',  t('fase_pares')],
+        ['Juego',  ap.juego_es_punto ? t('fase_punto') : t('fase_juego')],
+    ];
+
+    let html = '<div class="cm-botes">';
+    lances.forEach(([clave, etiqueta]) => {
+        const deje = dejeDe(clave, ap);
+        let valor;
+        if (deje) {
+            const signo = deje.gano
+                ? '<span class="cm-bote-signo es-mas">+</span>'
+                : '<span class="cm-bote-signo es-menos">−</span>';
+            valor = deje.valor + signo;
+        } else {
+            valor = (ap.botes && ap.botes[clave]) || 0;
+        }
+        const clases = 'cm-bote'
+            + (faseActual === clave ? ' is-activa' : '')
+            + (deje ? ' es-deje' : '');
+        html += `<div class="${clases}">`
+              + `<span class="cm-bote-fase">${etiqueta}</span>`
+              + `<span class="cm-bote-val">${valor}</span>`
+              + `</div>`;
+    });
+    return html + '</div>';
+}
+
+/**
+ * Las piedras (los amarrakos de toda la vida): una por cada partida que hace
+ * falta para llevarse el match, rellenas de oro las ya ganadas. Sustituye al
+ * viejo contador "Partidas: 2" en las chapas de las dos mesas.
+ */
+function pintarPiedras(el, ganadas, alMejorDe) {
+    if (!el) return;
+    const necesarias = Math.floor((parseInt(alMejorDe, 10) || 1) / 2) + 1;
+    const ganadasNum = parseInt(ganadas, 10) || 0;
+    let html = '';
+    for (let i = 0; i < necesarias; i++) {
+        html += `<span class="piedra${i < ganadasNum ? ' es-ganada' : ''}"></span>`;
+    }
+    el.innerHTML = html;
+    el.setAttribute('title', `${ganadasNum} / ${necesarias}`);
+}
+
 function mostrarBotones(ids) {
     const contenedor = document.getElementById('action-buttons');
     const allIds = ['btn-deal', 'btn-pedrete', 'btn-mus', 'btn-nomus', 'btn-descartar', 'btn-next-round','btn-volver-menu'];
@@ -1583,6 +1643,10 @@ function mostrarBotones(ids) {
             let el = document.getElementById(id);
             if(el) el.classList.remove('hidden');
         });
+        // El centro de la mesa tiene scroll propio: en pantallas bajas el
+        // recuento puede empujar los botones fuera de la vista, así que los
+        // acercamos siempre (block:'nearest' sólo mueve lo imprescindible).
+        contenedor.scrollIntoView({ block: 'nearest' });
     } else {
         contenedor.classList.add('hidden');
     }
@@ -1590,6 +1654,11 @@ function mostrarBotones(ids) {
 
 function mostrarRecuentoEstatico(datos) {
     mostrarBotones([]);
+
+    // En el recuento no habla nadie: apagamos los dos avisos de turno (si no, la
+    // chapa se queda marcada en oro como si te tocara).
+    document.getElementById('mi-turno').classList.add('hidden');
+    document.getElementById('turno-rival').classList.add('hidden');
 
     const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
     if (contenedorRival) {
@@ -1605,12 +1674,13 @@ function mostrarRecuentoEstatico(datos) {
     }
 
     if(document.getElementById('partidas-mios')) {
-        document.getElementById('partidas-mios').innerText = datos.mis_partidas;
-        document.getElementById('partidas-rival').innerText = datos.partidas_rival;
+        const mejorDe = datos.al_mejor_de || alMejorDeActual;
+        pintarPiedras(document.getElementById('partidas-mios'), datos.mis_partidas, mejorDe);
+        pintarPiedras(document.getElementById('partidas-rival'), datos.partidas_rival, mejorDe);
     }
 
     const gameLog = document.getElementById('game-log');
-    let baseHtml = `<strong style='font-size: 1.2em; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; font-weight: 300;'>${t('msg_resultados')}</strong><br><br>`;
+    let baseHtml = `<strong class="cm-res-title">${t('msg_resultados')}</strong><br>`;
     gameLog.innerHTML = baseHtml;
 
     let mensajes = [];
@@ -1674,11 +1744,11 @@ function mostrarRecuentoEstatico(datos) {
     // Comprobar victorias de partida o match
     if (datos.mis_puntos >= 40 || datos.puntos_rival >= 40) {
         const txt = datos.mis_puntos >= 40 ? t('msg_gana_partida_yo') : t('msg_gana_partida_rival');
-        mensajes.push({ texto: `<br><strong style="font-size: 1.5em; color: #ffffff; font-weight: 300; letter-spacing: 1px;">${txt}</strong>`, puntos: 0 });
+        mensajes.push({ texto: `<br><strong class="cm-res-big">${txt}</strong>`, puntos: 0 });
         
         if (datos.match_finalizado) {
             const txtGlobal = datos.mis_puntos >= 40 ? t('msg_gana_match_yo') : t('msg_gana_match_rival');
-            mensajes.push({ texto: `<br><strong style="font-size: 1.5em; color: #ffffff; font-weight: 300; letter-spacing: 1px;">${txtGlobal}</strong>`, puntos: 0 });
+            mensajes.push({ texto: `<br><strong class="cm-res-big">${txtGlobal}</strong>`, puntos: 0 });
             botonesFinales = ['btn-volver-menu'];
         } else {
             if (btnNext) btnNext.innerText = t("btn_next_game"); 
@@ -1732,27 +1802,22 @@ const modalOverlay = document.getElementById('modal-overlay');
 const modalLogin = document.getElementById('modal-login');
 const modalSignup = document.getElementById('modal-signup');
 
-document.getElementById('btn-show-login').addEventListener('click', () => {
+/** Abre un modal dejando cerrados todos los demás (incluida la ventana de Jugar). */
+function abrirModal(id) {
+    cerrarModales();
     modalOverlay.style.display = 'flex';
     modalOverlay.classList.remove('hidden');
-    modalSignup.classList.add('hidden');
+    const m = document.getElementById(id);
+    if (m) m.classList.remove('hidden');
+}
 
-    const modalLeaderboard = document.getElementById('modal-leaderboard');
-    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');
-
-    modalLogin.classList.remove('hidden');
+document.getElementById('btn-show-login').addEventListener('click', () => {
+    abrirModal('modal-login');
     document.getElementById('msg-login').innerText = "";
 });
 
 document.getElementById('btn-show-signup').addEventListener('click', () => {
-    modalOverlay.style.display = 'flex';
-    modalOverlay.classList.remove('hidden');
-    modalLogin.classList.add('hidden');
-
-    const modalLeaderboard = document.getElementById('modal-leaderboard');
-    if (modalLeaderboard) modalLeaderboard.classList.add('hidden');
-
-    modalSignup.classList.remove('hidden');
+    abrirModal('modal-signup');
     document.getElementById('msg-signup').innerText = "";
 });
 
@@ -1782,6 +1847,11 @@ function cerrarModales() {
     const modalSettings = document.getElementById('modal-settings');
     if (modalSettings) modalSettings.classList.add('hidden');
 
+    // Ventana de Jugar (1v1 y 2v2). Sólo se oculta: si había una sala esperando,
+    // al volver a abrirla se sigue viendo su código (ver abrirPlay en menu.js).
+    const modalPlay = document.getElementById('modal-play');
+    if (modalPlay) modalPlay.classList.add('hidden');
+
     // Modales de autenticación añadidos (verificación / recuperación)
     ['modal-verify', 'modal-forgot', 'modal-reset'].forEach(id => {
         const m = document.getElementById(id);
@@ -1804,18 +1874,14 @@ let sortDesc = true;
 
 if (document.getElementById('btn-show-leaderboard')) {
     document.getElementById('btn-show-leaderboard').addEventListener('click', () => {
-        modalOverlay.style.display = 'flex';
-        modalOverlay.classList.remove('hidden');
-        modalLogin.classList.add('hidden');
-        modalSignup.classList.add('hidden');
-        modalLeaderboard.classList.remove('hidden');
-
+        abrirModal('modal-leaderboard');
         cargarLeaderboard();
     });
 }
 
 function cargarLeaderboard() {
-    document.getElementById('lista-leaderboard-body').innerHTML = '<tr><td colspan="4" style="padding: 10px; opacity: 0.7;">Cargando jugadores...</td></tr>';
+    document.getElementById('lista-leaderboard-body').innerHTML =
+        `<tr><td colspan="5" class="cm-live-empty">${t('loading_players')}</td></tr>`;
 
     fetch('/api/leaderboard').then(res => res.json()).then(datos => {
         if (datos.exito) {
@@ -1839,38 +1905,66 @@ function renderLeaderboard() {
         return 0;
     });
 
-    document.getElementById('th-sort-elo').innerHTML = `ELO ${currentSort === 'elo' ? (sortDesc ? '🔽' : '🔼') : '↕️'}`;
-    document.getElementById('th-sort-elo').style.color = currentSort === 'elo' ? '#a3be8c' : '#eceff4';
-
-    document.getElementById('th-sort-wins').innerHTML = `Victorias ${currentSort === 'victorias' ? (sortDesc ? '🔽' : '🔼') : '↕️'}`;
-    document.getElementById('th-sort-wins').style.color = currentSort === 'victorias' ? '#a3be8c' : '#eceff4';
-
-    document.getElementById('th-sort-winrate').innerHTML = `Winrate ${currentSort === 'winrate' ? (sortDesc ? '🔽' : '🔼') : '↕️'}`;
-    document.getElementById('th-sort-winrate').style.color = currentSort === 'winrate' ? '#a3be8c' : '#eceff4';
+    // Cabeceras: la columna ordenada lleva la flecha y se pinta en oro (.is-sorted).
+    const flecha = (col) => (currentSort === col ? (sortDesc ? ' ↓' : ' ↑') : '');
+    [['th-sort-elo', 'elo', 'lb_elo'],
+     ['th-sort-wins', 'victorias', 'lb_wins'],
+     ['th-sort-winrate', 'winrate', 'lb_winrate']].forEach(([id, col, clave]) => {
+        const th = document.getElementById(id);
+        if (!th) return;
+        th.innerText = t(clave) + flecha(col);
+        th.classList.toggle('is-sorted', currentSort === col);
+    });
 
     if (leaderboardData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="padding: 10px; opacity: 0.7;">No hay jugadores registrados todavía.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="5" class="cm-live-empty">${t('lb_vacia')}</td></tr>`;
         return;
     }
 
     leaderboardData.forEach((jugador, index) => {
         const tr = document.createElement('tr');
+        const podio = (currentSort === 'elo' && sortDesc && index < 3);
 
-        let icono = "";
-        if (currentSort === 'elo' && sortDesc) {
-            if (index === 0) icono = "🥇 ";
-            else if (index === 1) icono = "🥈 ";
-            else if (index === 2) icono = "🥉 ";
-        }
-
+        // El código de jugador ya no se enseña bajo el nombre: se guarda en el
+        // botón y sólo aparece un instante al pulsarlo (data-codigo abajo).
         tr.innerHTML = `
-            <td style="padding: 10px; border-bottom: 1px solid #4c566a; color: #ebcb8b; font-weight: bold;">${icono}${jugador.username}${jugador.codigo ? `<span style="display:block; color:#81a1c1; font-weight:normal; font-family:monospace; font-size:0.75em; opacity:0.75;">#${jugador.codigo}</span>` : ''}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #4c566a; color: #81a1c1; font-weight: bold;">${jugador.elo}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #4c566a;">${jugador.victorias}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #4c566a;">${jugador.winrate}%</td>
+            <td class="cm-td-rank${podio ? ' es-podio' : ''}">${index + 1}</td>
+            <td class="cm-td-name">
+                <button class="lb-name" data-nombre="${escHtml(jugador.username)}"
+                        data-codigo="${escHtml(jugador.codigo || '')}">${escHtml(jugador.username)}</button>
+            </td>
+            <td class="cm-td-elo">${jugador.elo}</td>
+            <td class="cm-td-num">${jugador.victorias}</td>
+            <td class="cm-td-num">${jugador.winrate}%</td>
         `;
         tbody.appendChild(tr);
     });
+
+    tbody.querySelectorAll('.lb-name').forEach(btn => {
+        btn.addEventListener('click', () => mostrarCodigoJugador(btn));
+    });
+}
+
+/** Enseña el código público del jugador durante unos segundos y vuelve al nombre. */
+let _codigoVisibleTimeout = null;
+function mostrarCodigoJugador(btn) {
+    const codigo = btn.getAttribute('data-codigo');
+    const nombre = btn.getAttribute('data-nombre');
+    if (!codigo || btn.classList.contains('es-codigo')) return;
+
+    clearTimeout(_codigoVisibleTimeout);
+    // Si había otro código a la vista, se cierra antes de abrir este.
+    document.querySelectorAll('.lb-name.es-codigo').forEach(otro => {
+        otro.innerText = otro.getAttribute('data-nombre');
+        otro.classList.remove('es-codigo');
+    });
+
+    btn.innerText = '#' + codigo;
+    btn.classList.add('es-codigo');
+    _codigoVisibleTimeout = setTimeout(() => {
+        btn.innerText = nombre;
+        btn.classList.remove('es-codigo');
+    }, 2600);
 }
 
 document.getElementById('th-sort-elo').addEventListener('click', () => {
@@ -1949,20 +2043,23 @@ const urlRoom = urlParams.get('room');
 if (urlRoom) {
     // Si entramos con enlace, lo guardamos para que el sistema de auto-reconexión lo pille
     localStorage.setItem('callmus_sala', urlRoom.toUpperCase());
-    
+
     // Rellenamos la casilla del código visualmente por si acaso
     const codInput = document.getElementById('in-codigo');
     if (codInput) codInput.value = urlRoom.toUpperCase();
-    
+
+    // menu.js todavía no existe cuando esto se ejecuta: le dejamos el código
+    // aquí para que abra la ventana de Jugar con el hueco ya rellenado.
+    window.__cmSalaInvitacion = urlRoom.toUpperCase();
+
     // Limpiamos la URL para que no quede fea en el navegador
     window.history.replaceState({}, document.title, window.location.pathname);
-    
+
     // Si NO está logueado y NO tiene nombre guardado, le pedimos amablemente el nombre
     setTimeout(() => {
         if (!miUsernameLogueado && !localStorage.getItem('callmus_nombre')) {
             document.getElementById('nombre-jugador').focus();
-            const menuMsg = document.getElementById('menu-msg');
-            if (menuMsg) menuMsg.innerText = t('msg_nombre_invitacion');
+            menuMensaje(t('msg_nombre_invitacion'));
         } else {
             // Si ya tiene nombre, forzamos que intente unirse
             document.getElementById('btn-unirse').click();
@@ -1976,8 +2073,7 @@ document.getElementById('btn-share-copy').addEventListener('click', () => {
     const link = window.location.origin + "/?room=" + cod;
     
     navigator.clipboard.writeText(link).then(() => {
-        document.getElementById('menu-msg').style.color = "#a3be8c";
-        document.getElementById('menu-msg').innerText = t('msg_link_copied');
+        menuMensaje(t('msg_link_copied'), '#8FA76B');
     });
 });
 
@@ -2024,11 +2120,9 @@ socket.on('connect', () => {
 
     if (!salaGuardada || enPartida) return;
 
-    const msgEl = document.getElementById('menu-msg');
-
     // Con token → estábamos en plena partida: reenganche por identidad (2p/vs-IA).
     if (tokenGuardado) {
-        if (msgEl) msgEl.innerText = "Reconectando a tu partida automáticamente...";
+        menuMensaje(t('msg_reconectando'), '#918E84');
         console.log(`🔌 Reanudando partida ${salaGuardada} con token.`);
         socket.emit('reanudar_partida', { codigo: salaGuardada, token: tokenGuardado });
         return;
@@ -2036,7 +2130,7 @@ socket.on('connect', () => {
 
     // Sin token → sala en espera (aún no arrancó): reclamamos el asiento.
     if (nombreGuardado) {
-        if (msgEl) msgEl.innerText = "Reconectando a tu partida automáticamente...";
+        menuMensaje(t('msg_reconectando'), '#918E84');
         console.log(`🔌 Conexión establecida. Reclamando sala oculta: ${salaGuardada}`);
         socket.emit('unirse_sala', { nombre: nombreGuardado, codigo: salaGuardada });
     }

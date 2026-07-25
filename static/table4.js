@@ -91,10 +91,13 @@ function renderSeat4(next, seatInfo, animarDeal, animarFlip) {
     if (!seatInfo.presente) el.classList.add('ausente');
 
     let etiqueta = '';
-    if (esYo) etiqueta = `<span class="you-tag">(${t('txt_tu')})</span>`;
-    else if (slot === 'top') etiqueta = `<span class="partner-tag">(${t('tu_pareja')})</span>`;
-    const manoBadge = seatInfo.es_mano ? `<span class="mano-badge" title="${t('eres_mano')}">👑</span>` : '';
-    el.querySelector('.seat-name').innerHTML = `${seatInfo.nombre}${manoBadge}${etiqueta}`;
+    if (esYo) etiqueta = `<span class="you-tag">${t('txt_tu')}</span>`;
+    else if (slot === 'top') etiqueta = `<span class="partner-tag">${t('tu_pareja')}</span>`;
+    // Quien es mano lleva un rótulo en oro (antes era un emoji de corona, que
+    // desentonaba con el resto de la mesa).
+    const manoBadge = seatInfo.es_mano ? `<span class="mano-badge" title="${t('eres_mano')}">${t('txt_mano')}</span>` : '';
+    // El nombre lo elige el jugador: se escapa antes de meterlo en el HTML.
+    el.querySelector('.seat-name').innerHTML = `${escHtml(seatInfo.nombre)}${manoBadge}${etiqueta}`;
     el.querySelector('.seat-chips').innerHTML = renderChips4(seatInfo, next.fase);
 
     renderCartasAsiento4(el, seatInfo, next, esYo, animarDeal, animarFlip);
@@ -106,8 +109,9 @@ function renderScores4(next) {
     if (!a || !b) return;
     a.querySelector('.pts').innerText = next.puntos.A;
     b.querySelector('.pts').innerText = next.puntos.B;
-    a.querySelector('.team-games').innerText = next.partidas.A;
-    b.querySelector('.team-games').innerText = next.partidas.B;
+    // Las partidas ganadas, en piedras (pintarPiedras vive en app.js).
+    pintarPiedras(a.querySelector('.team-games'), next.partidas.A, next.al_mejor_de);
+    pintarPiedras(b.querySelector('.team-games'), next.partidas.B, next.al_mejor_de);
     a.classList.toggle('mi-equipo', next.mi_equipo === 'A');
     b.classList.toggle('mi-equipo', next.mi_equipo === 'B');
     const md = document.getElementById('score-mejor-de-4');
@@ -125,34 +129,23 @@ function renderBettingLog4(next) {
     let fAct = ap.fase_actual || '';
     if (next.mensaje_transicion && next.mensaje_transicion.fase) fAct = next.mensaje_transicion.fase;
 
-    const colStyle = (activo) => activo
-        ? 'color:#000;background:#fff;font-weight:bold;border-radius:3px;padding:2px 5px;text-align:center;letter-spacing:1px;'
-        : 'color:#888;padding:2px 5px;text-align:center;letter-spacing:1px;';
-
-    let enAire = `<div style="min-height:52px;display:flex;flex-direction:column;justify-content:center;align-items:center;margin-bottom:8px;border-bottom:1px dashed rgba(255,255,255,0.2);padding-bottom:8px;">`;
+    // La apuesta en el aire: sin apuesta, la caja se queda vacía y el CSS la
+    // colapsa (ver .cm-aire en static/game.css).
+    let enAire = '<div class="cm-aire">';
     if (ap.subida > 0 || ap.subida === 'ÓRDAGO') {
         const cant = ap.subida === 'ÓRDAGO' ? t('un_ordago') : ap.subida;
         const texto = ap.mi_equipo_sube ? t('has_subido') + cant : t('te_suben') + cant;
-        const color = ap.mi_equipo_sube ? '#fff' : '#aaa';
-        enAire += `<p style="font-size:1em;margin:0 0 4px 0;">${t('info_apuesta_vista')} <span class="highlight">${ap.apuesta_vista}</span></p>`;
-        enAire += `<p style="font-size:1.1em;font-weight:bold;color:${color};margin:0;">${texto}</p>`;
+        enAire += `<p class="cm-aire-vista">${t('info_apuesta_vista')} <b>${ap.apuesta_vista}</b></p>`;
+        enAire += `<p class="cm-aire-sube${ap.mi_equipo_sube ? ' es-mia' : ''}">${texto}</p>`;
     }
-    enAire += `</div>`;
+    enAire += '</div>';
 
-    const boteTexto = (fase) => {
-        if (ap.dejes && ap.dejes[fase]) { const d = ap.dejes[fase]; return d.gano_mi_equipo ? `${d.valor}(+)` : `${d.valor}(-)`; }
-        return (ap.botes && ap.botes[fase]) || 0;
-    };
-    const labelJuego = ap.juego_es_punto ? t('fase_punto') : t('fase_juego');
-    const cols = [['Grande', t('fase_grande')], ['Chica', t('fase_chica')], ['Pares', t('fase_pares')], ['Juego', labelJuego]];
-    let botes = `<div style="display:flex;justify-content:space-around;width:100%;">`;
-    cols.forEach(([key, label]) => {
-        botes += `<div style="display:flex;flex-direction:column;flex:1;">
-            <div style="${colStyle(fAct === key)}">${label}</div>
-            <div style="text-align:center;font-size:1.15em;">${boteTexto(key)}</div></div>`;
+    // El tanteador de los cuatro lances es el mismo que en la mesa de 1v1
+    // (htmlTanteador vive en app.js); aquí el deje lo gana "mi equipo".
+    logDiv.innerHTML = enAire + htmlTanteador(ap, fAct, (fase, apuestas) => {
+        const deje = apuestas.dejes && apuestas.dejes[fase];
+        return deje ? { valor: deje.valor, gano: deje.gano_mi_equipo } : null;
     });
-    botes += `</div>`;
-    logDiv.innerHTML = enAire + botes;
 }
 
 // ---------- Animaciones sobre deltas ----------

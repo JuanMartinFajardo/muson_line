@@ -82,13 +82,15 @@ function actualizarInterfazLogueado(usuario) {
     document.getElementById('user-info-logged').classList.remove('hidden');
     document.getElementById('txt-user-stats').innerText = _t('txt_hola') + `, ${usuario.username}`;
 
+    // El campo del nombre sigue existiendo (lo leen app.js y app4.js) pero con
+    // sesión iniciada no se muestra: menu.js oculta su bloque y escribe en su
+    // lugar «Jugarás como …». Aquí basta con dejar dentro el nombre de usuario.
     let inNombre = document.getElementById('nombre-jugador');
     if (inNombre) {
         inNombre.value = usuario.username;
         inNombre.disabled = true;
-        inNombre.style.backgroundColor = '#3b4252';
-        inNombre.style.color = '#a3be8c';
     }
+    if (typeof pintarIdentidadPlay === 'function') pintarIdentidadPlay();
     if (typeof refrescarAjustes === 'function') refrescarAjustes();
     cerrarModales(); // Definida en app.js
 }
@@ -102,9 +104,8 @@ function actualizarInterfazDeslogueado() {
     if (inNombre && inNombre.disabled) {
         inNombre.value = localStorage.getItem('callmus_nombre') || '';
         inNombre.disabled = false;
-        inNombre.style.backgroundColor = '';
-        inNombre.style.color = '';
     }
+    if (typeof pintarIdentidadPlay === 'function') pintarIdentidadPlay();
     if (typeof refrescarAjustes === 'function') refrescarAjustes();
 }
 

@@ -1054,6 +1054,7 @@ document.getElementById('btn-tutorial').addEventListener('click', () => {
     document.getElementById('modal-signup').classList.add('hidden');
     const ml = document.getElementById('modal-leaderboard'); if(ml) ml.classList.add('hidden');
     const mp = document.getElementById('modal-privacy'); if(mp) mp.classList.add('hidden');
+    const mj = document.getElementById('modal-play'); if(mj) mj.classList.add('hidden');
 
     modalTutorial.classList.remove('hidden');
 

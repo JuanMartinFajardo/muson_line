@@ -10,9 +10,13 @@
     <meta property="og:description" content="Play the traditional 2-player Mus card game online. Challenge a friend or an advanced AI bot.">
     <meta property="og:type" content="website">
     <!-- Aquí es donde carga el diseño. Si esto falla, se ve todo blanco -->
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?=v4">
     <!-- Mus 4 jugadores (Roadmap #6): estilos propios, cargados tras style.css -->
-    <link rel="stylesheet" href="/static/style4.css">
+    <link rel="stylesheet" href="/static/style4.css?=v2">
+    <!-- Menú y ventana de Jugar: se carga al final para poder redefinir la paleta -->
+    <link rel="stylesheet" href="/static/menu.css?=v2">
+    <!-- El tapete (1v1 y 2v2) con el mismo lenguaje visual que el menú -->
+    <link rel="stylesheet" href="/static/game.css?=v3">
     <!-- Librería de WebSockets (Actualizada a la v4.7.5) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="apple-touch-icon" sizes="180x180" href="static/favicon_io/apple-touch-icon.png">
@@ -23,9 +27,34 @@
 </head>
 <body>
 
+    <!-- Marcas de las cuatro pintas de la baraja española, dibujadas a mano en
+         SVG y reutilizadas con <use> por todo el menú (ver static/menu.css). -->
+    <svg class="cm-sprite" width="0" height="0" aria-hidden="true" focusable="false">
+        <symbol id="pinta-oros" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/>
+        </symbol>
+        <symbol id="pinta-copas" viewBox="0 0 24 24">
+            <path d="M6 4.5h12v3a6 6 0 0 1-12 0Z"/><path d="M12 13.5v4.5"/><path d="M8.5 19.5h7"/>
+        </symbol>
+        <symbol id="pinta-espadas" viewBox="0 0 24 24">
+            <path d="M12 3v11.5"/><path d="M7.5 14.5h9"/><path d="M12 14.5V18"/><circle cx="12" cy="19.6" r="1.4"/>
+        </symbol>
+        <symbol id="pinta-bastos" viewBox="0 0 24 24">
+            <path d="M12 21V4.5"/><path d="M12 12.5 8 8.8"/><path d="M12 15.5 16 11.8"/>
+        </symbol>
+        <!-- Amigos: el botón es sólo icono, así que aquí manda la claridad y no
+             el adorno; las pintas quedan para los rótulos con texto al lado. -->
+        <symbol id="icono-amigos" viewBox="0 0 24 24">
+            <circle cx="9.5" cy="8.5" r="3.1"/>
+            <path d="M3.8 19.2c0-3.1 2.6-5.2 5.7-5.2s5.7 2.1 5.7 5.2"/>
+            <circle cx="17.6" cy="9.8" r="2.2"/>
+            <path d="M16.8 14.4c2.4 0 3.9 1.9 3.9 4.6"/>
+        </symbol>
+    </svg>
+
     <!-- BOTÓN GLOBAL (Siempre visible) -->
-    <div style="position: fixed; right: 15px; top: 15px; z-index: 1000;">
-        <button id="btn-fullscreen" style="background: rgba(46, 52, 64, 0.8); border: 1px solid #d8dee9; color: #d8dee9; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 1.1em;" title="Pantalla Completa">⛶</button>
+    <div class="cm-corner" style="right: 15px;">
+        <button id="btn-fullscreen" class="cm-icon-btn" title="Pantalla Completa" data-i18n-title="fullscreen_tooltip">⛶</button>
     </div>
 
 
@@ -34,116 +63,92 @@
     <!-- 1. PANTALLA PRINCIPAL (MENÚ LOBBY)        -->
     <!-- ========================================= -->
     <div id="menu-screen" class="screen">
-        
+
         <!-- BOTÓN DE AJUSTES (Desaparece en la partida). Antes había aquí el
              botón EN/ES; ahora el idioma es una opción más dentro de Ajustes. -->
-        <div style="position: fixed; right: 60px; top: 15px; z-index: 999;">
-            <button id="btn-settings" data-i18n-title="ajustes_tooltip" title="Ajustes" style="background: rgba(46, 52, 64, 0.8); border: 1px solid #d8dee9; color: #d8dee9; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 1.1em; line-height: 1;">⚙</button>
+        <div class="cm-corner" style="right: 60px;">
+            <button id="btn-settings" class="cm-icon-btn" data-i18n-title="ajustes_tooltip" title="Ajustes">⚙</button>
         </div>
 
+        <!-- Amigos: anclado junto a Ajustes (antes flotaba en el centro del menú).
+             auth.js muestra u oculta este contenedor según haya sesión. -->
+        <div id="user-info-logged" class="cm-corner hidden" style="right: 105px;">
+            <button id="btn-amigos" class="cm-icon-btn" data-i18n-title="btn_amigos_tooltip" title="Amigos">
+                <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#icono-amigos"/></svg>
+                <span id="amigos-badge" class="cm-badge hidden">0</span>
+            </button>
+        </div>
 
-        <!-- BARRA SUPERIOR DE USUARIO (Centrada y encima del título) -->
-        <div id="user-bar" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 10px; margin-top: 20px;">
-
-
-            <div id="user-buttons" style="display: flex; gap: 15px;">
-                <button id="btn-show-login" data-i18n="btn_login" style="background-color: transparent; border: 1px solid #88c0d0; color: #88c0d0; padding: 8px 20px; font-size: 1em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Iniciar Sesión</button>
-                <button id="btn-show-signup" data-i18n="btn_signup" style="background-color: transparent; border: 1px solid #a3be8c; color: #a3be8c; padding: 8px 20px; font-size: 1em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Registrarse</button>
+        <!-- Identidad, arriba a la izquierda: el saludo cuando hay sesión y los
+             accesos de invitado cuando no la hay (auth.js alterna el bloque). -->
+        <header class="cm-top">
+            <span id="txt-user-stats" class="cm-whoami"></span>
+            <div id="user-buttons" class="cm-auth">
+                <button id="btn-show-login" class="cm-link" data-i18n="btn_login">Iniciar Sesión</button>
+                <span class="cm-dot" aria-hidden="true">·</span>
+                <button id="btn-show-signup" class="cm-link" data-i18n="btn_signup">Registrarse</button>
             </div>
-            
-            <div id="user-info-logged" class="hidden" style="color: #eceff4; display: flex; align-items: center; gap: 15px;">
-                <span id="txt-user-stats" style="font-weight: bold; color: #ebcb8b; font-size: 1.1em;"></span>
-                <button id="btn-amigos" style="position: relative; background-color: transparent; border: 1px solid #88c0d0; color: #88c0d0; padding: 5px 15px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">
-                    <span data-i18n="btn_amigos">👥 Amigos</span>
-                    <span id="amigos-badge" class="hidden" style="position: absolute; top: -8px; right: -8px; background: #bf616a; color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 0.7em; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px;">0</span>
+        </header>
+
+        <main class="cm-menu">
+            <img class="cm-logo" src="/static/img/callmus2logo_193.jpg" alt="CallMus">
+
+            <div class="cm-rule">
+                <span class="cm-orn">
+                    <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-oros"/></svg>
+                    <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-copas"/></svg>
+                    <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-espadas"/></svg>
+                    <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-bastos"/></svg>
+                </span>
+            </div>
+
+            <!-- Avisos fijados por el administrador y cartel de mantenimiento
+                 (Roadmap #13). Lo rellena soporte.js; se ve con y sin cuenta. -->
+            <div id="anuncios-fijados"></div>
+
+            <!-- Acción principal: abre la ventana de Jugar (#modal-play) -->
+            <button id="btn-play" class="cm-play">
+                <span class="cm-play-txt">
+                    <b class="cm-play-label" data-i18n="menu_play">Jugar</b>
+                    <small class="cm-play-sub" data-i18n="menu_play_sub">1 contra 1, 2 contra 2 o contra la IA</small>
+                </span>
+                <span class="cm-play-arrow" aria-hidden="true">→</span>
+            </button>
+
+            <nav class="cm-list">
+                <button id="btn-tutorial" class="cm-row">
+                    <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-copas"/></svg>
+                    <span class="cm-row-label" data-i18n="menu_tutorial">Cómo se juega</span>
                 </button>
-            </div>
+                <button id="btn-decks" class="cm-row is-soon" data-soon="1">
+                    <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-oros"/></svg>
+                    <span class="cm-row-label" data-i18n="menu_decks">Mis barajas</span>
+                    <em class="cm-tag" data-i18n="tag_soon">Pronto</em>
+                </button>
+            </nav>
 
-        </div>
+            <div class="cm-rule cm-rule-thin"></div>
 
-        <img src="/static/img/callmus2logo_193.jpg" alt="CallMus Logo" style="max-width: 250px; height: auto; margin: 0 auto 20px auto; display: block;">
+            <nav class="cm-minor">
+                <button id="btn-show-leaderboard" class="cm-minor-item">
+                    <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-espadas"/></svg>
+                    <span data-i18n="menu_leaderboard">Clasificación</span>
+                </button>
+                <a id="btn-kofi" class="cm-minor-item" href="https://ko-fi.com/U3Q220FB6L"
+                   target="_blank" rel="noopener noreferrer"
+                   title="Invítame un café en Ko-fi" data-i18n-title="kofi_tooltip">
+                    <span class="cm-heart" aria-hidden="true">♡</span>
+                    <span data-i18n="menu_kofi">Ko-fi</span>
+                </a>
+                <button id="btn-show-privacy" class="cm-minor-item">
+                    <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-bastos"/></svg>
+                    <span data-i18n="menu_about">Acerca de CallMus</span>
+                </button>
+            </nav>
 
-        <!-- Avisos fijados por el administrador y cartel de mantenimiento
-             (Roadmap #13). Lo rellena soporte.js; se ve con y sin cuenta. -->
-        <div id="anuncios-fijados"></div>
-
-
-        <div class="panel">
-            <input type="text" id="nombre-jugador" placeholder="Tu nombre..." style="margin-bottom: 20px; width: 90%; font-size: 1.1em; padding: 8px;" data-i18n="tu_nombre">
-            
-            <div style="padding: 15px; border: 1px solid #4c566a; border-radius: 8px; margin-bottom: 15px;">
-                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <label for="in-mejor-de" data-i18n="al_mejor_de" style="font-weight: bold; color: #eceff4;">Al mejor de:</label>
-                    <input type="number" id="in-mejor-de" value="3" min="1" max="21" step="2" style="width: 60px; text-align: center; font-size: 1.2em; padding: 5px;">
-                    <span style="font-size: 0.9em; opacity: 0.7;" data-i18n="partidas">partidas</span>
-                </div>
-                
-                <!-- NUEVO: Checkbox de partida pública -->
-                <div style="margin-bottom: 15px;">
-                    <input type="checkbox" id="in-publico" checked style="transform: scale(1.3); margin-right: 5px;">
-                    <label for="in-publico" style="color: #eceff4; cursor: pointer;", data-i18n="in_publico">Hacer pública (visible para todos)</label>
-                </div>
-
-                <button id="btn-crear" data-i18n="btn_crear">Crear partida nueva</button>
-                
-                <button id="btn-jugar-bot" data-i18n="btn_jugar_bot" style="margin-left: 10px; background-color: #b48ead; border: none; color: #eceff4; font-weight: bold; padding: 10px 15px; border-radius: 4px; cursor: pointer; transition: 0.3s;">Jugar contra bot</button>
-
-                <button id="btn-crear-4" data-i18n="btn_crear_4" style="margin-top: 12px; width: 100%; background-color: #5e81ac; color: #eceff4; font-weight: bold; padding: 12px; border-radius: 8px; border: none; cursor: pointer; transition: 0.3s;">👥 Mus 4 jugadores</button>
-
-                <button id="btn-tutorial" data-i18n="btn_tutorial" style="margin-top: 15px; width: 100%; background-color: #f3e0bf; color: #2e3440; font-weight: bold; padding: 12px; border-radius: 8px; font-size: 1.1em; border: none; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">🎓 How to Play (Tutorial)</button>
-
-                <div id="codigo-creado" class="hidden" style="margin-top: 10px;">
-                    <p data-i18n="codigo_sala">Código de tu sala:</p>
-                    <h2 id="txt-codigo" style="color: #ebcb8b; letter-spacing: 3px; font-size: 2em; margin: 10px 0;"></h2>
-                    
-                    <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 15px;">
-                        <button id="btn-share-copy" title="Copiar enlace" style="background-color: #4c566a; color: #eceff4; padding: 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; border: none; font-size: 1.2em; transition: 0.2s;">📋</button>
-                        
-                        <button id="btn-share-wa" title="WhatsApp" style="background-color: #25D366; color: white; padding: 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; border: none; font-size: 1.4em; transition: 0.2s;">💬</button>
-                        
-                        <button id="btn-share-api" title="Compartir..." style="background-color: #5e81ac; color: white; padding: 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; border: none; font-size: 1.2em; transition: 0.2s;">🔗</button>
-                    </div>
-
-                    <p style="font-size: 0.9em; opacity: 0.8;" class="anim-parpadeo" data-i18n="esperando_rival">Esperando a que se una el rival...</p>
-                </div>
-            </div>
-
-            <div style="padding: 15px; border: 1px solid #4c566a; border-radius: 8px;">
-                <input type="text" id="in-codigo" placeholder="Código de sala..." style="width: 60%; text-transform: uppercase; font-size: 1.1em; padding: 6px; text-align: center;" data-i18n="codigo_placeholder">
-                <button id="btn-unirse" data-i18n="btn_unirse">Unirse con código</button>
-            </div>
-
-            
-            <!-- NUEVO: Tabla de partidas públicas con scroll -->
-            <div style="padding: 10px; border: 1px solid #4c566a; border-radius: 8px; margin-top: 15px; background-color: #2e3440;">
-                <h3 style="margin-top: 0; color: #88c0d0; font-size: 1.1em;" data-i18n="public_games">🌐 Partidas Públicas</h3>
-                <div style="max-height: 150px; overflow-y: auto; border: 1px solid #3b4252; border-radius: 4px;">
-                    <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 0.9em;">
-                        <thead style="background-color: #3b4252; position: sticky; top: 0;">
-                            <tr>
-                                <th style="padding: 8px; border-bottom: 1px solid #4c566a;" data-i18n="user_colname">Usuario</th>
-                                <th style="padding: 8px; border-bottom: 1px solid #4c566a;" data-i18n="al_mejor_de_colname">Mejor de</th>
-                                <th style="padding: 8px; border-bottom: 1px solid #4c566a;" data-i18n="action_colname">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-partidas-publicas">
-                            <tr><td colspan="3" style="padding: 10px; opacity: 0.7;">Buscando partidas...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- Botón de Leaderboard -->
-            <button id="btn-show-leaderboard" data-i18n="btn_show_leaderboard" style="width: 100%; margin-top: 15px; background-color: #5e81ac; color: #eceff4; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1.1em; border: none; cursor: pointer; transition: 0.3s;">🏆 Ver Leaderboard</button>
-
-            <!-- Botón de Ko-fi -->
-            <div style="margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 15px;">
-                <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#800020', 'U3Q220FB6L');kofiwidget2.draw();</script> 
-                <button id="btn-show-privacy" data-i18n="btn_privacy" style="background-color: transparent; border: 1px solid #4c566a; color: #d8dee9; padding: 5px 15px; font-size: 0.9em; border-radius: 4px; cursor: pointer; transition: 0.3s;">Política de Privacidad</button>
-            </div>
-
-            <p id="menu-msg" style="color: #bf616a; margin-top: 15px; font-weight: bold;"></p>
-        </div>
+            <!-- Avisos del menú: reconexión automática, invitaciones enviadas… -->
+            <p id="menu-msg" class="cm-msg"></p>
+        </main>
     </div>
 
     <!-- ========================================= -->
@@ -153,39 +158,52 @@
     <div id="game-screen" class="screen hidden">
 
         <!-- Aviso de pausa por caída del rival, con cuenta atrás de la ventana de gracia. -->
-        <div id="overlay-reconexion" class="hidden" style="position:absolute; inset:0; z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(20,24,32,0.88); text-align:center; padding:24px;">
-            <div class="spinner-reconexion" style="width:46px; height:46px; border:4px solid #4c566a; border-top-color:#88c0d0; border-radius:50%; animation:girar-reconexion 0.9s linear infinite; margin-bottom:18px;"></div>
-            <p id="overlay-reconexion-msg" style="color:#eceff4; font-size:1.15em; max-width:420px; line-height:1.5;">Un jugador se ha caído. Esperando a que vuelva…</p>
-            <p id="overlay-reconexion-cont" style="color:#ebcb8b; font-weight:bold; font-size:1.4em; margin-top:10px;"></p>
+        <div id="overlay-reconexion" class="cm-pausa hidden">
+            <div class="cm-pausa-caja">
+                <div class="cm-pausa-spinner"></div>
+                <p id="overlay-reconexion-msg">Un jugador se ha caído. Esperando a que vuelva…</p>
+                <p id="overlay-reconexion-cont" class="cm-pausa-cont"></p>
+            </div>
         </div>
 
-        <button id="btn-help-game" title="Tutorial / Ayuda" style="position: absolute; top: 15px; left: 15px; background-color: #4c566a; color: #eceff4; border: 2px solid #88c0d0; border-radius: 50%; width: 38px; height: 38px; font-weight: bold; font-size: 1.2em; cursor: pointer; z-index: 50; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: 0.2s;">?</button>
+        <button id="btn-help-game" class="cm-mesa-btn cm-mesa-ayuda" title="Tutorial / Ayuda">?</button>
 
         <!-- Salida de la partida (siempre disponible; pide confirmación). -->
         <button id="btn-salir-partida" class="btn-salir-mesa" data-i18n-title="btn_salir_title" title="Salir de la partida">✕</button>
 
-        <div id="turno-rival" class="turno-indicador hidden" data-i18n="opponent_speaks">⚠️ El rival habla</div>
-        
+        <div id="turno-rival" class="turno-indicador hidden" data-i18n="opponent_speaks">El rival habla</div>
+
         <!-- ÁREA DEL RIVAL -->
-        <div id="opponent-area" class="area">
-            <!-- <p>Rival - Pts: <span id="puntos-rival" class="highlight">0</span>/40 | Partidas: <span id="partidas-rival" class="highlight">0</span> <span class="mejor-de-texto"></span></p> -->
-            <p>
-                <span id="nombre-rival-ui" style="font-weight: bold; color: #ebcb8b; font-size: 1.1em;">Rival</span> 
-                <span id="rol-rival" class="highlight"></span> - 
-                <span data-i18n="txt_pts">Pts:</span> 
-                <span id="puntos-rival" class="highlight">0</span>/40 | 
-                <span data-i18n="txt_partidas">Partidas:</span> 
-                <span id="partidas-rival" class="highlight">0</span> 
-                <span class="mejor-de-texto"></span>
-            </p>
-            
+        <!-- La "chapa" del jugador: pinta, nombre, tanteo y las piedras (los
+             amarrakos de las partidas ganadas, que pinta pintarPiedras()).
+             Los ids son los de siempre: app.js sigue escribiendo en ellos. -->
+        <div id="opponent-area" class="area cm-plate">
+            <div class="cm-plate-head">
+                <span class="cm-plate-who">
+                    <svg class="pinta" aria-hidden="true"><use href="#pinta-espadas"></use></svg>
+                    <!-- Sin data-i18n: aquí escribe app.js el nombre real del rival. -->
+                    <span id="nombre-rival-ui" class="cm-plate-name">Rival</span>
+                    <span id="rol-rival" class="cm-plate-rol"></span>
+                </span>
+                <span class="cm-plate-score">
+                    <span id="puntos-rival" class="cm-pts">0</span><span class="cm-pts-max">/40</span>
+                </span>
+                <span class="cm-plate-games">
+                    <span id="partidas-rival" class="cm-piedras">0</span>
+                </span>
+            </div>
+
             <div class="cards-placeholder" data-i18n="cartas_rival_ocultas">[Cartas del rival ocultas]</div>
         </div>
 
         <!-- MESA CENTRAL -->
         <div id="center-table" class="area">
             <p id="game-log">Esperando para repartir...</p>
-            
+
+            <!-- El tanteador de lances va ANTES de los botones (igual que en la
+                 mesa de 2v2): primero se ve cómo va el lance, luego se decide. -->
+            <div id="betting-log" class="hidden"></div>
+
             <div id="action-buttons" class="hidden">
                 <button id="btn-deal" data-i18n="btn_deal">Repartir Cartas</button>
                 <button id="btn-pedrete" class="hidden">¡Pedrete!</button>
@@ -210,23 +228,26 @@
                 <button id="btn-nover" data-i18n="btn_nover">No ver</button>
                 <button id="btn-ordago-resp" data-i18n="btn_ordago_resp">Órdago</button>
             </div>
-
-            <div id="betting-log" class="hidden"></div>
         </div>
 
-        <div id="mi-turno" class="turno-indicador hidden" data-i18n="mi_turno">⚠️ Tú hablas</div>
+        <div id="mi-turno" class="turno-indicador hidden" data-i18n="mi_turno">Tú hablas</div>
 
         <!-- TU ÁREA -->
-        <div id="my-area" class="area">
-            <p>
-                <span data-i18n="txt_tu">Tú</span> 
-                <span id="mi-rol" class="highlight"></span> - 
-                <span data-i18n="txt_pts">Pts:</span> 
-                <span id="puntos-mios" class="highlight">0</span>/40 | 
-                <span data-i18n="txt_partidas">Partidas:</span> 
-                <span id="partidas-mios" class="highlight">0</span> 
-                <span class="mejor-de-texto"></span>
-            </p>
+        <div id="my-area" class="area cm-plate">
+            <div class="cm-plate-head">
+                <span class="cm-plate-who">
+                    <svg class="pinta" aria-hidden="true"><use href="#pinta-oros"></use></svg>
+                    <span class="cm-plate-name" data-i18n="txt_tu">Tú</span>
+                    <span id="mi-rol" class="cm-plate-rol"></span>
+                </span>
+                <span class="cm-plate-score">
+                    <span id="puntos-mios" class="cm-pts">0</span><span class="cm-pts-max">/40</span>
+                </span>
+                <span class="cm-plate-games">
+                    <span id="partidas-mios" class="cm-piedras">0</span>
+                    <span class="mejor-de-texto cm-plate-meta"></span>
+                </span>
+            </div>
             <div id="my-cards" class="cards-container" data-i18n="my_cards">
                 Tus cartas aparecerán aquí
             </div>
@@ -238,16 +259,17 @@
     <!-- 3. PANTALLA DE MUS A 4 JUGADORES (2v2)     -->
     <!-- ========================================= -->
     <div id="game-screen-4" class="screen hidden">
-        <button id="btn-help-game-4" title="Tutorial / Ayuda" style="position: absolute; top: 12px; left: 12px; background-color: #4c566a; color: #eceff4; border: 2px solid #88c0d0; border-radius: 50%; width: 36px; height: 36px; font-weight: bold; font-size: 1.15em; cursor: pointer; z-index: 50;">?</button>
+        <button id="btn-help-game-4" class="cm-mesa-btn cm-mesa-ayuda" title="Tutorial / Ayuda">?</button>
 
         <!-- Salida de la partida (siempre disponible; pide confirmación). -->
         <button id="btn-salir-partida-4" class="btn-salir-mesa" data-i18n-title="btn_salir_title" title="Salir de la partida">✕</button>
 
-        <!-- Marcadores de equipo -->
+        <!-- Marcadores de equipo: misma chapa que en el 1v1 (tanteo grande con
+             serifa y las piedras de las partidas ganadas). -->
         <div id="score-bar-4">
-            <div id="score-team-a" class="team-score"><span class="team-label" data-i18n="equipo_a">Equipo A</span><span class="team-pts"><span class="pts">0</span>/40</span><span class="team-games">0</span></div>
+            <div id="score-team-a" class="team-score"><span class="team-label" data-i18n="equipo_a">Equipo A</span><span class="team-pts"><span class="pts">0</span><span class="cm-pts-max">/40</span></span><span class="team-games cm-piedras"></span></div>
             <div id="score-mejor-de-4"></div>
-            <div id="score-team-b" class="team-score"><span class="team-label" data-i18n="equipo_b">Equipo B</span><span class="team-pts"><span class="pts">0</span>/40</span><span class="team-games">0</span></div>
+            <div id="score-team-b" class="team-score"><span class="team-label" data-i18n="equipo_b">Equipo B</span><span class="team-pts"><span class="pts">0</span><span class="cm-pts-max">/40</span></span><span class="team-games cm-piedras"></span></div>
         </div>
 
         <div id="mesa-4">
@@ -429,28 +451,31 @@
 
 
         <!-- Modal Leaderboard -->
-        <div id="modal-leaderboard" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-height: 80vh; display: flex; flex-direction: column;">
-            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
-            <h2 style="color: #ebcb8b; margin-top: 5px; margin-bottom: 20px;" data-i18n="leaderboard_title">🏆 Clasificación Mundial</h2>
+        <div id="modal-leaderboard" class="hidden cm-win cm-win-wide">
+            <button class="btn-cerrar-modal cm-close" aria-label="Cerrar">&times;</button>
 
-            <!-- Flex-grow y overflow-y permiten el scroll solo de la tabla si es muy larga -->
-            <div style="flex-grow: 1; overflow-y: auto; border: 1px solid #3b4252; border-radius: 4px;">
-                <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 0.95em; color: #eceff4;">
-                    <thead style="background-color: #3b4252; position: sticky; top: 0;">
+            <header class="cm-win-head">
+                <h2 class="cm-win-title" data-i18n="lb_title">Clasificación</h2>
+                <p class="cm-win-sub" data-i18n="lb_sub">Toca un nombre para ver su código de jugador</p>
+            </header>
+
+            <div class="cm-table-wrap">
+                <table class="cm-table">
+                    <thead>
                         <tr>
-                            <th style="padding: 10px; border-bottom: 1px solid #4c566a;" data-i18n="user_colname">Jugador</th>
-                            <!-- NUEVO: ELO pasa a ser el principal -->
-                            <th id="th-sort-elo" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #a3be8c;" data-i18n="elo_colname">ELO 🔽</th>
-                            <th id="th-sort-wins" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #eceff4;" data-i18n="wins_colname">Victorias ↕️</th>
-                            <th id="th-sort-winrate" style="padding: 10px; border-bottom: 1px solid #4c566a; cursor: pointer; user-select: none; color: #eceff4;" data-i18n="winrate_colname">Winrate ↕️</th>
+                            <th class="cm-th-rank" aria-label="#"></th>
+                            <th class="cm-th-name" data-i18n="lb_player">Jugador</th>
+                            <th id="th-sort-elo" class="cm-th-sort">ELO</th>
+                            <th id="th-sort-wins" class="cm-th-sort">Victorias</th>
+                            <th id="th-sort-winrate" class="cm-th-sort">%</th>
                         </tr>
                     </thead>
                     <tbody id="lista-leaderboard-body">
-                        <tr><td colspan="4" style="padding: 10px; opacity: 0.7;" data-i18n="loading_players">Cargando jugadores...</td></tr>
+                        <tr><td colspan="5" class="cm-live-empty" data-i18n="loading_players">Cargando jugadores...</td></tr>
                     </tbody>
                 </table>
             </div>
-            <p data-i18n="leaderboard_nota_4p" style="margin: 12px 2px 0 2px; font-size: 0.78em; color: #d8dee9; opacity: 0.7; line-height: 1.4; text-align: left;">Nota: el ELO y las victorias de arriba son de las partidas 1 contra 1. En el Mus a 4 jugadores (2v2) se guarda aparte el marcador final de cada partida (p. ej. 2-1), sumando a cada jugador los juegos ganados con su equipo.</p>
+            <p class="cm-note" data-i18n="leaderboard_nota_4p">Nota: el ELO y las victorias de arriba son de las partidas 1 contra 1. En el Mus a 4 jugadores (2v2) se guarda aparte el marcador final de cada partida (p. ej. 2-1), sumando a cada jugador los juegos ganados con su equipo.</p>
         </div>
 
         <!-- Modal Social (amigos, grupos, chat) -->
@@ -470,12 +495,14 @@
         </div>
 
         <!-- Modal Política de privacidad -->
-        <div id="modal-privacy" class="hidden" style="position: relative; background: #2e3440; padding: 30px; border-radius: 8px; border: 1px solid #4c566a; width: 600px; max-width: 90vw; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-height: 80vh; display: flex; flex-direction: column;">
-            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
-            
-            <h2 style="color: #a3be8c; margin-top: 5px; margin-bottom: 20px; text-align: center;" data-i18n="privacy_title">Acerca de CallMus (v0.1)</h2>
-            
-            <div style="flex-grow: 1; overflow-y: auto; padding-right: 15px; color: #eceff4; font-size: 0.95em; line-height: 1.6;">
+        <div id="modal-privacy" class="hidden cm-win cm-win-wide">
+            <button class="btn-cerrar-modal cm-close" aria-label="Cerrar">&times;</button>
+
+            <header class="cm-win-head">
+                <h2 class="cm-win-title" data-i18n="privacy_title">Acerca de CallMus (v0.1)</h2>
+            </header>
+
+            <div class="cm-prose">
                 <p data-i18n="privacy_p1"></p>
                 <p data-i18n="privacy_p2"></p>
                 <div data-i18n="privacy_p3"></div>
@@ -652,61 +679,224 @@
             </div>
         </div>
 
-        <!-- Modal Mus 4 jugadores (crear/unirse + sala de espera con asientos) -->
-        <div id="modal-4" class="hidden" style="position: relative; background: #2e3440; padding: 25px 22px 22px 22px; border-radius: 8px; border: 1px solid #4c566a; width: 440px; max-width: 95vw; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 12px;">
-            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
-            <h2 style="color: #88c0d0; margin: 5px 0 4px 0;" data-i18n="btn_crear_4">👥 Mus 4 jugadores</h2>
+        <!-- ===================================================== -->
+        <!-- VENTANA DE JUGAR: 1v1 y 2v2, crear y unirse            -->
+        <!-- Reúne lo que antes estaba repartido entre el menú (1v1) -->
+        <!-- y el desaparecido #modal-4 (2v2). Los ids de los campos -->
+        <!-- se conservan tal cual porque app.js y app4.js escuchan   -->
+        <!-- en ellos: sólo cambia dónde viven y cómo se ven.         -->
+        <!-- ===================================================== -->
+        <div id="modal-play" class="hidden cm-win">
+            <button class="btn-cerrar-modal cm-close" aria-label="Cerrar">&times;</button>
 
-            <!-- Vista A: crear / unirse -->
-            <div id="panel-4-setup">
-                <input type="text" id="nombre-jugador-4" placeholder="Tu nombre..." data-i18n="tu_nombre" style="width: 90%; font-size: 1.05em; padding: 8px; margin-bottom: 12px; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px;">
+            <header class="cm-win-head">
+                <h2 class="cm-win-title" data-i18n="play_title">Jugar</h2>
+                <p class="cm-win-sub" data-i18n="play_sub">Monta la partida en tres pasos</p>
+            </header>
 
-                <div style="padding: 12px; border: 1px solid #4c566a; border-radius: 8px; margin-bottom: 12px;">
-                    <p style="margin: 0 0 8px 0; color: #d8dee9; font-size: 0.9em;" data-i18n="elige_asiento">Elige un asiento</p>
-                    <div id="seat-picker-4" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+            <div id="play-setup" class="cm-win-body">
 
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin: 12px 0;">
-                        <label for="in-mejor-de-4" data-i18n="al_mejor_de" style="font-weight: bold; color: #eceff4;">Al mejor de:</label>
-                        <input type="number" id="in-mejor-de-4" value="3" min="1" max="21" step="2" style="width: 55px; text-align: center; font-size: 1.1em; padding: 5px;">
+                <!-- Nombre: sólo para invitados (auth.js oculta el bloque al entrar) -->
+                <div id="play-nombre" class="cm-field">
+                    <label class="cm-label" for="nombre-jugador" data-i18n="play_your_name">Tu nombre en la mesa</label>
+                    <input type="text" id="nombre-jugador" class="cm-input" placeholder="Tu nombre..." data-i18n="tu_nombre">
+                </div>
+                <p id="play-como" class="cm-como hidden"></p>
+
+                <!-- PASO 1 · La mesa -->
+                <section class="cm-step">
+                    <h3 class="cm-step-title"><i class="cm-num">1</i><span data-i18n="play_step_mesa">La mesa</span></h3>
+                    <div class="cm-modes">
+                        <button class="cm-mode is-on" data-modo="2">
+                            <svg class="cm-diagram" viewBox="0 0 64 46" aria-hidden="true">
+                                <ellipse class="d-table" cx="32" cy="23" rx="19" ry="11"/>
+                                <circle class="d-rival" cx="32" cy="6.5" r="3.6"/>
+                                <circle class="d-you" cx="32" cy="39.5" r="3.6"/>
+                            </svg>
+                            <b data-i18n="play_1v1">1 contra 1</b>
+                            <small data-i18n="play_1v1_sub">Tú y un rival</small>
+                        </button>
+                        <button class="cm-mode" data-modo="4">
+                            <svg class="cm-diagram" viewBox="0 0 64 46" aria-hidden="true">
+                                <ellipse class="d-table" cx="32" cy="23" rx="19" ry="11"/>
+                                <path class="d-link" d="M32 10.5v25"/>
+                                <circle class="d-mate" cx="32" cy="6.5" r="3.6"/>
+                                <circle class="d-you" cx="32" cy="39.5" r="3.6"/>
+                                <circle class="d-rival" cx="6" cy="23" r="3.6"/>
+                                <circle class="d-rival" cx="58" cy="23" r="3.6"/>
+                            </svg>
+                            <b data-i18n="play_2v2">2 contra 2</b>
+                            <small data-i18n="play_2v2_sub">Por parejas, cuatro jugadores</small>
+                        </button>
                     </div>
-                    <div style="margin-bottom: 12px;">
-                        <input type="checkbox" id="in-publico-4" checked style="transform: scale(1.2); margin-right: 5px;">
-                        <label for="in-publico-4" style="color: #eceff4; cursor: pointer;" data-i18n="in_publico">Hacer pública</label>
+                </section>
+
+                <!-- PASO 2 · Los rivales -->
+                <section class="cm-step">
+                    <h3 class="cm-step-title"><i class="cm-num">2</i><span data-i18n="play_step_rivales">Los rivales</span></h3>
+
+                    <div class="cm-opts" id="play-rivals-2">
+                        <button class="cm-opt is-on" data-rival="humano">
+                            <b data-i18n="play_vs_human">Contra personas</b>
+                            <small data-i18n="play_vs_human_sub">Creas la sala y compartes el código</small>
+                        </button>
+                        <button class="cm-opt" data-rival="bot">
+                            <b data-i18n="play_vs_bot">Contra la IA</b>
+                            <small data-i18n="play_vs_bot_sub">Empiezas al momento, sin esperar</small>
+                        </button>
                     </div>
-                    <button id="btn-crear-sala-4" data-i18n="btn_crear" style="width: 100%; background-color: #a3be8c; color: #2e3440; font-weight: bold; padding: 10px; border-radius: 6px; border: none; cursor: pointer;">Crear partida nueva</button>
+
+                    <div class="cm-opts hidden" id="play-rivals-4">
+                        <button class="cm-opt is-on" data-rival="humano">
+                            <b data-i18n="play_4_humanos">Cuatro personas</b>
+                            <small data-i18n="play_4_humanos_sub">Tu pareja y la pareja rival</small>
+                        </button>
+                        <button class="cm-opt is-soon" data-rival="bots" data-soon="1">
+                            <b data-i18n="play_4_bots">Con bots</b>
+                            <small data-i18n="play_4_bots_sub">Rellenar los asientos con la IA</small>
+                            <em class="cm-tag" data-i18n="tag_soon">Pronto</em>
+                        </button>
+                        <button class="cm-opt is-soon" data-rival="mixto" data-soon="1">
+                            <b data-i18n="play_4_mixto">Mesa mixta</b>
+                            <small data-i18n="play_4_mixto_sub">Personas y bots en la misma mesa</small>
+                            <em class="cm-tag" data-i18n="tag_soon">Pronto</em>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- PASO 3 · Los detalles -->
+                <section class="cm-step">
+                    <h3 class="cm-step-title"><i class="cm-num">3</i><span data-i18n="play_step_ajustes">Los detalles</span></h3>
+
+                    <!-- Al mejor de: un contador por modo, sólo se ve el activo -->
+                    <div class="cm-set" id="set-mejor-2">
+                        <span class="cm-set-label" data-i18n="play_best_of">Al mejor de</span>
+                        <span class="cm-stepper">
+                            <button type="button" class="cm-step-btn" data-paso="-2" data-campo="in-mejor-de" aria-label="−">−</button>
+                            <input type="number" id="in-mejor-de" value="3" min="1" max="21" step="2" inputmode="numeric">
+                            <button type="button" class="cm-step-btn" data-paso="2" data-campo="in-mejor-de" aria-label="+">+</button>
+                        </span>
+                        <span class="cm-set-unit" data-i18n="partidas">partidas</span>
+                    </div>
+                    <div class="cm-set hidden" id="set-mejor-4">
+                        <span class="cm-set-label" data-i18n="play_best_of">Al mejor de</span>
+                        <span class="cm-stepper">
+                            <button type="button" class="cm-step-btn" data-paso="-2" data-campo="in-mejor-de-4" aria-label="−">−</button>
+                            <input type="number" id="in-mejor-de-4" value="3" min="1" max="21" step="2" inputmode="numeric">
+                            <button type="button" class="cm-step-btn" data-paso="2" data-campo="in-mejor-de-4" aria-label="+">+</button>
+                        </span>
+                        <span class="cm-set-unit" data-i18n="partidas">partidas</span>
+                    </div>
+
+                    <!-- Partida pública: sólo tiene sentido si esperas a alguien -->
+                    <label class="cm-switch" id="set-publico-2">
+                        <input type="checkbox" id="in-publico" checked>
+                        <span class="cm-switch-box" aria-hidden="true"></span>
+                        <span class="cm-switch-txt">
+                            <b data-i18n="play_public">Partida pública</b>
+                            <small data-i18n="play_public_sub">Cualquiera puede verla en la lista y unirse</small>
+                        </span>
+                    </label>
+                    <label class="cm-switch hidden" id="set-publico-4">
+                        <input type="checkbox" id="in-publico-4" checked>
+                        <span class="cm-switch-box" aria-hidden="true"></span>
+                        <span class="cm-switch-txt">
+                            <b data-i18n="play_public">Partida pública</b>
+                            <small data-i18n="play_public_sub">Cualquiera puede verla en la lista y unirse</small>
+                        </span>
+                    </label>
+
+                    <!-- Señas: propias del 2v2 y todavía sin implementar -->
+                    <div class="cm-switch is-soon hidden" id="set-senas" data-soon="1">
+                        <span class="cm-switch-box" aria-hidden="true"></span>
+                        <span class="cm-switch-txt">
+                            <b data-i18n="play_senas">Con señas</b>
+                            <small data-i18n="play_senas_sub">Avisar a tu pareja de lo que llevas</small>
+                        </span>
+                        <em class="cm-tag" data-i18n="tag_soon">Pronto</em>
+                    </div>
+
+                    <!-- Asiento (2v2): las parejas se sientan enfrente -->
+                    <div class="cm-seats hidden" id="set-asiento">
+                        <span class="cm-set-label" data-i18n="elige_asiento">Elige un asiento</span>
+                        <div id="seat-picker-4" class="cm-seat-grid"></div>
+                        <p class="cm-note" data-i18n="play_seat_note">Los asientos 0 y 2 son el equipo A; el 1 y el 3, el equipo B. Tu pareja se sienta enfrente de ti.</p>
+                    </div>
+                </section>
+
+                <!-- Acción principal: sólo se ve el botón que toca -->
+                <div class="cm-action">
+                    <p class="cm-summary" id="play-summary"></p>
+                    <button id="btn-crear" class="cm-primary" data-i18n="play_create">Crear la partida</button>
+                    <button id="btn-jugar-bot" class="cm-primary hidden" data-i18n="play_start_bot">Empezar contra la IA</button>
+                    <button id="btn-crear-sala-4" class="cm-primary hidden" data-i18n="play_create">Crear la partida</button>
                 </div>
 
-                <div style="padding: 12px; border: 1px solid #4c566a; border-radius: 8px;">
-                    <input type="text" id="in-codigo-4" placeholder="Código de sala..." data-i18n="codigo_placeholder" style="width: 55%; text-transform: uppercase; font-size: 1.05em; padding: 6px; text-align: center;">
-                    <button id="btn-unirse-4" data-i18n="btn_unirse" style="background-color: #81a1c1; color: #2e3440; font-weight: bold; padding: 8px 12px; border-radius: 6px; border: none; cursor: pointer;">Unirse con código</button>
+                <div class="cm-rule">
+                    <span class="cm-orn">
+                        <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-espadas"/></svg>
+                    </span>
                 </div>
 
-                <div style="padding: 10px; border: 1px solid #4c566a; border-radius: 8px; margin-top: 12px; background-color: #2e3440;">
-                    <h3 style="margin: 0 0 6px 0; color: #88c0d0; font-size: 1em;" data-i18n="public_games_4">🌐 Salas 4 jugadores</h3>
-                    <div style="max-height: 130px; overflow-y: auto; border: 1px solid #3b4252; border-radius: 4px;">
-                        <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 0.88em;">
-                            <tbody id="lista-publicas-4">
-                                <tr><td colspan="3" style="padding: 10px; opacity: 0.7;" data-i18n="msg_no_publicas">No hay partidas públicas.</td></tr>
-                            </tbody>
-                        </table>
+                <!-- Unirse: por código o desde la lista en vivo del modo elegido -->
+                <section class="cm-step">
+                    <h3 class="cm-step-title cm-step-plain"><span data-i18n="play_join_title">…o únete a una partida</span></h3>
+
+                    <div class="cm-join" id="join-2">
+                        <input type="text" id="in-codigo" class="cm-input cm-code" placeholder="Código de sala..." data-i18n="codigo_placeholder" maxlength="4" autocomplete="off">
+                        <button id="btn-unirse" class="cm-secondary" data-i18n="play_join_btn">Unirse</button>
                     </div>
-                </div>
+                    <div class="cm-join hidden" id="join-4">
+                        <input type="text" id="in-codigo-4" class="cm-input cm-code" placeholder="Código de sala..." data-i18n="codigo_placeholder" maxlength="4" autocomplete="off">
+                        <button id="btn-unirse-4" class="cm-secondary" data-i18n="play_join_btn">Unirse</button>
+                    </div>
+
+                    <div class="cm-live">
+                        <div class="cm-live-head">
+                            <span class="cm-live-dot" aria-hidden="true"></span>
+                            <span data-i18n="play_live_title">Abiertas ahora mismo</span>
+                        </div>
+                        <div class="cm-live-list" id="live-2">
+                            <table><tbody id="lista-partidas-publicas">
+                                <tr><td colspan="3" class="cm-live-empty" data-i18n="play_live_loading">Buscando partidas…</td></tr>
+                            </tbody></table>
+                        </div>
+                        <div class="cm-live-list hidden" id="live-4">
+                            <table><tbody id="lista-publicas-4">
+                                <tr><td colspan="3" class="cm-live-empty" data-i18n="play_live_loading">Buscando partidas…</td></tr>
+                            </tbody></table>
+                        </div>
+                    </div>
+                </section>
+
+                <p id="play-msg" class="cm-msg"></p>
             </div>
 
-            <!-- Vista B: sala de espera con los cuatro asientos -->
-            <div id="panel-4-espera" class="hidden">
-                <p style="margin: 0 0 6px 0; color: #d8dee9;"><span data-i18n="codigo_sala">Código de tu sala:</span></p>
-                <h2 id="txt-codigo-4" style="color: #ebcb8b; letter-spacing: 3px; font-size: 1.9em; margin: 4px 0 10px 0;"></h2>
-                <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 14px;">
-                    <button id="btn-share-copy-4" title="Copiar código" style="background-color: #4c566a; color: #eceff4; padding: 8px; border-radius: 6px; cursor: pointer; width: 42px; height: 42px; border: none; font-size: 1.1em;">📋</button>
-                    <button id="btn-share-wa-4" title="WhatsApp" style="background-color: #25D366; color: white; padding: 8px; border-radius: 6px; cursor: pointer; width: 42px; height: 42px; border: none; font-size: 1.3em;">💬</button>
+            <!-- Sala creada (1v1): código, compartir y espera -->
+            <div id="codigo-creado" class="hidden cm-wait">
+                <p class="cm-wait-label" data-i18n="codigo_sala">Código de tu sala:</p>
+                <h2 id="txt-codigo" class="cm-code-big"></h2>
+                <div class="cm-share">
+                    <button id="btn-share-copy" class="cm-icon-btn" title="Copiar enlace" data-i18n-title="share_copy">📋</button>
+                    <button id="btn-share-wa" class="cm-icon-btn" title="WhatsApp">💬</button>
+                    <button id="btn-share-api" class="cm-icon-btn" title="Compartir..." data-i18n-title="share_more">🔗</button>
                 </div>
-                <div id="asientos-espera-4" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;"></div>
-                <p id="espera-msg-4" class="anim-parpadeo" style="font-size: 0.95em; opacity: 0.85;" data-i18n="esperando_jugadores_4">Esperando jugadores…</p>
-                <button id="btn-cancelar-4" data-i18n="btn_volver_menu" style="margin-top: 6px; background-color: #bf616a; color: #eceff4; font-weight: bold; padding: 8px 14px; border-radius: 6px; border: none; cursor: pointer;">Volver al Menú</button>
+                <p class="cm-wait-msg anim-parpadeo" data-i18n="esperando_rival">Esperando a que se una el rival...</p>
+                <button id="btn-cancelar-1v1" class="cm-quiet" data-i18n="btn_volver_menu">Volver al Menú</button>
             </div>
 
-            <p id="msg-4" style="color: #bf616a; font-size: 0.9em; margin: 4px 0 0 0; font-weight: bold;"></p>
+            <!-- Sala creada (2v2): los cuatro asientos -->
+            <div id="panel-4-espera" class="hidden cm-wait">
+                <p class="cm-wait-label" data-i18n="codigo_sala">Código de tu sala:</p>
+                <h2 id="txt-codigo-4" class="cm-code-big"></h2>
+                <div class="cm-share">
+                    <button id="btn-share-copy-4" class="cm-icon-btn" title="Copiar código" data-i18n-title="share_copy_code">📋</button>
+                    <button id="btn-share-wa-4" class="cm-icon-btn" title="WhatsApp">💬</button>
+                </div>
+                <div id="asientos-espera-4" class="cm-seat-grid"></div>
+                <p id="espera-msg-4" class="cm-wait-msg anim-parpadeo" data-i18n="esperando_jugadores_4">Esperando jugadores…</p>
+                <button id="btn-cancelar-4" class="cm-quiet" data-i18n="btn_volver_menu">Volver al Menú</button>
+            </div>
         </div>
 
 
@@ -776,18 +966,20 @@
         </div>
     </div>
 
-    <script src="/static/app.js?=v9"></script>
-    <script src="/static/auth.js?=v4"></script>
+    <script src="/static/app.js?=v12"></script>
+    <script src="/static/auth.js?=v5"></script>
     <!-- Ventana de ajustes (idioma, cuenta). Carga tras auth.js: usa usuarioActual. -->
     <script src="/static/settings.js?=v2"></script>
-    <script src="/static/social.js?=v3"></script>
+    <script src="/static/social.js?=v4"></script>
     <!-- Soporte y avisos del administrador (Roadmap #13). Tras settings.js: se
          engancha a la ventana de ajustes y reutiliza su _post/_traducir. -->
     <script src="/static/soporte.js?=v1"></script>
-    <script src="/static/tutorial.js"></script>
+    <script src="/static/tutorial.js?=v2"></script>
     <!-- Mus 4 jugadores (Roadmap #6): app4 (lógica) + table4 (render). Cargan tras app.js para reusar socket/dict/t. -->
-    <script src="/static/table4.js?=v1"></script>
-    <script src="/static/app4.js?=v2"></script> </body>
-
+    <script src="/static/table4.js?=v2"></script>
+    <script src="/static/app4.js?=v3"></script>
+    <!-- Menú principal y ventana de Jugar. Va al final: usa dict/t/socket de
+         app.js y reengancha los paneles 2v2 que app4.js acaba de localizar. -->
+    <script src="/static/menu.js?=v1"></script>
 </body>
 </html>

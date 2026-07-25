@@ -1,5 +1,12 @@
 # Bot and AI
 
+> The next stage of the AI (2v2 bot, Deep CFR + RL layers, Nash-distance measurement,
+> log format v2, signs) is designed in [Bot-AI-4p-ML-Strategy](Bot-AI-4p-ML-Strategy.md)
+> with its execution plan in [Bot-AI-4p-Roadmap](Bot-AI-4p-Roadmap.md). Note: that
+> analysis (§3) found this page's claim that "networks are not reset between
+> iterations" to be inaccurate — `train_cfr.py` re-initializes the regret network every
+> iteration (only the strategy network trains continuously).
+
 The bot ("Bot IA" in game) is implemented in [bot_ml.py](../bot_ml.py) as the **`SmartBot`** class. Its intelligence has three parts, each solved differently:
 
 | Decision | Method |

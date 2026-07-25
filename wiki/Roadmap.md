@@ -190,7 +190,7 @@ TournamentMatches(id, tournament_id, round INTEGER, slot INTEGER, player1_id NUL
 
 ## 5. Special decks and deck-builder menu
 
-**Goal:** cosmetic (and later maybe rule-altering) card skins; players compose a custom deck by choosing which art each card uses.
+**Goal:** cosmetic card skins; players compose a custom deck by choosing which art each card uses.
 
 **Current mechanism:** card images resolve server-side in `crear_baraja()` via `obtener_ruta_imagen(f"card_{palo_en}_{valor:02d}")`. There are already hints of alternate skins in `mus_mecanicas.py` (comments `Oros_btc`, `Copas_pirate`).
 
@@ -253,6 +253,12 @@ game still fires `rival_desconectado` on drop; table/showdown render verified in
 ## 7. Bot for 4-player Mus
 
 **Depends on:** #6. **Do not block #6 on this.**
+
+> **Superseded (2026-07-25):** this item (together with #8 and the AI parts of #20) is
+> now planned in full detail in [Bot-AI-4p-ML-Strategy](Bot-AI-4p-ML-Strategy.md)
+> (analysis) and [Bot-AI-4p-Roadmap](Bot-AI-4p-Roadmap.md) (phased plan: P0 playable
+> heuristic bot → Deep CFR generations → exploitative/human layers → signs). The steps
+> below are kept as the original sketch.
 
 **Steps:**
 1. **Heuristic bot first (`SmartBot4` v1):** reuse the EV tables (`mus_data.json` probabilities are per-hand and remain valid approximations), the discard chooser, and simple betting rules (bet with top-X% hands, call by pot odds against hand percentile, órdago near 40). This is enough for a playable experience.

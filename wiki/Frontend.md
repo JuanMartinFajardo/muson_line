@@ -4,10 +4,10 @@ The frontend is a **single HTML page with vanilla JavaScript** — no framework,
 
 ## Screens (all in `index.html`, toggled with the `.hidden` class)
 
-1. **Menu / lobby (`#menu-screen`)** — user bar (login/signup, or greeting + friends), a ⚙ settings button fixed in the top-right corner where the EN/ES toggle used to be, logo, name input, "best of N" selector, public checkbox, buttons: *Create new game*, *Play vs bot*, *How to Play (Tutorial)*; join-by-code input; live **public games table**; leaderboard button; "About CallMus" (privacy) modal.
-2. **Game screen (`#game-screen`)** — opponent info + hidden cards, message/log area, own cards (clickable for discard selection), action buttons (deal / mus / cut / discard / pass / bid / raise / call / fold / órdago / pedrete), scores and match counters, recuento (results) panel with *Next round / Next game / Return to menu*. A permanent `✕` exit button (`.btn-salir-mesa`, fixed next to the fullscreen toggle) is available in every phase.
-3. **Modals** — login (with "forgot password?" + Google), signup (with email + Google), email verification code, password recovery (request + reset), leaderboard, privacy/about, settings.
-4. **Game overlays** (`.overlay-partida`, fixed and shared by both tables, outside `#modal-overlay` so they work over any screen) — `#overlay-salir` (confirm before leaving), `#overlay-abandono` (someone left: *wait for another player* / *leave as well*), `#overlay-espera-reemplazo` (looking for a substitute, with a countdown). The helpers `confirmarSalidaPartida()`, `mostrarAvisoAbandono()`, `mostrarEsperaReemplazo()` and `ocultarOverlaysPartida()` live in `app.js` and are reused verbatim by `app4.js`; both take optional text overrides so the 2v2 can name the vacant seat and how many players are still missing.
+1. **Menu / lobby (`#menu-screen`)** — redesigned (see [The menu and the Play window](#the-menu-and-the-play-window)): three fixed icon buttons in the top-right corner (👥 friends when logged in · ⚙ settings · ⛶ fullscreen), identity in the top-left corner (`#txt-user-stats` with a session, `#user-buttons` login/signup without one), logo, pinned announcements, one big **Jugar / Play** button, *How to play*, *My decks* (flagged unavailable), and a footer row with *Leaderboard*, *Ko-fi* and *About CallMus*. Everything about starting a game moved into the Play window.
+2. **Game screen (`#game-screen`)** — redesigned with the same visual language as the menu (see [The tables](#the-tables-1v1-and-2v2)): a *plate* per player (`.cm-plate-head`: suit mark, name, score and the won-games "piedras"), the message/log area, the four-lance score board (`.cm-botes`), the action buttons and your own cards (clickable for discard selection). The recuento (results) is written into `#game-log` and ends with *Next round / Next game / Return to menu*. A permanent `✕` exit button (`.btn-salir-mesa`, fixed next to the fullscreen toggle) and a `?` tutorial button (`.cm-mesa-btn`, top-left) are available in every phase.
+3. **Modals** — **Play (`#modal-play`)**, login (with "forgot password?" + Google), signup (with email + Google), email verification code, password recovery (request + reset), leaderboard, privacy/about, settings. The Play window, the leaderboard and about carry the class `.cm-win` and are styled by `static/menu.css`; the rest still use the old inline styles (the tutorial, reachable from the table with `?`, is the most visible one left).
+4. **Game overlays** (`.overlay-partida`, fixed and shared by both tables, outside `#modal-overlay` so they work over any screen; `game.css` gives them the same plate as the menu's windows — gold hairline crown, serif small-caps title, gold primary / red danger buttons) — `#overlay-salir` (confirm before leaving), `#overlay-abandono` (someone left: *wait for another player* / *leave as well*), `#overlay-espera-reemplazo` (looking for a substitute, with a countdown). The helpers `confirmarSalidaPartida()`, `mostrarAvisoAbandono()`, `mostrarEsperaReemplazo()` and `ocultarOverlaysPartida()` live in `app.js` and are reused verbatim by `app4.js`; both take optional text overrides so the 2v2 can name the vacant seat and how many players are still missing.
 
 ## `static/app.js` (~1500 lines) — main client
 
@@ -16,7 +16,10 @@ The frontend is a **single HTML page with vanilla JavaScript** — no framework,
 - **Socket.IO client:** `const socket = io({ closeOnBeforeunload: false })`. Emits `crear_sala`, `crear_partida_bot`, `unirse_sala`, `accion_juego`, `pedir_publicas`, `abandonar_sala_limpiamente`, `abandonar_partida`, `esperar_reemplazo`, `reanudar_partida`; listens for `sala_creada`, `iniciar_partida`, `actualizar_mesa`, `actualizar_publicas`, `error_sala`, `rival_desconectado`, `oponente_desconectado`/`oponente_reconectado`, `jugador_abandono`, `esperando_reemplazo`, `reemplazo_encontrado`.
 - **Rendering:** every `actualizar_mesa` payload repaints the whole table: cards, whose turn, phase banner, bet info (pending raise, pots, concessions), recuento steps, match score. Card selection for discards is tracked in `cartasSeleccionadas`.
 - **Sharing:** the waiting panel offers copy-link / WhatsApp / Web Share API buttons with a join URL containing the room code.
-- **Leaderboard:** each row shows the player's permanent code under the name; deleted accounts are not listed.
+- **Leaderboard:** rank · name · ELO · wins · win-rate, sortable by the last three. The permanent player code is **not** printed under the name any more: the name is a button (`.lb-name`) that swaps to `#CODE` for ~2.6 s when clicked (`mostrarCodigoJugador`). Deleted accounts are not listed.
+- **Menu messages:** `menuMensaje(texto, color)` writes to `#menu-msg` *and* `#play-msg`, because the Play window covers the menu while it is open.
+- **Escaping:** `escHtml()` guards every player-supplied string that goes into `innerHTML` (room creator in the public lists, leaderboard names, occupied seats, 2v2 seat names). Guests choose their own name, so it is untrusted input.
+- **Table helpers shared with the 2v2** (both live in `app.js`, section 4, and are called from `table4.js`): `htmlTanteador(apuestas, faseActual, dejeDe)` builds the four-lance board — the `dejeDe` callback exists because a concession is `gano_yo` in the 1v1 and `gano_mi_equipo` in the 2v2 — and `pintarPiedras(el, ganadas, alMejorDe)` draws one *piedra* (amarrako) per game needed to win the match, filling in gold the ones already won. `alMejorDeActual` keeps the last known best-of because the recuento payload does not always repeat it.
 
 ## `static/auth.js`
 
@@ -73,9 +76,83 @@ The link to `/admin` in the settings window only appears when `usuarioActual.is_
 
 An interactive step-by-step tutorial launched by the *How to Play* button: injected styles for card-zoom effects (hover on desktop, tap on mobile), staged explanations of the deck, lances, and betting. **Fully bilingual (ES/EN)** since Roadmap #2: slide content lives in a `dictTutorial` object keyed by the global `langActual` variable defined in `app.js` (single source of truth, persisted to `localStorage['callmus_lang']`); `getSlides()` / `getTutBtns()` return the active-language content, and a listener on `#btn-lang` re-renders the open tutorial when the language is toggled. Both `es` and `en` arrays keep the same slide count/order so the practice-slide skip logic (index 8) stays valid. The *How to Play* launcher button is translated via `data-i18n="btn_tutorial"` in `app.js`.
 
+## The menu and the Play window
+
+Rewritten in July 2026 (the "redesign the main menu" entry of [Home](Home.md)). Two new
+files own it — `static/menu.css` and `static/menu.js` — and they are loaded **last** so they
+can redefine the palette and re-point the 2v2 panels.
+
+**Design language ("midnight ink"):** near-black surfaces (`--cm-ink*`), 1 px hairlines
+instead of rounded boxes, serif small-caps for labels (`--cm-serif`), gold (`--cm-gold`) as
+the only accent, red only for errors — plus the four Spanish suits (oros, copas, espadas,
+bastos) hand-drawn as SVG `<symbol>`s at the top of `index.html` and reused with
+`<use href="#pinta-…">`. `menu.css` also **reassigns the old `--menu-*` variables**, so the
+windows that have not been redesigned inherit the new palette instead of clashing.
+
+**`#modal-play` — one window for every way of starting a game:**
+
+| Step | 1v1 | 2v2 |
+| :--- | :--- | :--- |
+| Name | `#nombre-jugador`, guests only (`#play-nombre`); with a session, "you will play as …" | same field |
+| 1 · table | `.cm-mode[data-modo="2"]` | `.cm-mode[data-modo="4"]` |
+| 2 · opponents | people · **bot** | four people · with bots *(soon)* · mixed *(soon)* |
+| 3 · details | best-of `#in-mejor-de`, public `#in-publico` | best-of `#in-mejor-de-4`, public `#in-publico-4`, signs *(soon)*, seat picker `#seat-picker-4` |
+| create | `#btn-crear` / `#btn-jugar-bot` | `#btn-crear-sala-4` |
+| join | `#in-codigo` + `#btn-unirse` + live list `#lista-partidas-publicas` | `#in-codigo-4` + `#btn-unirse-4` + `#lista-publicas-4` |
+| waiting | `#codigo-creado` (code + share + cancel) | `#panel-4-espera` (code + four seats) |
+
+`menu.js` **only decides what is visible** (`pintarPlay()`), keeps the summary line in sync
+and polls the list of the mode being looked at; every id was preserved, so `app.js` and
+`app4.js` still own creating and joining. Only one create button and one join block are
+visible at a time — that is why no event wiring had to move.
+
+**Unavailable features** are marked with `data-soon` plus a *Pronto/Soon* tag; a single
+capturing listener in `menu.js` turns any click on them into a floating explanation
+(`.cm-toast`, `avisar(clave)`): deck menu, 2v2 bots, mixed tables and signs.
+
+The 2v2 lost its own window: `#modal-4` no longer exists and `app4.js` points `modal4`,
+`panelSetup4` and `msg4` at `#modal-play`, `#play-setup` and `#play-msg`.
+
+## The tables (1v1 and 2v2)
+
+Both tables were redesigned to continue the menu's "midnight ink" language, and the look of
+**both** now lives in a single file, [static/game.css](../static/game.css). Two ideas are
+specific to the table:
+
+- **The plate** (`.cm-plate-head` in the 1v1, `.team-score` in the 2v2): suit mark, name in
+  serif small-caps, the score as a large serif number over a quiet `/40`, and the games won
+  as **piedras** — the amarrakos of the real game, one hollow circle per game needed for
+  the match, filled in gold as they are won (`pintarPiedras`). Oros marks you, espadas the
+  opponent; in the 2v2 team A is gold and team B steel (`--equipo-a` / `--equipo-b`).
+- **The lance board** (`.cm-botes`): Grande · Chica · Pares · Juego in four columns split by
+  hairlines, the lance in play in gold with a gold rule under it, and a concession shown as
+  `3⁺` / `3⁻`. It is built by `htmlTanteador()` and shared by the two tables. Above it,
+  `.cm-aire` shows the bet in the air and collapses to nothing when there is none (it used
+  to reserve 65 px of empty space).
+
+Whose turn it is is marked on the plate, not only in the banner: in the 1v1 the CSS reads
+`#mi-turno:not(.hidden) + #my-area` (the banners sit right before their plate in the HTML,
+so no JavaScript was needed); in the 2v2 the active seat's name turns gold with a hairline
+under it. Buttons follow one rule: the action that moves the game on (deal, discard, see,
+next round) is solid gold, everything else is a hairline, **órdago** is the only red thing
+on the table, and *back to menu* is a quiet outline. The bet amount is glued to its button
+(`2 | ENVIDAR`) so the number reads as part of the action.
+
+Two layout traps worth remembering: `#center-table` is a flex column with its own scroll,
+so its children need `flex: 0 0 auto` (otherwise the growing recuento text overlaps the
+board), and `mostrarBotones()` calls `scrollIntoView({block:'nearest'})` so the buttons
+cannot end up below the fold on short windows. The top band for the corner buttons is only
+reserved under 830 px wide, where the plate would actually reach them.
+
 ## `static/style.css`
 
-Nord color palette (`#2e3440` background, `#88c0d0`/`#a3be8c`/`#bf616a` accents), responsive layout, card fan styles, blinking-turn animation (`anim-parpadeo`). A lot of styling is also inline in `index.html` (candidate for cleanup).
+Shared skeleton: the responsive layout of both screens, the card fan, the `parpadeo`
+keyframes and the old windows' theme. It no longer styles the tables — that block moved to
+`game.css`, and `style4.css` was reduced to the 2v2 grid, sizes and animations. Its "TAPETE
+PREMIUM" block only reaches the **old** windows now: it used to target `div[id^="modal-"]`,
+which also matches `#modal-overlay` and therefore leaked `!important` colours into
+everything inside it, so the affected windows are listed explicitly. A lot of styling is
+still inline in `index.html` (candidate for cleanup).
 
 ## Assets
 
@@ -87,4 +164,8 @@ Nord color palette (`#2e3440` background, `#88c0d0`/`#a3be8c`/`#bf616a` accents)
 
 - Add every user-visible string to **both** `dict.es` and `dict.en` and reference it with `t()` / `data-i18n`.
 - Server → client messages that need localization must be sent as `{code, ...params}` objects, never pre-rendered text.
-- New screens follow the `.screen` + `.hidden` toggle pattern; new modals follow the existing `modal-*` pattern with `cerrarModales()`.
+- New screens follow the `.screen` + `.hidden` toggle pattern; new modals follow the existing `modal-*` pattern with `cerrarModales()` (add the new id there and to the hide lists in `social.js` / `tutorial.js`).
+- Menu-side work goes in `menu.css` / `menu.js` with the `.cm-` prefix and the tokens of the "midnight ink" palette — no new hard-coded hex values, no inline `style=""`. Table-side work goes in `game.css` under the same rules; keep `style.css` / `style4.css` for layout only, so there is one place per screen that decides how it looks.
+- Anything the two tables show the same way (the lance board, the piedras) belongs in a helper in `app.js` that `table4.js` calls, not copied into both.
+- A feature that is not ready yet gets a visible `data-soon` marker and a reason in `MOTIVOS` (`menu.js`), never a hidden or dead button.
+- Bump the `?=vN` query string of any `static/` file you change in `index.html`: browsers cache them and stale JS is very confusing to debug.

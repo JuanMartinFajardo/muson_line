@@ -76,38 +76,23 @@ let prevPayload4 = null;
 let estadoActual4 = null;
 let timerInterval4 = null;
 
-const modal4 = document.getElementById('modal-4');
-const panelSetup4 = document.getElementById('panel-4-setup');
+// El 2v2 ya no tiene ventana propia: vive dentro de la ventana de Jugar
+// (#modal-play), que abre y pinta menu.js. Aquí sólo apuntamos a sus paneles.
+const modal4 = document.getElementById('modal-play');
+const panelSetup4 = document.getElementById('play-setup');
 const panelEspera4 = document.getElementById('panel-4-espera');
-const msg4 = document.getElementById('msg-4');
+const msg4 = document.getElementById('play-msg');
 
 function nombre4() {
-    const el = document.getElementById('nombre-jugador-4');
-    let n = el && el.value.trim();
-    if (!n) n = (document.getElementById('nombre-jugador') || {}).value;
+    // Con sesión iniciada, auth.js deja el nombre de usuario en #nombre-jugador.
+    let n = (document.getElementById('nombre-jugador') || {}).value;
     if (!n) n = localStorage.getItem('callmus_nombre') || '';
     return (n || '').trim();
 }
 
 // ==========================================
-// 3. Menú → modal de creación/unión
+// 3. Selector de asiento (dentro de la ventana de Jugar)
 // ==========================================
-function abrirModal4() {
-    if (typeof modalOverlay !== 'undefined') {
-        modalOverlay.style.display = 'flex';
-        modalOverlay.classList.remove('hidden');
-        modalOverlay.querySelectorAll(':scope > div').forEach(d => d.classList.add('hidden'));
-    }
-    panelSetup4.classList.remove('hidden');
-    panelEspera4.classList.add('hidden');
-    modal4.classList.remove('hidden');
-    msg4.innerText = '';
-    const nEl = document.getElementById('nombre-jugador-4');
-    if (nEl && !nEl.value) nEl.value = localStorage.getItem('callmus_nombre') || '';
-    renderSeatPicker4();
-}
-
-document.getElementById('btn-crear-4').addEventListener('click', abrirModal4);
 
 function renderSeatPicker4() {
     const cont = document.getElementById('seat-picker-4');
@@ -117,7 +102,7 @@ function renderSeatPicker4() {
         const eq = (s === 0 || s === 2) ? 'A' : 'B';
         const btn = document.createElement('button');
         btn.className = 'seat-pick-btn equipo-' + eq + (s === asientoElegido4 ? ' selected' : '');
-        btn.innerHTML = `${t_dinamico('seat_pick_n', { n: s })}<br><small>${t('equipo_' + eq.toLowerCase())}</small>`;
+        btn.innerHTML = `${t_dinamico('seat_pick_n', { n: s })}<small>${t('equipo_' + eq.toLowerCase())}</small>`;
         btn.onclick = () => { asientoElegido4 = s; renderSeatPicker4(); };
         cont.appendChild(btn);
     }
@@ -143,7 +128,7 @@ document.getElementById('btn-unirse-4').addEventListener('click', () => {
     const nombre = nombre4();
     if (!nombre) { msg4.innerText = t('msg_inserta_nombre'); return; }
     const cod = document.getElementById('in-codigo-4').value.trim().toUpperCase();
-    if (!cod) { msg4.innerText = '...'; return; }
+    if (!cod) { msg4.innerText = t('msg_escribe_codigo'); return; }
     localStorage.setItem('callmus_nombre', nombre);
     socket.emit('unirse_sala_4', { nombre, codigo: cod });
 });
@@ -156,6 +141,7 @@ socket.on('sala_creada_4', (d) => {
     panelSetup4.classList.add('hidden');
     panelEspera4.classList.remove('hidden');
     document.getElementById('txt-codigo-4').innerText = d.codigo;
+    if (typeof marcarEsperaPlay === 'function') marcarEsperaPlay(true);
     msg4.innerText = '';
 });
 
@@ -167,7 +153,7 @@ socket.on('actualizar_publicas_4', (lista) => {
     if (!tbody) return;
     tbody.innerHTML = '';
     if (!lista.length) {
-        tbody.innerHTML = `<tr><td colspan="3" style="padding:10px;opacity:0.7;">${t('msg_no_publicas')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="2" class="cm-live-empty">${t('msg_no_publicas')}</td></tr>`;
         return;
     }
     lista.forEach(p => {
@@ -175,20 +161,22 @@ socket.on('actualizar_publicas_4', (lista) => {
 
         // Partida EN CURSO con asientos libres: se marca y se muestra el marcador.
         let etiqueta = '';
-        let columnaMedia = `${p.ocupados}/4`;
+        let meta = t_dinamico('live_asientos', { n: p.ocupados });
         if (p.en_curso) {
             tr.className = 'fila-en-curso';
             etiqueta = `<span class="badge-en-curso">${t('txt_en_curso')}</span>`;
             if (p.puntos) {
-                columnaMedia += `<br><small style="opacity:0.75;">${t('txt_marcador')} ${p.puntos.A}-${p.puntos.B}</small>`;
+                meta += ` · ${t('txt_marcador')} ${p.puntos.A}-${p.puntos.B}`;
             }
         }
 
         tr.innerHTML = `
-            <td style="padding:6px;border-bottom:1px solid #4c566a;color:#ebcb8b;">${p.creador}${etiqueta}</td>
-            <td style="padding:6px;border-bottom:1px solid #4c566a;">${columnaMedia}</td>
-            <td style="padding:6px;border-bottom:1px solid #4c566a;">
-                <button class="btn-unirse-publica-4" data-codigo="${p.codigo}" style="padding:4px 10px;font-size:0.8em;background:#81a1c1;color:#2e3440;border-radius:4px;border:none;font-weight:bold;cursor:pointer;">${t('btn_unirse_publica')}</button>
+            <td>
+                <span class="cm-live-name">${escHtml(p.creador)}</span>${etiqueta}
+                <span class="cm-live-meta">${meta}</span>
+            </td>
+            <td class="cm-live-cell-act">
+                <button class="btn-unirse-publica-4 cm-live-join" data-codigo="${p.codigo}">${t('btn_unirse_publica')}</button>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -213,7 +201,7 @@ socket.on('estado_espera_4', (d) => {
             div.className = 'seat-espera equipo-' + a.equipo + (a.ocupado ? ' ocupado' : '');
             const teamCls = a.equipo === 'A' ? 'seat-team-a' : 'seat-team-b';
             div.innerHTML = `<span class="${teamCls}">${t_dinamico('seat_pick_n', { n: a.asiento })}</span>
-                <small>${a.ocupado ? (a.nombre || '—') : t('seat_libre')} · ${t('equipo_' + a.equipo.toLowerCase())}</small>`;
+                <small>${a.ocupado ? escHtml(a.nombre || '—') : t('seat_libre')} · ${t('equipo_' + a.equipo.toLowerCase())}</small>`;
             cont.appendChild(div);
         });
         const ocupados = d.asientos.filter(a => a.ocupado).length;
@@ -565,5 +553,5 @@ socket.on('connect', () => {
     }
 });
 
-// Pedimos la lista pública 4p al abrir el modal periódicamente.
-setInterval(() => { if (!modal4.classList.contains('hidden')) socket.emit('pedir_publicas_4'); }, 4000);
+// El sondeo de la lista pública lo lleva menu.js, que sabe qué modo (1v1 o 2v2)
+// está mirando el jugador y sólo pide la lista que se está viendo.

@@ -1,0 +1,889 @@
+/* ============================================================================
+   menu.css — Menú principal, ventana de Jugar, clasificación y "Acerca de".
+   Se carga DESPUÉS de style.css y style4.css.
+
+   Idea de diseño ("tinta de medianoche"): fondo casi negro, tipografía con
+   serifa en versalitas, filetes de 1px en vez de cajas redondeadas y las
+   cuatro pintas de la baraja española (dibujadas en SVG en index.html) como
+   única ornamentación. Nada de degradados de colores ni sombras de colores:
+   el único acento es el oro, y el rojo queda para los errores.
+
+   Convenio: todo lo nuevo lleva el prefijo .cm-  (CallMus menu).
+   ========================================================================== */
+
+:root {
+    /* Paleta nueva */
+    --cm-ink: #0B0C0E;          /* fondo de página            */
+    --cm-ink-2: #101216;        /* ventanas                   */
+    --cm-ink-3: #15181D;        /* campos y celdas hundidas   */
+    --cm-hair: rgba(237, 233, 220, 0.11);   /* filete normal  */
+    --cm-hair-2: rgba(237, 233, 220, 0.20); /* filete marcado */
+    --cm-bone: #EDE9DC;         /* texto principal            */
+    --cm-dim: #918E84;          /* texto secundario           */
+    --cm-dim-2: #6B6862;        /* texto terciario            */
+    --cm-gold: #C9A227;         /* acento                     */
+    --cm-gold-hi: #E3BE45;      /* acento iluminado           */
+    --cm-red: #C2352E;          /* errores (el rojo del logo) */
+    --cm-live: #8FA76B;         /* "hay algo en marcha"       */
+    --cm-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia,
+                'Times New Roman', serif;
+
+    /* Reasignamos las variables antiguas para que las ventanas que todavía no
+       se han rediseñado (ajustes, amigos, login) hereden la paleta nueva. */
+    --bg-color: #0B0C0E;
+    --menu-panel-bg: #101216;
+    --menu-border: #21242B;
+    --btn-primary-bg: #C9A227;
+    --btn-primary-text: #0B0C0E;
+    --btn-secondary-bg: #191C22;
+    --text-bone: #EDE9DC;
+    --input-bg: #15181D;
+    --input-placeholder: rgba(237, 233, 220, 0.35);
+    --error-color: #C2352E;
+
+    /* Equipos del 2v2: en el menú el oro eres tú, el acero son los rivales. */
+    --equipo-a: #C9A227;
+    --equipo-b: #7C93B8;
+}
+
+/* El sprite de las pintas no debe ocupar sitio. */
+.cm-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.pinta {
+    width: 16px; height: 16px; flex: 0 0 auto;
+    fill: none; stroke: currentColor; stroke-width: 1.6;
+    stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* style.css da a TODOS los botones un margin de 5px y un azul Nord; aquí
+   partimos de cero para los componentes nuevos. */
+.cm-icon-btn, .cm-link, .cm-play, .cm-row, .cm-minor-item, .cm-mode, .cm-opt,
+.cm-primary, .cm-secondary, .cm-quiet, .cm-step-btn, .cm-close, .lb-name,
+.cm-live-join {
+    margin: 0;
+    font-family: inherit;
+    background: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================================
+   1. Esquinas fijas: amigos · ajustes · pantalla completa
+   ============================================================ */
+
+.cm-corner { position: fixed; top: 15px; z-index: 1000; display: flex; }
+
+.cm-icon-btn {
+    position: relative;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; padding: 0;
+    background: rgba(237, 233, 220, 0.03);
+    border: 1px solid var(--cm-hair-2);
+    border-radius: 2px;
+    color: var(--cm-bone);
+    font-size: 1.05rem; line-height: 1;
+    cursor: pointer;
+    transition: border-color .2s, color .2s, background .2s;
+}
+.cm-icon-btn:hover {
+    background: rgba(201, 162, 39, 0.09);
+    border-color: var(--cm-gold);
+    color: var(--cm-gold-hi);
+}
+#btn-amigos .pinta { width: 17px; height: 17px; }
+
+.cm-badge {
+    position: absolute; top: -7px; right: -7px;
+    min-width: 17px; height: 17px; padding: 0 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--cm-red); color: #fff;
+    border-radius: 9px;
+    font-size: 0.62rem; font-weight: bold;
+}
+
+/* ============================================================
+   2. Identidad (arriba a la izquierda)
+   ============================================================ */
+
+.cm-top {
+    position: fixed; top: 15px; left: 16px; z-index: 999;
+    display: flex; align-items: center; gap: 12px; height: 34px;
+}
+.cm-whoami {
+    font-family: var(--cm-serif);
+    font-size: 0.92rem; letter-spacing: 0.1em;
+    color: var(--cm-gold);
+}
+.cm-whoami:empty { display: none; }
+.cm-auth { display: flex; align-items: center; gap: 9px; }
+.cm-link {
+    padding: 4px 0; border: 0;
+    color: var(--cm-dim);
+    font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
+    cursor: pointer; transition: color .2s;
+}
+.cm-link:hover { color: var(--cm-bone); }
+.cm-dot { color: var(--cm-dim-2); }
+
+/* ============================================================
+   3. Columna del menú
+   ============================================================ */
+
+.cm-menu {
+    flex-shrink: 0;
+    width: 100%; max-width: 420px;
+    margin: 0 auto;
+    display: flex; flex-direction: column;
+    text-align: left;
+}
+
+.cm-logo {
+    display: block;
+    width: 215px; max-width: 62%;
+    height: auto;
+    margin: 34px auto 0;
+    /* El logo trae fondo negro: con "lighten" desaparece sobre la página. */
+    mix-blend-mode: lighten;
+}
+
+/* Filete con las pintas centradas */
+.cm-rule {
+    display: flex; align-items: center; gap: 14px;
+    margin: 20px 0 18px;
+    color: var(--cm-dim-2);
+}
+.cm-rule::before, .cm-rule::after {
+    content: ""; flex: 1; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cm-hair-2), transparent);
+}
+.cm-rule-thin { margin: 14px 0 6px; }
+.cm-rule-thin::before, .cm-rule-thin::after {
+    background: linear-gradient(90deg, transparent, var(--cm-hair), transparent);
+}
+.cm-orn { display: inline-flex; align-items: center; gap: 11px; }
+.cm-orn .pinta { width: 14px; height: 14px; }
+.cm-orn .pinta:nth-child(3) { color: var(--cm-gold); }
+
+#anuncios-fijados:not(:empty) { margin: 4px 0 16px; }
+#menu-screen .anuncio-fijado {
+    background: rgba(201, 162, 39, 0.05);
+    border: 1px solid var(--cm-hair);
+    border-left: 2px solid var(--cm-gold);
+    border-radius: 2px;
+}
+#menu-screen .anuncio-fijado h4 { color: var(--cm-gold); letter-spacing: 0.04em; }
+#menu-screen .anuncio-fijado p { color: var(--cm-dim); }
+#menu-screen .anuncio-fijado.mantenimiento {
+    background: rgba(194, 53, 46, 0.08);
+    border-left-color: var(--cm-red);
+}
+#menu-screen .anuncio-fijado.mantenimiento h4 { color: var(--cm-red); }
+
+/* --- Botón grande de Jugar --- */
+.cm-play {
+    position: relative;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    width: 100%; padding: 20px 22px 20px 26px;
+    background: linear-gradient(180deg, rgba(201, 162, 39, 0.10), rgba(201, 162, 39, 0.02));
+    border: 1px solid rgba(201, 162, 39, 0.38);
+    border-radius: 2px;
+    color: var(--cm-bone); text-align: left; cursor: pointer;
+    transition: background .25s, border-color .25s;
+}
+.cm-play::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--cm-gold);
+    transition: width .25s;
+}
+.cm-play:hover {
+    background: linear-gradient(180deg, rgba(201, 162, 39, 0.18), rgba(201, 162, 39, 0.05));
+    border-color: var(--cm-gold);
+}
+.cm-play:hover::before { width: 6px; }
+.cm-play:hover .cm-play-arrow { transform: translateX(5px); }
+.cm-play-label {
+    display: block;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 1.6rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--cm-gold-hi);
+}
+.cm-play-sub {
+    display: block; margin-top: 6px;
+    font-size: 0.74rem; letter-spacing: 0.07em;
+    color: var(--cm-dim);
+}
+.cm-play-arrow {
+    font-size: 1.25rem; color: var(--cm-gold);
+    transition: transform .25s;
+}
+
+/* --- Filas secundarias (tutorial, barajas) --- */
+.cm-list { display: flex; flex-direction: column; margin-top: 20px; }
+.cm-row {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%; padding: 16px 4px;
+    border: 0; border-bottom: 1px solid var(--cm-hair);
+    color: var(--cm-bone); text-align: left; cursor: pointer;
+    transition: background .2s;
+}
+.cm-list .cm-row:first-child { border-top: 1px solid var(--cm-hair); }
+.cm-row .pinta { color: var(--cm-dim); transition: color .2s, transform .3s; }
+.cm-row-label {
+    font-family: var(--cm-serif);
+    font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.cm-row:hover { background: rgba(237, 233, 220, 0.03); }
+.cm-row:hover .pinta { color: var(--cm-gold); transform: rotate(-9deg); }
+
+.cm-tag {
+    margin-left: auto;
+    padding: 3px 7px;
+    border: 1px solid var(--cm-hair-2); border-radius: 1px;
+    color: var(--cm-dim-2);
+    font-style: normal; font-size: 0.58rem;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    white-space: nowrap;
+}
+.is-soon { cursor: not-allowed; }
+.cm-row.is-soon .cm-row-label { color: var(--cm-dim); }
+.cm-row.is-soon:hover .pinta { color: var(--cm-dim); transform: none; }
+
+/* --- Fila menor: clasificación · ko-fi · acerca de --- */
+.cm-minor {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 2px 20px;
+}
+.cm-minor-item {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 2px; border: 0;
+    color: var(--cm-dim); text-decoration: none;
+    font-size: 0.72rem; letter-spacing: 0.11em; text-transform: uppercase;
+    cursor: pointer; transition: color .2s;
+}
+.cm-minor-item .pinta { width: 13px; height: 13px; }
+.cm-minor-item:hover { color: var(--cm-bone); }
+#btn-kofi:hover { color: #D97C74; }
+.cm-heart { color: var(--cm-red); font-size: 0.95rem; line-height: 1; }
+
+.cm-msg {
+    min-height: 1.2em; margin: 16px 0 0;
+    color: var(--cm-red);
+    font-size: 0.82rem; text-align: center;
+}
+
+/* ============================================================
+   4. Ventanas (Jugar, Clasificación, Acerca de)
+   ============================================================ */
+
+/* El velo de los modales lo pinta un style="" en index.html: hay que ganarle.
+   El z-index sube por encima de los botones de las esquinas (1000) para que no
+   se cuelen sobre la ventana abierta. */
+#modal-overlay {
+    background: rgba(5, 6, 8, 0.82) !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    z-index: 1200 !important;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+.cm-win {
+    position: relative;
+    width: 480px; max-width: 100%; max-height: 92vh;
+    display: flex; flex-direction: column;
+    background: var(--cm-ink-2);
+    border: 1px solid var(--cm-hair-2);
+    border-radius: 2px;
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.75);
+    color: var(--cm-bone);
+    text-align: left;
+}
+.cm-win-wide { width: 560px; }
+/* Filete de oro que corona la ventana */
+.cm-win::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cm-gold), transparent);
+    opacity: 0.75;
+}
+
+.cm-close {
+    position: absolute; top: 8px; right: 10px;
+    width: 30px; height: 30px; padding: 0;
+    border: 0; border-radius: 2px;
+    color: var(--cm-dim);
+    font-size: 1.5rem; font-weight: 400; line-height: 1;
+    cursor: pointer; transition: color .2s;
+}
+.cm-close:hover { color: var(--cm-red); }
+
+.cm-win-head { padding: 24px 26px 16px; border-bottom: 1px solid var(--cm-hair); }
+.cm-win-title {
+    margin: 0;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 1.45rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--cm-bone);
+}
+.cm-win-sub {
+    margin: 8px 0 0;
+    font-size: 0.74rem; letter-spacing: 0.08em;
+    color: var(--cm-dim);
+}
+.cm-win-body { padding: 6px 26px 24px; overflow-y: auto; }
+
+/* --- Pasos --- */
+.cm-step { margin-top: 24px; }
+.cm-step-title {
+    display: flex; align-items: center; gap: 11px;
+    margin: 0 0 13px;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--cm-dim);
+}
+.cm-step-title::after {
+    content: ""; flex: 1; height: 1px; background: var(--cm-hair);
+}
+.cm-num {
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 21px; height: 21px;
+    border: 1px solid var(--cm-hair-2); border-radius: 50%;
+    color: var(--cm-gold);
+    font-style: normal; font-size: 0.68rem; letter-spacing: 0;
+}
+.cm-step-plain { color: var(--cm-bone); }
+
+/* --- Nombre del jugador --- */
+.cm-field { padding-top: 18px; }
+.cm-label {
+    display: block; margin-bottom: 7px;
+    font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--cm-dim);
+}
+.cm-input {
+    display: block; width: 100%; margin: 0;
+    padding: 11px 12px;
+    background: var(--cm-ink-3);
+    border: 1px solid var(--cm-hair-2); border-radius: 2px;
+    color: var(--cm-bone); font-size: 0.95rem;
+    box-sizing: border-box;
+}
+.cm-input:focus { outline: none; border-color: var(--cm-gold); }
+.cm-input::placeholder { color: rgba(237, 233, 220, 0.3); }
+.cm-como {
+    margin: 16px 0 0;
+    font-size: 0.78rem; color: var(--cm-dim);
+}
+.cm-como b { color: var(--cm-gold); font-weight: 600; }
+
+/* --- Paso 1: la mesa --- */
+.cm-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cm-mode {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 15px 10px 13px;
+    background: var(--cm-ink-3);
+    border: 1px solid var(--cm-hair); border-radius: 2px;
+    cursor: pointer; transition: border-color .2s, background .2s;
+}
+.cm-mode b {
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.98rem; letter-spacing: 0.1em;
+    color: var(--cm-bone);
+}
+.cm-mode small {
+    margin-top: 4px;
+    font-size: 0.68rem; line-height: 1.35; text-align: center;
+    color: var(--cm-dim);
+}
+.cm-mode:hover { border-color: var(--cm-hair-2); }
+.cm-mode.is-on {
+    border-color: rgba(201, 162, 39, 0.55);
+    background: rgba(201, 162, 39, 0.06);
+}
+.cm-mode.is-on b { color: var(--cm-gold-hi); }
+
+.cm-diagram { width: 66px; height: 48px; margin-bottom: 8px; transition: opacity .2s; }
+.cm-mode:not(.is-on) .cm-diagram { opacity: 0.5; }
+.d-table { fill: none; stroke: var(--cm-hair-2); stroke-width: 1.2; }
+.d-you { fill: var(--cm-gold); }
+.d-mate { fill: none; stroke: var(--cm-gold); stroke-width: 1.4; }
+.d-rival { fill: none; stroke: var(--cm-dim); stroke-width: 1.4; }
+.d-link {
+    fill: none; stroke: var(--cm-gold); stroke-width: 1;
+    stroke-dasharray: 2 3; opacity: 0.55;
+}
+
+/* --- Paso 2: los rivales --- */
+.cm-opts { display: flex; flex-direction: column; gap: 8px; }
+.cm-opt {
+    position: relative;
+    display: block; padding: 13px 14px 13px 39px;
+    background: var(--cm-ink-3);
+    border: 1px solid var(--cm-hair); border-radius: 2px;
+    text-align: left; cursor: pointer;
+    transition: border-color .2s, background .2s;
+}
+.cm-opt::before {
+    content: ""; position: absolute; left: 14px; top: 16px;
+    width: 11px; height: 11px;
+    border: 1px solid var(--cm-hair-2); border-radius: 50%;
+    transition: .2s;
+}
+.cm-opt.is-on::before {
+    border-color: var(--cm-gold);
+    background: var(--cm-gold);
+    box-shadow: inset 0 0 0 2px var(--cm-ink-3);
+}
+.cm-opt b {
+    display: block;
+    font-size: 0.88rem; font-weight: 600; letter-spacing: 0.03em;
+    color: var(--cm-bone);
+}
+.cm-opt small {
+    display: block; margin-top: 3px;
+    font-size: 0.72rem; color: var(--cm-dim);
+}
+.cm-opt:hover { border-color: var(--cm-hair-2); }
+.cm-opt.is-on {
+    border-color: rgba(201, 162, 39, 0.5);
+    background: rgba(201, 162, 39, 0.05);
+}
+.cm-opt.is-soon b { color: var(--cm-dim); }
+.cm-opt.is-soon::before { opacity: 0.35; }
+.cm-opt.is-soon:hover { border-color: var(--cm-hair); }
+.cm-opt .cm-tag { position: absolute; top: 14px; right: 12px; margin: 0; }
+
+/* --- Paso 3: los detalles --- */
+.cm-set {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 2px;
+    border-bottom: 1px solid var(--cm-hair);
+}
+.cm-set-label { font-size: 0.85rem; color: var(--cm-bone); }
+.cm-set-unit { font-size: 0.7rem; letter-spacing: 0.06em; color: var(--cm-dim); }
+.cm-stepper {
+    margin-left: auto;
+    display: inline-flex; align-items: center;
+    border: 1px solid var(--cm-hair-2); border-radius: 2px;
+    overflow: hidden;
+}
+.cm-step-btn {
+    width: 31px; height: 31px; padding: 0; border: 0;
+    background: rgba(237, 233, 220, 0.04);
+    color: var(--cm-bone); font-size: 1rem; line-height: 1;
+    cursor: pointer; transition: .15s;
+}
+.cm-step-btn:hover { background: rgba(201, 162, 39, 0.16); color: var(--cm-gold-hi); }
+.cm-stepper input {
+    width: 46px; height: 31px; margin: 0; padding: 0;
+    background: var(--cm-ink-3);
+    border: 0;
+    border-left: 1px solid var(--cm-hair);
+    border-right: 1px solid var(--cm-hair);
+    border-radius: 0;
+    color: var(--cm-bone); text-align: center;
+    font-family: var(--cm-serif); font-size: 1.05rem;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+.cm-stepper input::-webkit-outer-spin-button,
+.cm-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.cm-switch {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 2px;
+    border-bottom: 1px solid var(--cm-hair);
+    cursor: pointer;
+}
+.cm-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cm-switch-box {
+    flex: 0 0 auto; position: relative;
+    width: 16px; height: 16px;
+    border: 1px solid var(--cm-hair-2); border-radius: 2px;
+    transition: .2s;
+}
+.cm-switch input:checked + .cm-switch-box {
+    border-color: var(--cm-gold);
+    background: rgba(201, 162, 39, 0.14);
+}
+.cm-switch input:checked + .cm-switch-box::after {
+    content: ""; position: absolute; left: 4px; top: 1px;
+    width: 5px; height: 9px;
+    border: solid var(--cm-gold); border-width: 0 1.6px 1.6px 0;
+    transform: rotate(40deg);
+}
+.cm-switch-txt b {
+    display: block;
+    font-size: 0.85rem; font-weight: 600; color: var(--cm-bone);
+}
+.cm-switch-txt small {
+    display: block; margin-top: 2px;
+    font-size: 0.72rem; color: var(--cm-dim);
+}
+.cm-switch.is-soon .cm-switch-txt b { color: var(--cm-dim); }
+.cm-switch.is-soon .cm-switch-box { opacity: 0.4; }
+
+/* Asientos del 2v2 (el HTML lo genera app4.js con .seat-pick-btn) */
+.cm-seats { padding: 16px 0 2px; }
+.cm-seat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 11px; }
+#modal-play .seat-pick-btn,
+#modal-play .seat-espera {
+    padding: 11px 8px;
+    background: var(--cm-ink-3);
+    border: 1px solid var(--cm-hair);
+    border-left: 3px solid var(--cm-hair-2);
+    border-radius: 2px;
+    color: var(--cm-bone);
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.86rem; letter-spacing: 0.08em;
+    text-align: left; margin: 0;
+    transition: .2s;
+}
+#modal-play .seat-pick-btn.equipo-A,
+#modal-play .seat-espera.equipo-A { border-left-color: var(--equipo-a); }
+#modal-play .seat-pick-btn.equipo-B,
+#modal-play .seat-espera.equipo-B { border-left-color: var(--equipo-b); }
+#modal-play .seat-pick-btn small,
+#modal-play .seat-espera small {
+    display: block; margin-top: 3px;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    font-size: 0.68rem; letter-spacing: 0.04em;
+    color: var(--cm-dim); opacity: 1;
+}
+#modal-play .seat-pick-btn:hover { border-color: var(--cm-hair-2); }
+#modal-play .seat-pick-btn.selected {
+    background: rgba(201, 162, 39, 0.10);
+    border-color: rgba(201, 162, 39, 0.45);
+    color: var(--cm-gold-hi);
+}
+#modal-play .seat-espera.ocupado { background: rgba(237, 233, 220, 0.05); }
+#modal-play .seat-espera .seat-team-a { color: var(--equipo-a); }
+#modal-play .seat-espera .seat-team-b { color: var(--equipo-b); }
+
+.cm-note {
+    margin: 11px 0 0;
+    font-size: 0.71rem; line-height: 1.55;
+    color: var(--cm-dim);
+}
+
+/* --- Acción principal --- */
+.cm-action { margin-top: 26px; }
+.cm-summary {
+    margin: 0 0 11px;
+    font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cm-dim-2); text-align: center;
+}
+.cm-summary b { color: var(--cm-gold); font-weight: 600; }
+.cm-primary {
+    display: block; width: 100%; padding: 15px;
+    background: var(--cm-gold);
+    border: 1px solid var(--cm-gold); border-radius: 2px;
+    color: #0B0C0E;
+    font-family: var(--cm-serif);
+    font-size: 1rem; letter-spacing: 0.2em; text-transform: uppercase;
+    cursor: pointer; transition: background .2s;
+}
+.cm-primary:hover { background: var(--cm-gold-hi); }
+.cm-primary:disabled { opacity: 0.4; cursor: default; }
+
+/* --- Unirse --- */
+.cm-join { display: flex; gap: 8px; margin-bottom: 15px; }
+.cm-code {
+    flex: 1; min-width: 0;
+    text-align: center; text-transform: uppercase;
+    font-family: var(--cm-serif);
+    font-size: 1.1rem; letter-spacing: 0.3em; text-indent: 0.3em;
+}
+/* El hueco vacío pide un texto normal: con la letra espaciada del código
+   ("A B C D") la pista se lee fatal y desborda. */
+.cm-code::placeholder {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    font-size: 0.82rem; letter-spacing: 0.06em; text-transform: none;
+}
+.cm-secondary {
+    flex: 0 0 auto;
+    padding: 11px 18px;
+    border: 1px solid var(--cm-hair-2); border-radius: 2px;
+    color: var(--cm-bone);
+    font-size: 0.74rem; letter-spacing: 0.14em; text-transform: uppercase;
+    cursor: pointer; transition: .2s;
+}
+.cm-secondary:hover { border-color: var(--cm-gold); color: var(--cm-gold-hi); }
+.cm-secondary:disabled { opacity: 0.4; cursor: default; }
+
+.cm-live {
+    border: 1px solid var(--cm-hair); border-radius: 2px;
+    background: rgba(0, 0, 0, 0.25);
+}
+.cm-live-head {
+    display: flex; align-items: center; gap: 9px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--cm-hair);
+    font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--cm-dim);
+}
+.cm-live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--cm-live);
+    box-shadow: 0 0 0 3px rgba(143, 167, 107, 0.15);
+    animation: cm-latido 2.4s ease-in-out infinite;
+}
+@keyframes cm-latido { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.cm-live-list { max-height: 172px; overflow-y: auto; }
+.cm-live-list table { width: 100%; border-collapse: collapse; }
+.cm-live-list td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--cm-hair);
+    font-size: 0.82rem; vertical-align: middle;
+}
+.cm-live-list tr:last-child td { border-bottom: 0; }
+.cm-live-list .cm-live-empty {
+    padding: 18px 12px; text-align: center;
+    font-size: 0.76rem; color: var(--cm-dim-2);
+}
+.cm-live-name { color: var(--cm-bone); }
+.cm-live-meta {
+    display: block; margin-top: 3px;
+    font-size: 0.68rem; letter-spacing: 0.04em; color: var(--cm-dim-2);
+}
+.cm-live-cell-act { text-align: right; width: 1%; }
+.cm-live-join {
+    padding: 6px 12px;
+    border: 1px solid var(--cm-hair-2); border-radius: 2px;
+    color: var(--cm-bone);
+    font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; transition: .2s;
+}
+.cm-live-join:hover { border-color: var(--cm-gold); color: var(--cm-gold-hi); }
+.cm-live-join.es-mia { border-color: rgba(201, 162, 39, 0.5); color: var(--cm-gold); }
+#modal-play .fila-en-curso td { background: rgba(201, 162, 39, 0.045); }
+#modal-play .badge-en-curso,
+.cm-live-list .badge-en-curso {
+    display: inline-block; margin-left: 8px; padding: 2px 6px;
+    background: none;
+    border: 1px solid rgba(201, 162, 39, 0.45); border-radius: 1px;
+    color: var(--cm-gold);
+    font-size: 0.58rem; font-weight: 400;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    vertical-align: middle;
+}
+
+/* --- Sala creada (espera) --- */
+.cm-wait { padding: 22px 26px 26px; text-align: center; }
+.cm-wait-label {
+    margin: 0;
+    font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--cm-dim);
+}
+.cm-code-big {
+    margin: 10px 0 18px;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 2.5rem; letter-spacing: 0.3em; text-indent: 0.3em;
+    color: var(--cm-gold-hi);
+}
+.cm-share { display: flex; justify-content: center; gap: 10px; }
+.cm-share .cm-icon-btn { width: 40px; height: 40px; font-size: 1.1rem; }
+.cm-wait .cm-seat-grid { margin: 20px 0 0; text-align: left; }
+.cm-wait-msg {
+    margin: 18px 0 0;
+    font-size: 0.8rem; color: var(--cm-dim);
+}
+/* .anim-parpadeo estaba en el HTML de la sala de espera desde el principio pero
+   ninguna hoja la definía: aquí se le da por fin el latido que promete su
+   nombre, reutilizando los fotogramas de style.css. */
+.cm-wait .anim-parpadeo { animation: parpadeo 1.8s ease-in-out infinite; }
+.cm-quiet {
+    margin-top: 18px; padding: 9px 16px;
+    border: 1px solid var(--cm-hair-2); border-radius: 2px;
+    color: var(--cm-dim);
+    font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase;
+    cursor: pointer; transition: .2s;
+}
+.cm-quiet:hover { color: var(--cm-red); border-color: rgba(194, 53, 46, 0.5); }
+
+/* ============================================================
+   5. Clasificación
+   ============================================================ */
+
+.cm-table-wrap { overflow: auto; max-height: 58vh; }
+.cm-table { width: 100%; border-collapse: collapse; }
+.cm-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    padding: 12px 8px;
+    background: var(--cm-ink-2);
+    border-bottom: 1px solid var(--cm-hair-2);
+    color: var(--cm-dim);
+    font-weight: 400; font-size: 0.64rem;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    text-align: right; white-space: nowrap;
+}
+.cm-table thead th:first-child { padding-left: 26px; }
+.cm-table thead th:last-child { padding-right: 26px; }
+.cm-th-rank { width: 30px; }
+.cm-table thead th.cm-th-name { text-align: left; }
+.cm-th-sort { cursor: pointer; user-select: none; transition: color .2s; }
+.cm-th-sort:hover { color: var(--cm-bone); }
+.cm-th-sort.is-sorted { color: var(--cm-gold); }
+.cm-table td {
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--cm-hair);
+    font-size: 0.85rem; text-align: right;
+}
+.cm-table td:first-child { padding-left: 26px; }
+.cm-table td:last-child { padding-right: 26px; }
+.cm-table tbody tr:hover td { background: rgba(237, 233, 220, 0.025); }
+/* Con `.cm-table td { text-align: right }` delante hacen falta dos clases
+   para ganar: por eso van cualificadas con el elemento. */
+.cm-table td.cm-td-rank {
+    text-align: center;
+    font-family: var(--cm-serif); font-size: 0.9rem;
+    color: var(--cm-dim-2);
+}
+.cm-table td.cm-td-rank.es-podio { color: var(--cm-gold); }
+.cm-table td.cm-td-name { text-align: left; }
+.cm-td-elo {
+    font-family: var(--cm-serif); font-size: 1rem;
+    color: var(--cm-gold);
+}
+.cm-td-num { color: var(--cm-dim); }
+.lb-name {
+    padding: 0; border: 0;
+    border-bottom: 1px dotted var(--cm-hair-2);
+    color: var(--cm-bone); font-size: 0.88rem;
+    cursor: pointer; transition: color .2s;
+}
+.lb-name:hover { color: var(--cm-gold-hi); }
+.lb-name.es-codigo {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.8rem; letter-spacing: 0.06em;
+    color: var(--cm-gold); border-bottom-color: transparent;
+}
+#modal-leaderboard .cm-note { margin: 14px 26px 22px; }
+
+/* ============================================================
+   6. Acerca de
+   ============================================================ */
+
+.cm-prose {
+    padding: 20px 26px 26px; overflow-y: auto;
+    font-size: 0.9rem; line-height: 1.75;
+    color: var(--cm-bone);
+}
+.cm-prose p, .cm-prose div { margin: 0 0 13px; }
+.cm-prose a { color: var(--cm-gold); }
+.cm-prose ul { margin: 0 0 13px; padding-left: 20px; }
+
+/* ============================================================
+   6bis. Puente con las ventanas que todavía no se han rediseñado
+   ============================================================
+   Ajustes, amigos, login, registro y el tutorial siguen con su
+   estructura y sus acentos de siempre: aquí sólo se cambia la
+   SUPERFICIE (fondo, filetes, sombra) para que abrirlas desde el
+   menú nuevo no parezca saltar a otra aplicación. Nada de layout. */
+
+#modal-settings, #modal-social, #modal-login, #modal-signup,
+#modal-verify, #modal-forgot, #modal-reset, #modal-tutorial {
+    background: var(--cm-ink-2) !important;
+    border: 1px solid var(--cm-hair-2) !important;
+    border-radius: 2px !important;
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.75) !important;
+}
+
+#modal-settings .settings-fila,
+#modal-settings .settings-seccion,
+#modal-social #social-body .caja,
+#modal-settings #settings-codigo {
+    background: var(--cm-ink-3);
+    border-color: var(--cm-hair);
+}
+#modal-settings .settings-seccion > summary:hover,
+#modal-settings .settings-fila #btn-lang {
+    background: rgba(237, 233, 220, 0.05);
+    border-color: var(--cm-hair-2);
+}
+#modal-settings .settings-panel { border-top-color: var(--cm-hair); }
+#modal-settings .settings-panel input,
+#modal-settings #settings-nombre-invitado {
+    background: var(--cm-ink-3);
+    border-color: var(--cm-hair-2);
+}
+
+/* ============================================================
+   7. Aviso flotante ("todavía no disponible")
+   ============================================================ */
+
+.cm-toast {
+    position: fixed; left: 50%; bottom: 28px; z-index: 3000;
+    max-width: min(360px, calc(100vw - 40px));
+    padding: 13px 20px;
+    background: var(--cm-ink-2);
+    border: 1px solid var(--cm-hair-2);
+    border-left: 3px solid var(--cm-gold);
+    border-radius: 2px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+    color: var(--cm-bone);
+    font-size: 0.84rem; line-height: 1.45; text-align: left;
+    opacity: 0; transform: translate(-50%, 14px);
+    pointer-events: none;
+    transition: opacity .25s, transform .25s;
+}
+.cm-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ============================================================
+   8. Ajustes finos y móvil
+   ============================================================ */
+
+/* Barras de scroll discretas dentro de las ventanas nuevas */
+.cm-win-body, .cm-live-list, .cm-table-wrap, .cm-prose { scrollbar-width: thin; }
+.cm-win-body::-webkit-scrollbar,
+.cm-live-list::-webkit-scrollbar,
+.cm-table-wrap::-webkit-scrollbar,
+.cm-prose::-webkit-scrollbar { width: 8px; height: 8px; }
+.cm-win-body::-webkit-scrollbar-thumb,
+.cm-live-list::-webkit-scrollbar-thumb,
+.cm-table-wrap::-webkit-scrollbar-thumb,
+.cm-prose::-webkit-scrollbar-thumb {
+    background: var(--cm-hair-2); border-radius: 4px;
+}
+
+:where(.cm-play, .cm-row, .cm-minor-item, .cm-mode, .cm-opt, .cm-primary,
+       .cm-secondary, .cm-quiet, .cm-icon-btn, .cm-link, .lb-name,
+       .cm-live-join, .cm-th-sort):focus-visible {
+    outline: 1px solid var(--cm-gold);
+    outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+    .cm-logo { margin-top: 46px; width: 180px; }
+    .cm-menu { max-width: 100%; }
+    .cm-play { padding: 17px 16px 17px 20px; }
+    .cm-play-label { font-size: 1.35rem; }
+    .cm-win-head { padding: 20px 18px 14px; }
+    .cm-win-body { padding: 4px 18px 20px; }
+    .cm-wait { padding: 20px 18px 24px; }
+    .cm-prose { padding: 18px 18px 22px; }
+    .cm-code-big { font-size: 2rem; }
+    .cm-table thead th:first-child, .cm-table td:first-child { padding-left: 16px; }
+    .cm-table thead th:last-child, .cm-table td:last-child { padding-right: 16px; }
+    #modal-leaderboard .cm-note { margin: 12px 18px 18px; }
+    .cm-mode small { font-size: 0.64rem; }
+    .cm-top { left: 12px; gap: 8px; }
+    .cm-link, .cm-whoami { font-size: 0.66rem; letter-spacing: 0.08em; }
+    .cm-minor { gap: 0 14px; }
+    .cm-minor-item { font-size: 0.68rem; }
+}
+
+@media (max-width: 400px) {
+    /* Tres botones a la derecha + identidad a la izquierda: sin versalitas
+       tan anchas para que no se solapen. */
+    .cm-auth { flex-direction: column; align-items: flex-start; gap: 0; }
+    .cm-dot { display: none; }
+    .cm-modes { gap: 7px; }
+    .cm-mode { padding: 12px 6px 11px; }
+    .cm-diagram { width: 56px; height: 41px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cm-live-dot, .cm-wait .anim-parpadeo { animation: none; }
+    .cm-play, .cm-play::before, .cm-play-arrow, .cm-row .pinta,
+    .cm-toast, .cm-icon-btn, .cm-opt, .cm-mode { transition: none; }
+}

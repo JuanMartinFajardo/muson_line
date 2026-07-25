@@ -97,7 +97,7 @@
         modalOverlay.style.display = 'flex';
         modalOverlay.classList.remove('hidden');
         ['modal-login', 'modal-signup', 'modal-leaderboard', 'modal-privacy',
-         'modal-verify', 'modal-forgot', 'modal-reset'].forEach(id => {
+         'modal-verify', 'modal-forgot', 'modal-reset', 'modal-play'].forEach(id => {
             const el = $(id); if (el) el.classList.add('hidden');
         });
         $('modal-social').classList.remove('hidden');

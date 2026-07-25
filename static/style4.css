@@ -1,10 +1,10 @@
-/* style4.css — Mus a 4 jugadores (2v2). Se carga DESPUÉS de style.css y solo
-   afecta a la pantalla #game-screen-4 y al #modal-4. No toca el juego de 2p. */
+/* style4.css — Mus a 4 jugadores (2v2). Se carga DESPUÉS de style.css y sólo
+   afecta a la pantalla #game-screen-4. No toca el juego de 2p.
 
-:root {
-    --equipo-a: #a3be8c;   /* verde  */
-    --equipo-b: #88c0d0;   /* azul   */
-}
+   Aquí vive la RETÍCULA de la mesa (los cuatro asientos alrededor del centro),
+   sus medidas y sus animaciones. El ASPECTO —colores, tipografía, filetes— lo
+   pone static/game.css, que se carga después junto con la paleta del menú. Los
+   colores de equipo se definen en menu.css (--equipo-a oro, --equipo-b acero). */
 
 /* ---------- Layout general de la pantalla 4p ---------- */
 #game-screen-4:not(.hidden) {
@@ -28,23 +28,10 @@
     align-items: center;
     gap: 8px;
     padding: 6px 14px;
-    border-radius: 8px;
-    background: #3b4252;
-    border: 2px solid transparent;
-    font-weight: bold;
 }
-#score-team-a { border-color: var(--equipo-a); }
-#score-team-b { border-color: var(--equipo-b); }
-.team-score.mi-equipo { box-shadow: 0 0 12px rgba(235, 203, 139, 0.5); }
 #score-team-a .team-label { color: var(--equipo-a); }
 #score-team-b .team-label { color: var(--equipo-b); }
-.team-score .team-pts { color: #eceff4; font-size: 1.1em; }
-.team-score .team-games {
-    background: #ebcb8b; color: #2e3440; border-radius: 50%;
-    min-width: 22px; height: 22px; display: inline-flex; align-items: center;
-    justify-content: center; font-size: 0.85em;
-}
-#score-mejor-de-4 { color: #d8dee9; opacity: 0.75; font-size: 0.85em; }
+.team-score .team-pts { display: inline-flex; align-items: baseline; }
 
 /* ---------- Mesa: rejilla de 4 asientos alrededor del centro ---------- */
 #mesa-4 {
@@ -73,66 +60,38 @@
     justify-content: center;
     gap: 4px;
     padding: 6px;
-    border-radius: 10px;
-    border: 2px solid transparent;
-    transition: box-shadow 0.2s, border-color 0.2s;
     min-width: 0;
 }
-.seat-4.equipo-A { border-color: rgba(163, 190, 140, 0.4); }
-.seat-4.equipo-B { border-color: rgba(136, 192, 208, 0.4); }
-.seat-4.turno-activo { animation: parpadeo 1.2s infinite; border-color: #ebcb8b !important; }
-.seat-4.ausente { opacity: 0.4; }
 
 .seat-name {
-    font-weight: bold; font-size: 0.95em; color: #eceff4;
     max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.seat-4.equipo-A .seat-name { color: var(--equipo-a); }
-.seat-4.equipo-B .seat-name { color: var(--equipo-b); }
-.seat-name .mano-badge { color: #ebcb8b; margin-left: 4px; }
-.seat-name .partner-tag, .seat-name .you-tag {
-    font-size: 0.75em; opacity: 0.7; margin-left: 4px; font-weight: normal;
 }
 
 .seat-chips { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; min-height: 20px; }
-.chip {
-    font-size: 0.72em; padding: 2px 7px; border-radius: 10px;
-    background: #4c566a; color: #eceff4; white-space: nowrap;
-}
-.chip.si { background: #a3be8c; color: #2e3440; font-weight: bold; }
-.chip.no { background: #4c566a; color: #9aa4b5; }
-.chip.descartes { background: #5e81ac; color: #eceff4; }
+.chip { white-space: nowrap; }
 
 /* Cartas de cada asiento */
 .seat-cards { display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; }
 .seat-cards .carta-4 { width: 46px; }
-.seat-cards .carta-4 img {
-    width: 100%; border-radius: 4px; box-shadow: 0 3px 6px rgba(0,0,0,0.5);
-    border: 2px solid transparent; display: block;
-}
+.seat-cards .carta-4 img { width: 100%; display: block; }
 /* Mi mano abajo, más grande y clicable */
 #seat-bottom .carta-4 { width: 74px; cursor: pointer; transition: transform 0.15s; }
-#seat-bottom .carta-4.seleccionada img { border-color: #ebcb8b; transform: translateY(-14px); box-shadow: 0 10px 15px rgba(235, 203, 139, 0.6); }
+#seat-bottom .carta-4.seleccionada img { transform: translateY(-14px); }
 /* Los oponentes izquierda/derecha en columna para ahorrar ancho */
 #seat-left .seat-cards, #seat-right .seat-cards { flex-direction: row; }
 
 /* ---------- Mesa central ---------- */
 #center-table-4 {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 8px; padding: 10px;
-    background: radial-gradient(ellipse at center, #3b4252 0%, #2e3440 75%);
-    border-radius: 16px; border: 1px solid #4c566a; min-height: 0;
+    gap: 8px; padding: 10px; min-height: 0;
     position: relative; overflow: hidden;
 }
-#game-log-4 { margin: 0; color: #eceff4; font-size: 1.05em; text-align: center; min-height: 1.2em; }
-#betting-log-4 { width: 100%; color: #eceff4; }
+#game-log-4 { margin: 0; text-align: center; min-height: 1.2em; }
+#betting-log-4 { width: 100%; }
 
 /* Cuenta atrás del turno */
-#turno-timer-4 {
-    width: 70%; height: 6px; background: #4c566a; border-radius: 3px; overflow: hidden;
-}
-#turno-timer-bar-4 { height: 100%; width: 100%; background: #a3be8c; border-radius: 3px; }
-#turno-timer-bar-4.urgente { background: #bf616a; }
+#turno-timer-4 { width: 70%; overflow: hidden; }
+#turno-timer-bar-4 { height: 100%; width: 100%; }
 
 /* ---------- Animaciones ---------- */
 @keyframes floatUp4 {
@@ -153,7 +112,7 @@
 }
 #mesa-4.ordago-shake { animation: shake4 0.4s; }
 #ordago-flash-4 {
-    position: fixed; inset: 0; background: #bf616a; opacity: 0; pointer-events: none;
+    position: fixed; inset: 0; background: var(--cm-red); opacity: 0; pointer-events: none;
     z-index: 40; animation: flashRed4 0.45s ease-out forwards;
 }
 @keyframes flashRed4 { 0% { opacity: 0.55; } 100% { opacity: 0; } }
@@ -178,19 +137,10 @@
     .seat-4.turno-activo { animation: none; }
 }
 
-/* ---------- Sala de espera (modal) ---------- */
-.seat-pick-btn, .seat-espera {
-    padding: 12px 8px; border-radius: 8px; border: 2px solid #4c566a; cursor: pointer;
-    background: #3b4252; color: #eceff4; font-weight: bold; transition: 0.2s; text-align: center;
-}
-.seat-pick-btn.equipo-A, .seat-espera.equipo-A { border-color: var(--equipo-a); }
-.seat-pick-btn.equipo-B, .seat-espera.equipo-B { border-color: var(--equipo-b); }
-.seat-pick-btn.selected { background: #ebcb8b; color: #2e3440; }
+/* ---------- Sala de espera (dentro de la ventana de Jugar) ---------- */
+/* El aspecto de los asientos lo pone menu.css (#modal-play .seat-pick-btn). */
+.seat-pick-btn { cursor: pointer; }
 .seat-pick-btn.ocupado { opacity: 0.45; cursor: not-allowed; }
-.seat-espera.ocupado { background: #434c5e; }
-.seat-espera .seat-team-a { color: var(--equipo-a); }
-.seat-espera .seat-team-b { color: var(--equipo-b); }
-.seat-espera small { display: block; opacity: 0.7; font-weight: normal; font-size: 0.8em; margin-top: 3px; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 640px) {

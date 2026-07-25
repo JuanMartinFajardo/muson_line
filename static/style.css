@@ -58,12 +58,6 @@ button {
 
 button:hover { background-color: #81a1c1; }
 
-.highlight {
-    font-size: 1.2em;
-    font-weight: bold;
-    color: #a3be8c;
-}
-
 /* La mesa de juego */
 .table {
     background-color: #26734d; /* Verde tapete */
@@ -281,32 +275,10 @@ body {
     visibility: hidden; 
 }
 
-/* Ajustes para móviles: reducir tamaño de la tabla y botones centrales */
+/* Ajustes para móviles. Lo que había aquí para el tanteador y los botones de la
+   mesa (paddings y tamaños de letra con !important) lo pone ahora game.css, con
+   su propio bloque responsivo; dejarlo sólo lo pisaba. */
 @media screen and (max-width: 600px) {
-    #betting-log {
-        padding: 8px !important;
-        margin: 5px auto !important;
-    }
-    
-    #betting-log div, 
-    #betting-log p {
-        font-size: 0.9em !important;
-    }
-    
-    #caja-en-aire {
-        min-height: 45px !important;
-        padding-bottom: 5px !important;
-        margin-bottom: 5px !important;
-    }
-    
-    #action-buttons button, 
-    .panel-apuestas button, 
-    .panel-apuestas input[type="number"] {
-        padding: 6px 10px !important;
-        font-size: 14px !important;
-        margin: 3px !important;
-    }
-    
     #center-table {
         padding: 5px 0 !important;
     }
@@ -335,138 +307,87 @@ body {
 }
 
 /* ========================================= */
-/* TEMA "TAPETE PREMIUM" (MENÚ Y MODALES)    */
+/* TEMA "TAPETE PREMIUM" (MODALES ANTIGUOS)  */
 /* ========================================= */
+/* Estas reglas nacieron para uniformar los estilos en línea del HTML antiguo.
+   Antes apuntaban a `div[id^="modal-"]`, que también casa con #modal-overlay y
+   por tanto con TODO lo que hay dentro: sus !important se colaban en el diseño
+   nuevo (menú, ventana de Jugar, clasificación y "Acerca de", que pinta
+   static/menu.css). Ahora la lista de ventanas afectadas es explícita: sólo las
+   que todavía no se han rediseñado. */
 
 /* Sobrescribir fondos de modales y contenedores internos */
-#modal-login, #modal-signup, #modal-leaderboard,
-#menu-screen div[style*="background-color: #2e3440"] {
+#modal-login, #modal-signup {
     background-color: var(--menu-panel-bg) !important;
     border-color: var(--menu-border) !important;
 }
 
-#menu-screen div[style*="border"], div[id^="modal-"] div[style*="border"] {
+:is(#modal-login, #modal-signup, #modal-verify, #modal-forgot, #modal-reset,
+    #modal-social, #modal-settings, #modal-tutorial) div[style*="border"] {
     border-color: var(--menu-border) !important;
 }
 
 /* Textos unificados (Evitamos pisar el color de game-screen) */
-#menu-screen h2, #menu-screen h3, #menu-screen label, #menu-screen span, #menu-screen p,
-div[id^="modal-"] h2, div[id^="modal-"] label, div[id^="modal-"] span, div[id^="modal-"] td, div[id^="modal-"] th {
+:is(#modal-login, #modal-signup, #modal-verify, #modal-forgot, #modal-reset,
+    #modal-social, #modal-settings, #modal-tutorial) :is(h2, label, span, td, th) {
     color: var(--text-bone) !important;
 }
 
 /* Errores integrados con el color de Ko-fi para mantener coherencia */
-#menu-msg, #msg-login, #msg-signup {
+#msg-login, #msg-signup {
     color: var(--error-color) !important;
 }
 
 /* Botones Primarios */
-#btn-crear, #btn-unirse, #btn-submit-login, #btn-submit-signup {
+#btn-submit-login, #btn-submit-signup {
     background-color: var(--btn-primary-bg) !important;
     color: var(--btn-primary-text) !important;
     border: none !important;
 }
-#btn-crear:hover, #btn-unirse:hover, #btn-submit-login:hover, #btn-submit-signup:hover {
+#btn-submit-login:hover, #btn-submit-signup:hover {
     background-color: #D6B575 !important;
 }
 
 /* Botones Secundarios */
-#btn-jugar-bot, #btn-show-login, #btn-show-signup, #btn-show-leaderboard, 
-#btn-logout, #btn-lang, .btn-cerrar-modal, .btn-unirse-publica {
+#btn-logout, #btn-lang, .btn-cerrar-modal:not(.cm-close) {
     background-color: var(--btn-secondary-bg) !important;
     color: var(--text-bone) !important;
     border: 1px solid var(--menu-border) !important;
 }
-#btn-jugar-bot:hover, #btn-show-login:hover, #btn-show-signup:hover, #btn-show-leaderboard:hover, 
-#btn-logout:hover, #btn-lang:hover, .btn-cerrar-modal:hover, .btn-unirse-publica:hover {
+#btn-logout:hover, #btn-lang:hover, .btn-cerrar-modal:not(.cm-close):hover {
     background-color: #424E42 !important;
 }
 
 /* Campos de Entrada */
-#menu-screen input, div[id^="modal-"] input {
+:is(#modal-login, #modal-signup, #modal-verify, #modal-forgot, #modal-reset,
+    #modal-social, #modal-settings, #modal-tutorial) input {
     background-color: var(--input-bg) !important;
     color: var(--text-bone) !important;
     border: 1px solid var(--menu-border) !important;
 }
-#menu-screen input::placeholder, div[id^="modal-"] input::placeholder {
+:is(#modal-login, #modal-signup, #modal-verify, #modal-forgot, #modal-reset,
+    #modal-social, #modal-settings, #modal-tutorial) input::placeholder {
     color: var(--input-placeholder) !important;
 }
 
 /* Tablas (Leaderboard / Públicas) */
-#menu-screen thead, div[id^="modal-"] thead {
+:is(#modal-login, #modal-signup, #modal-verify, #modal-forgot, #modal-reset,
+    #modal-social, #modal-settings, #modal-tutorial) thead {
     background-color: var(--menu-border) !important;
 }
-#menu-screen th, #menu-screen td, div[id^="modal-"] th, div[id^="modal-"] td {
+:is(#modal-login, #modal-signup, #modal-verify, #modal-forgot, #modal-reset,
+    #modal-social, #modal-settings, #modal-tutorial) :is(th, td) {
     border-bottom: 1px solid var(--menu-border) !important;
 }
 
 /* ========================================= */
-/* ENTORNO DE PARTIDA (MINIMALISTA Y SERIO)  */
+/* ENTORNO DE PARTIDA                        */
 /* ========================================= */
+/* El aspecto de las dos mesas (1v1 y 2v2) vive ahora en static/game.css, que se
+   carga después y sigue el mismo lenguaje visual que el menú. Aquí sólo queda
+   lo que es de todos: la retícula (más arriba) y el giro del spinner. */
 
-#game-screen:not(.hidden) {
-    background-color: #0a0a0a;
-    max-width: 100%;
-    color: #e0e0e0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
-#game-screen .highlight {
-    color: #ffffff;
-    font-weight: 600;
-}
-
-#game-screen .turno-indicador {
-    color: #ffffff;
-    font-weight: 300;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    font-size: 0.9em;
-    animation: pulseMinimal 2s infinite;
-}
-
-@keyframes pulseMinimal {
-    0% { opacity: 0.4; }
-    50% { opacity: 1; text-shadow: 0 0 8px rgba(255,255,255,0.2); }
-    100% { opacity: 0.4; }
-}
-
-#game-screen button {
-    background-color: rgba(255, 255, 255, 0.03) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    color: #ffffff !important;
-    border-radius: 4px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 300;
-    font-size: 0.85em;
-    transition: all 0.3s ease;
-}
-
-#game-screen button:hover {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    border-color: #ffffff !important;
-}
-
-#game-screen input[type="number"] {
-    background-color: transparent !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    font-weight: 300;
-}
-
-#game-screen .carta img {
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.8);
-}
-
-#game-screen .carta.seleccionada img {
-    border-color: #ffffff;
-    box-shadow: 0 10px 20px rgba(255,255,255,0.15);
-}
-
-/* Reconexión 2p: giro del spinner del overlay de pausa por caída del rival. */
+/* Reconexión: giro del spinner del overlay de pausa por caída de un jugador. */
 @keyframes girar-reconexion {
     to { transform: rotate(360deg); }
 }
@@ -476,29 +397,15 @@ div[id^="modal-"] h2, div[id^="modal-"] label, div[id^="modal-"] span, div[id^="
    Botón «✕» permanente en ambas mesas + overlays compartidos
    (confirmar salida / alguien se fue / buscando sustituto).
    ========================================================== */
+/* Sitio del botón «✕» de abandonar: a la izquierda del de pantalla completa
+   (fixed, right:15px) para que no se solapen. Su aspecto lo pone game.css. */
 .btn-salir-mesa {
-    /* Fijo y a la izquierda del botón de pantalla completa (fixed, right:15px),
-       para que no se solapen y siga visible al hacer scroll en la mesa. */
     position: fixed;
     top: 13px;
     right: 62px;
     z-index: 1000;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    border: 2px solid #bf616a;
-    background-color: #4c566a;
-    color: #eceff4;
-    font-size: 1.1em;
-    font-weight: bold;
     line-height: 1;
     cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-    transition: 0.2s;
-}
-.btn-salir-mesa:hover {
-    background-color: #bf616a;
-    transform: scale(1.08);
 }
 
 .overlay-partida {
@@ -513,45 +420,8 @@ div[id^="modal-"] h2, div[id^="modal-"] label, div[id^="modal-"] span, div[id^="
 }
 .overlay-partida.hidden { display: none; }
 
-.overlay-partida .caja-overlay {
-    background: #2e3440;
-    border: 1px solid #4c566a;
-    border-radius: 10px;
-    padding: 26px 24px;
-    max-width: 430px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.75);
-}
-.overlay-partida h3 {
-    margin: 0 0 12px 0;
-    color: #88c0d0;
-    font-size: 1.2em;
-    font-weight: 400;
-    letter-spacing: 0.5px;
-}
-.overlay-partida p {
-    margin: 0 0 8px 0;
-    color: #d8dee9;
-    line-height: 1.5;
-    font-size: 0.95em;
-}
-.overlay-partida .cuenta-atras {
-    color: #ebcb8b;
-    font-weight: bold;
-    font-size: 1.3em;
-    margin: 10px 0 0 0;
-}
-.overlay-partida .spinner-reconexion {
-    width: 40px;
-    height: 40px;
-    margin: 0 auto 16px auto;
-    border: 4px solid #4c566a;
-    border-top-color: #88c0d0;
-    border-radius: 50%;
-    animation: girar-reconexion 0.9s linear infinite;
-}
-
+/* Caja y botonera del overlay: aquí sólo la colocación; los colores, la
+   tipografía y el filete de oro los pone static/game.css. */
 .acciones-overlay {
     display: flex;
     flex-wrap: wrap;
@@ -561,19 +431,8 @@ div[id^="modal-"] h2, div[id^="modal-"] label, div[id^="modal-"] span, div[id^="
 }
 .acciones-overlay button {
     flex: 1 1 auto;
-    min-width: 140px;
-    padding: 10px 16px;
-    border: none;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 0.95em;
     cursor: pointer;
-    transition: 0.15s;
 }
-.acciones-overlay button:hover { filter: brightness(1.12); }
-.acciones-overlay .btn-ok      { background: #a3be8c; color: #2e3440; }
-.acciones-overlay .btn-peligro { background: #bf616a; color: #eceff4; }
-.acciones-overlay .btn-neutro  { background: #4c566a; color: #eceff4; }
 
 /* Fila de partida en curso con hueco libre, en las listas públicas. */
 .fila-en-curso td { background-color: rgba(235, 203, 139, 0.08); }

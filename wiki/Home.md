@@ -19,6 +19,8 @@
 | [Authentication](Authentication.md) | Account system: register/verify/login/Google OAuth (partially implemented) |
 | [Frontend](Frontend.md) | `index.html`, `static/app.js`, `static/auth.js`, `static/tutorial.js`, i18n |
 | [Bot and AI](Bot-AI.md) | `bot_ml.py`, Deep CFR training pipeline, `learn/` folder |
+| [4p Bot ML Strategy](Bot-AI-4p-ML-Strategy.md) | Deep analysis: Deep CFR + RL for the 2v2 bot, Nash-distance measurement, log format v2, signs |
+| [4p Bot Roadmap](Bot-AI-4p-Roadmap.md) | Phased execution plan for the 2v2 bot (P0 heuristic → P6 signs) |
 | [Setup and Deployment](Setup-and-Deployment.md) | How to install and run the server |
 | [Roadmap](Roadmap.md) | Planned features with detailed implementation guides |
 | [Implementing 4-Player Mus](Implementing-Mus-4-Players.md) | Full build guide for the 2v2 online variant (mechanics → UI → connections) |
@@ -43,7 +45,8 @@ Things to do in the future:
 - when invited to a game by a friend and accepted, friend screen should be removed
 - Groups should be accepted
 - name for 4player mus should be the username
-- Redesign the main menu so that it is beautiful, more minimalistic, but it preserves all its functions. For example: keep settings and full-screen buttons where they are. If the user is logged-in, the friends button should be pinned next to settings button (not floating in the center as it is now). There should be a single button 'play', a button 'tutorial', a button 'deck menu' (saying 'feature not available yet' when clicking), and then leaderboard, the ko-fi button and 'about call mus'. The button play deploys a window with all the options: choose 1v1 or 2v2, play with bots, bots-player mixed, players, public game, the number of games, play with signs (not available yet, but when available only for 2vs2), create game, join a created one or an ongoing one. I want you to redesign this in a way that it is ABSOLUTELY INTUITIVE to use, and looks beautiful. Obviously you have to flag as unavailable every feature that is not yet available. It must be beautiful, but it cannot look like the average IA generated webpage, it must have some unique beautiful design. Ask me any necessary questions.
+- ~~Redesign the main menu~~ **done (2026-07-25)**: "midnight ink" menu with the four Spanish suits drawn in SVG, one *Jugar* button opening `#modal-play` (1v1 / 2v2, bot, best-of, public, seat, create, join by code or from the live list) and *soon* markers on the deck menu, 2v2 bots, mixed tables and signs. See [Frontend](Frontend.md#the-menu-and-the-play-window). Still to do on top of it: bots for 2v2, mixed tables, signs (2v2 only) and the deck builder ([Roadmap #5](Roadmap.md#5-special-decks-and-deck-builder-menu)).
+- ~~Carry the menu's look into the tables~~ **done (2026-07-25)**: both tables (1v1 and 2v2) now share the same language in [static/game.css](../static/game.css) — a plate per player with the score in serif and the games won as *piedras*, the four-lance board in gold, órdago as the only red, and the game overlays styled like the menu's windows. See [Frontend](Frontend.md#the-tables-1v1-and-2v2). Left over: the tutorial window is still the only old-looking screen reachable from the table.
 - Bot: First random bot, then bot using the 2mus architecture, then train a 4mus bot. Apply PCA to find the most relevant variables to play mus. Generate a well structured log.
 - 
 [[Versions]]
