@@ -94,6 +94,14 @@ def add_header(response):
     # Verificamos la ruta de la petición de forma segura
     if request.path.startswith('/static/img/'):
         response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    elif request.path.startswith('/auth/') or request.path.startswith('/api/'):
+        # NUNCA cachear el estado de sesión. Sin estas cabeceras algunos navegadores
+        # (Safari sobre todo) reutilizan la respuesta anterior de /auth/sesion: entras
+        # y la web sigue diciendo que no lo has hecho, o sales y al recargar vuelves a
+        # aparecer dentro. Es el bug de "no me loguea hasta que refresco".
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
     return response
 
 # --- NUEVA ARQUITECTURA MULTIJUGADOR ---
@@ -451,6 +459,14 @@ def auth_login():
 
     username = base_datos.verificar_login(identificador, datos.get('password') or '')
     if username:
+        # Cuentas baneadas desde el panel (#13): la contraseña es correcta, pero no
+        # se abre sesión. El motivo se enseña para que sepa a qué atenerse.
+        baneado, motivo = base_datos.esta_baneado(username)
+        if baneado:
+            return jsonify({'exito': False, 'codigo': 'err_cuenta_baneada',
+                            'motivo': motivo,
+                            'mensaje': 'Esta cuenta está suspendida.' +
+                                       (f' Motivo: {motivo}' if motivo else '')})
         session.permanent = bool(datos.get('remember', False))
         session['username'] = username
         return jsonify({'exito': True})
@@ -516,6 +532,11 @@ def auth_reset():
 def google_login():
     if not oauth:
         return "El login con Google no está configurado en este servidor.", 503
+    # ?intent=signup viene del botón de registrarse y autoriza a crear la cuenta.
+    # Cualquier otra cosa (incluido el botón de entrar) es solo iniciar sesión: si no
+    # hay cuenta se avisa, en vez de crear una en silencio. Va por la sesión y no por
+    # la URL de vuelta para que no se pueda forzar desde fuera.
+    session['google_intent'] = 'signup' if request.args.get('intent') == 'signup' else 'login'
     redireccion = url_for('google_callback', _external=True)
     return oauth.google.authorize_redirect(redireccion)
 
@@ -534,10 +555,16 @@ def google_callback():
     google_id = info.get('sub')
     email = info.get('email')
     nombre = info.get('name') or info.get('given_name') or ''
+    intent = session.pop('google_intent', 'login')
     if not google_id:
         return redirect('/?auth_error=google')
 
-    username = base_datos.registrar_o_loguear_google(google_id, email, nombre)
+    username = base_datos.registrar_o_loguear_google(google_id, email, nombre,
+                                                     crear=(intent == 'signup'))
+    if not username:
+        # Venía de "Entrar" y esa cuenta de Google no está vinculada a ninguna.
+        return redirect('/?auth_error=google_sin_cuenta')
+
     session.permanent = True
     session['username'] = username
     return redirect('/')
@@ -547,15 +574,252 @@ def google_callback():
 def auth_sesion():
     if 'username' in session:
         user = session['username']
+        # Un baneo posterior al login tiene que echarle también de la sesión que ya
+        # tenía abierta, no solo impedirle volver a entrar.
+        baneado, _motivo = base_datos.esta_baneado(user)
+        if baneado:
+            session.pop('username', None)
+            return jsonify({'exito': False, 'codigo': 'err_cuenta_baneada'})
         usuario_data = base_datos.obtener_usuario(user)
         if usuario_data:
             return jsonify({'exito': True, 'usuario': usuario_data})
+        # La cuenta ya no existe (borrada, o renombrada en otra pestaña): la cookie
+        # se queda coja, así que la vaciamos en vez de dejarla apuntando a la nada.
+        session.pop('username', None)
     return jsonify({'exito': False})
 
 @app.route('/auth/logout', methods=['POST'])
 def auth_logout():
     session.pop('username', None)
     return jsonify({'exito': True})
+
+
+# ==========================================
+# AJUSTES DE CUENTA (Roadmap #22)
+# ------------------------------------------
+# Cambiar nombre, correo y contraseña, y borrar la cuenta. Todo pasa por la
+# sesión de Flask (nunca se acepta el usuario objetivo desde el cliente) y por
+# _autorizar_cambio(), que exige contraseña actual o código al correo.
+# Las respuestas llevan un 'codigo' de traducción además del 'mensaje' en
+# castellano, para que el cliente pueda enseñarlo en el idioma elegido.
+# ==========================================
+
+def _respuesta(exito, codigo, mensaje, **extra):
+    return jsonify({'exito': exito, 'codigo': codigo, 'mensaje': mensaje, **extra})
+
+
+def _ocultar_email(email):
+    """juan.perez@gmail.com → j*********z@gmail.com (para enseñar a dónde va el código)."""
+    if not email or '@' not in email:
+        return ''
+    local, _, dominio = email.partition('@')
+    if len(local) <= 2:
+        return f"{local[0]}*@{dominio}"
+    return f"{local[0]}{'*' * (len(local) - 2)}{local[-1]}@{dominio}"
+
+
+def _autorizar_cambio(username, datos):
+    """Credencial para una operación sensible: contraseña actual O código de un solo
+    uso enviado al correo de la cuenta (la única vía para quien entró con Google y
+    no tiene contraseña). Devuelve (ok, codigo_error, mensaje_error)."""
+    password = datos.get('password') or ''
+    codigo = (datos.get('code') or '').strip()
+
+    if password:
+        if base_datos.verificar_password_usuario(username, password):
+            return True, None, None
+        return False, 'err_password_incorrecta', 'La contraseña actual no es correcta.'
+
+    if codigo:
+        email = base_datos.obtener_email(username)
+        pendiente = codigos_pendientes.get(email) if email else None
+        if not pendiente or pendiente.get('tipo') != 'cuenta':
+            return False, 'err_sin_codigo', 'No hay ningún código pendiente para esta cuenta.'
+        if time.time() - pendiente['ts'] > CODIGO_VALIDEZ_SEG:
+            codigos_pendientes.pop(email, None)
+            return False, 'err_codigo_caducado', 'El código ha caducado. Solicita uno nuevo.'
+        if not secrets.compare_digest(codigo, pendiente['code']):
+            return False, 'err_codigo_incorrecto', 'Código incorrecto.'
+        codigos_pendientes.pop(email, None)      # de un solo uso
+        return True, None, None
+
+    return False, 'err_falta_credencial', 'Confirma la operación con tu contraseña.'
+
+
+@app.route('/auth/cuenta/codigo', methods=['POST'])
+def auth_cuenta_codigo():
+    """Envía al correo de la cuenta un código para autorizar un cambio."""
+    username = session.get('username')
+    if not username:
+        return _respuesta(False, 'err_sin_sesion', 'Tienes que iniciar sesión.'), 401
+
+    email = base_datos.obtener_email(username)
+    if not email:
+        return _respuesta(False, 'err_sin_email', 'Esta cuenta no tiene ningún correo asociado.')
+    if not rate_limit_ok(email):
+        return _respuesta(False, 'err_demasiadas_solicitudes',
+                          'Demasiadas solicitudes. Inténtalo de nuevo en una hora.')
+
+    codigo = generar_codigo_verificacion()
+    codigos_pendientes[email] = {'code': codigo, 'ts': time.time(), 'tipo': 'cuenta'}
+    enviar_correo(email, "Código para cambiar los ajustes de tu cuenta de CallMus",
+                  f"Hola {username},\n\n"
+                  f"Tu código para confirmar el cambio es: {codigo}\n\n"
+                  f"Caduca en 15 minutos. Si no has sido tú, ignora este correo y "
+                  f"cambia tu contraseña por precaución.")
+    return _respuesta(True, 'ok_codigo_enviado', 'Te hemos enviado un código.',
+                      email_oculto=_ocultar_email(email))
+
+
+@app.route('/auth/cuenta/username', methods=['POST'])
+def auth_cuenta_username():
+    username = session.get('username')
+    if not username:
+        return _respuesta(False, 'err_sin_sesion', 'Tienes que iniciar sesión.'), 401
+
+    datos = request.json or {}
+    nuevo = (datos.get('username') or '').strip()
+    if not USERNAME_REGEX.match(nuevo):
+        return _respuesta(False, 'err_username_invalido',
+                          'El usuario debe tener 3-20 caracteres (letras, números o _).')
+    if nuevo == username:
+        return _respuesta(False, 'err_username_igual', 'Ese ya es tu nombre de usuario.')
+
+    ok, cod_error, msg_error = _autorizar_cambio(username, datos)
+    if not ok:
+        return _respuesta(False, cod_error, msg_error)
+
+    exito, codigo = base_datos.cambiar_username(username, nuevo)
+    if exito:
+        session['username'] = nuevo          # la sesión sigue al nombre nuevo
+        return _respuesta(True, codigo, 'Nombre de usuario actualizado.', username=nuevo)
+
+    dias = base_datos.DIAS_ESPERA_CAMBIO_USERNAME
+    mensajes = {
+        'err_username_en_uso': 'Ese nombre de usuario ya está en uso.',
+        'err_username_espera': f'Solo puedes cambiar de nombre cada {dias} días.',
+    }
+    # `dias` viaja aparte para que el cliente pueda rellenar {dias} en su idioma.
+    return _respuesta(False, codigo, mensajes.get(codigo, 'No se pudo cambiar el nombre.'), dias=dias)
+
+
+@app.route('/auth/cuenta/email/solicitar', methods=['POST'])
+def auth_cuenta_email_solicitar():
+    """Paso 1 del cambio de correo: manda un código a la dirección NUEVA (así se
+    demuestra que es suya) y avisa a la vieja de que alguien lo ha pedido."""
+    username = session.get('username')
+    if not username:
+        return _respuesta(False, 'err_sin_sesion', 'Tienes que iniciar sesión.'), 401
+
+    datos = request.json or {}
+    nuevo = (datos.get('email') or '').strip()
+    if not EMAIL_REGEX.match(nuevo):
+        return _respuesta(False, 'err_email_invalido', 'Introduce un correo electrónico válido.')
+
+    anterior = base_datos.obtener_email(username)
+    if anterior and nuevo.lower() == anterior.lower():
+        return _respuesta(False, 'err_email_igual', 'Ese ya es tu correo actual.')
+
+    ok, cod_error, msg_error = _autorizar_cambio(username, datos)
+    if not ok:
+        return _respuesta(False, cod_error, msg_error)
+
+    if base_datos.email_registrado(nuevo):
+        return _respuesta(False, 'err_email_en_uso', 'Ya existe una cuenta con ese correo.')
+    if not rate_limit_ok(nuevo):
+        return _respuesta(False, 'err_demasiadas_solicitudes',
+                          'Demasiadas solicitudes. Inténtalo de nuevo en una hora.')
+
+    codigo = generar_codigo_verificacion()
+    codigos_pendientes[nuevo] = {'code': codigo, 'ts': time.time(),
+                                 'tipo': 'cambio_email', 'username': username}
+    enviar_correo(nuevo, "Confirma tu nuevo correo de CallMus",
+                  f"Hola {username},\n\n"
+                  f"Tu código para confirmar este correo es: {codigo}\n\n"
+                  f"Caduca en 15 minutos. Si no has pedido tú el cambio, ignora este correo.")
+    if anterior:
+        enviar_correo(anterior, "Se ha pedido cambiar el correo de tu cuenta de CallMus",
+                      f"Hola {username},\n\n"
+                      f"Alguien ha pedido cambiar el correo de tu cuenta a {_ocultar_email(nuevo)}.\n"
+                      f"El cambio no será efectivo hasta que se confirme desde esa dirección.\n\n"
+                      f"Si no has sido tú, cambia tu contraseña cuanto antes.")
+    return _respuesta(True, 'ok_codigo_enviado', 'Te hemos enviado un código al correo nuevo.')
+
+
+@app.route('/auth/cuenta/email/confirmar', methods=['POST'])
+def auth_cuenta_email_confirmar():
+    """Paso 2 del cambio de correo: verifica el código recibido en la dirección nueva."""
+    username = session.get('username')
+    if not username:
+        return _respuesta(False, 'err_sin_sesion', 'Tienes que iniciar sesión.'), 401
+
+    datos = request.json or {}
+    nuevo = (datos.get('email') or '').strip()
+    recibido = (datos.get('code') or '').strip()
+
+    pendiente = codigos_pendientes.get(nuevo)
+    if not pendiente or pendiente.get('tipo') != 'cambio_email' or pendiente.get('username') != username:
+        return _respuesta(False, 'err_sin_codigo', 'No hay ningún cambio de correo pendiente.')
+    if time.time() - pendiente['ts'] > CODIGO_VALIDEZ_SEG:
+        codigos_pendientes.pop(nuevo, None)
+        return _respuesta(False, 'err_codigo_caducado', 'El código ha caducado. Solicita uno nuevo.')
+    if not secrets.compare_digest(recibido, pendiente['code']):
+        return _respuesta(False, 'err_codigo_incorrecto', 'Código incorrecto.')
+
+    exito, codigo = base_datos.cambiar_email(username, nuevo)
+    if exito:
+        codigos_pendientes.pop(nuevo, None)
+        solicitudes_por_email.pop(nuevo, None)
+        return _respuesta(True, codigo, 'Correo actualizado.', email=nuevo)
+    return _respuesta(False, codigo, 'Ya existe una cuenta con ese correo.')
+
+
+@app.route('/auth/cuenta/password', methods=['POST'])
+def auth_cuenta_password():
+    username = session.get('username')
+    if not username:
+        return _respuesta(False, 'err_sin_sesion', 'Tienes que iniciar sesión.'), 401
+
+    datos = request.json or {}
+    nueva = datos.get('password_nueva') or ''
+    if len(nueva) < 6:
+        return _respuesta(False, 'err_password_corta',
+                          'La contraseña debe tener al menos 6 caracteres.')
+
+    ok, cod_error, msg_error = _autorizar_cambio(username, datos)
+    if not ok:
+        return _respuesta(False, cod_error, msg_error)
+
+    if base_datos.cambiar_password_usuario(username, nueva):
+        return _respuesta(True, 'ok_password_cambiada', 'Contraseña actualizada.')
+    return _respuesta(False, 'err_cuenta_no_encontrada', 'No se pudo actualizar la contraseña.')
+
+
+@app.route('/auth/cuenta/eliminar', methods=['POST'])
+def auth_cuenta_eliminar():
+    """Borra la cuenta: se van los datos personales y el rastro social, y la fila
+    queda anónima para no romper el historial de partidas de los rivales."""
+    username = session.get('username')
+    if not username:
+        return _respuesta(False, 'err_sin_sesion', 'Tienes que iniciar sesión.'), 401
+
+    datos = request.json or {}
+    # Doble seguro: hay que teclear el propio nombre de usuario.
+    if (datos.get('confirmacion') or '').strip().lower() != username.lower():
+        return _respuesta(False, 'err_confirmacion_no_coincide',
+                          'Escribe tu nombre de usuario exactamente para confirmar.')
+
+    ok, cod_error, msg_error = _autorizar_cambio(username, datos)
+    if not ok:
+        return _respuesta(False, cod_error, msg_error)
+
+    exito, codigo, _anonimo = base_datos.anonimizar_usuario(username)
+    if exito:
+        # La sesión se cierra aquí; el cliente recarga y su socket vuelve a
+        # conectarse como invitado, soltando cualquier sala en la que estuviera.
+        session.pop('username', None)
+        return _respuesta(True, codigo, 'Cuenta eliminada.')
+    return _respuesta(False, codigo, 'No se pudo eliminar la cuenta.')
 
 
 
@@ -965,9 +1229,11 @@ def enviar_estado_a_jugadores(codigo_sala):
             pasos_crudos = partida_actual.calcular_recuento()
 
             if getattr(partida_actual, 'partida_sumada', False) and not getattr(partida_actual, 'db_registrada', False):
-                partida_actual.db_registrada = True 
-                import base_datos
-                
+                partida_actual.db_registrada = True
+                # (`base_datos` ya está importado arriba del todo; volver a
+                #  importarlo AQUÍ lo convertía en local de toda la función y
+                #  rompía cualquier otro uso del módulo dentro de ella.)
+
                 if partida_actual.estado[partida_actual.j1]['puntos'] >= 40:
                     ganador_sid, perdedor_sid = partida_actual.j1, partida_actual.j2
                 else:
@@ -1027,8 +1293,13 @@ def enviar_estado_a_jugadores(codigo_sala):
         if accion_datos:
             bot_sid = bot_instance.sid
             
+            # Retardo "pensando" del bot: editable en caliente desde el panel de
+            # administración (variable `bot_delay`, Roadmap #13/#15).
+            retardo = base_datos.config_get_float('bot_delay', 1.5)
+            retardo = min(max(retardo, 0.0), 10.0)
+
             def bot_action_task():
-                socketio.sleep(1.5)
+                socketio.sleep(retardo)
                 # Una excepción aquí mataba el greenlet dejando la mesa a medias
                 # (partida "congelada" = fantasma percibido, Roadmap #21 bug 5).
                 try:
@@ -1453,6 +1724,30 @@ social.init_social(app, socketio, {
 # ==========================================
 import server_mus4  # noqa: E402
 server_mus4.init_mus4(socketio, jugadores, salas)
+
+# ==========================================
+# PANEL DE ADMINISTRACIÓN (Roadmap #13): mismo proceso, mismo puerto y misma
+# sesión que el juego — no hay nada que desplegar aparte, basta con abrir /admin
+# desde una cuenta con el bit de administrador (ADMIN_USERNAME crea el primero).
+# Va después de server_mus4 porque el panel lista también las salas de 4.
+# ==========================================
+import admin  # noqa: E402
+admin.init_admin(app, socketio, {
+    'salas': salas,
+    'salas4': server_mus4.salas4,
+    'jugadores': jugadores,
+    'usuarios_conectados': social.usuarios_conectados,
+    'destruir_sala': _destruir_sala_2p,
+    'destruir_sala4': server_mus4._destruir_sala,
+    'salir_de_sala': _salir_de_sala_2p,
+    'emitir_lista_publicas': emitir_lista_publicas,
+    'notificar': social.notificar,
+    # Para el "enviar código de contraseña" del panel: reutiliza el mismo circuito
+    # de códigos temporales que la recuperación normal, sin duplicarlo.
+    'enviar_correo': enviar_correo,
+    'generar_codigo_verificacion': generar_codigo_verificacion,
+    'codigos_pendientes': codigos_pendientes,
+})
 
 # El barredor de salas 2p arranca aquí (después de que exista el registro 4p, que
 # consulta para no dar por huérfanas sus entradas en `jugadores`).

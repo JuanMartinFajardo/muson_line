@@ -35,9 +35,10 @@
     <!-- ========================================= -->
     <div id="menu-screen" class="screen">
         
-        <!-- BOTÓN DE IDIOMA (Desaparece en la partida) -->
+        <!-- BOTÓN DE AJUSTES (Desaparece en la partida). Antes había aquí el
+             botón EN/ES; ahora el idioma es una opción más dentro de Ajustes. -->
         <div style="position: fixed; right: 60px; top: 15px; z-index: 999;">
-            <button id="btn-lang" style="background: rgba(46, 52, 64, 0.8); border: 1px solid #d8dee9; color: #d8dee9; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">EN</button>
+            <button id="btn-settings" data-i18n-title="ajustes_tooltip" title="Ajustes" style="background: rgba(46, 52, 64, 0.8); border: 1px solid #d8dee9; color: #d8dee9; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 1.1em; line-height: 1;">⚙</button>
         </div>
 
 
@@ -56,12 +57,15 @@
                     <span data-i18n="btn_amigos">👥 Amigos</span>
                     <span id="amigos-badge" class="hidden" style="position: absolute; top: -8px; right: -8px; background: #bf616a; color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 0.7em; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px;">0</span>
                 </button>
-                <button id="btn-logout" data-i18n="btn_logout" style="background-color: transparent; border: 1px solid #bf616a; color: #bf616a; padding: 5px 15px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">Cerrar Sesión</button>
             </div>
 
         </div>
 
         <img src="/static/img/callmus2logo_193.jpg" alt="CallMus Logo" style="max-width: 250px; height: auto; margin: 0 auto 20px auto; display: block;">
+
+        <!-- Avisos fijados por el administrador y cartel de mantenimiento
+             (Roadmap #13). Lo rellena soporte.js; se ve con y sin cuenta. -->
+        <div id="anuncios-fijados"></div>
 
 
         <div class="panel">
@@ -479,6 +483,159 @@
         </div>
 
 
+        <!-- Modal Ajustes (idioma siempre; cuenta solo con la sesión iniciada) -->
+        <div id="modal-settings" class="hidden">
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+
+            <h2 data-i18n="ajustes_titulo">⚙ Ajustes</h2>
+
+            <div class="settings-cuerpo">
+
+                <!-- Idioma: visible siempre, con o sin cuenta -->
+                <div class="settings-fila">
+                    <span data-i18n="ajustes_idioma">Idioma</span>
+                    <!-- Mantiene el id btn-lang: app.js y tutorial.js ya escuchan aquí -->
+                    <button id="btn-lang">EN</button>
+                </div>
+
+                <!-- ============ SOPORTE (Roadmap #13) ============ -->
+                <!-- Fuera de los bloques de invitado/cuenta: el botón se ve
+                     siempre, y dentro se explica que hace falta una cuenta
+                     para poder responder al hilo. -->
+                <details class="settings-seccion" id="seccion-soporte">
+                    <summary data-i18n="ajustes_soporte">Soporte y contacto</summary>
+                    <div class="settings-panel" id="soporte-panel">
+                        <p class="settings-nota" data-i18n="soporte_intro">¿Has encontrado un fallo o necesitas ayuda? Escríbenos y te contestamos por aquí mismo.</p>
+
+                        <!-- Sin cuenta -->
+                        <p class="settings-nota hidden" id="soporte-invitado" data-i18n="soporte_invitado">Necesitas una cuenta para abrir una incidencia.</p>
+
+                        <!-- Con cuenta: lista de hilos + formulario -->
+                        <div id="soporte-logueado" class="hidden">
+                            <div id="soporte-lista"></div>
+
+                            <details id="soporte-nuevo">
+                                <summary data-i18n="soporte_nuevo">Abrir una incidencia</summary>
+                                <select id="soporte-tipo">
+                                    <option value="bug" data-i18n="soporte_tipo_bug">Fallo del juego</option>
+                                    <option value="cuenta" data-i18n="soporte_tipo_cuenta">Problema con mi cuenta</option>
+                                    <option value="sugerencia" data-i18n="soporte_tipo_sugerencia">Sugerencia</option>
+                                    <option value="abuso" data-i18n="soporte_tipo_abuso">Denunciar a un jugador</option>
+                                    <option value="otro" data-i18n="soporte_tipo_otro">Otra cosa</option>
+                                </select>
+                                <input type="text" id="soporte-asunto" maxlength="120" placeholder="Asunto" data-i18n="soporte_asunto">
+                                <textarea id="soporte-cuerpo" rows="4" maxlength="4000" placeholder="Cuéntanos qué ha pasado" data-i18n="soporte_mensaje"></textarea>
+                                <button class="btn-ok" data-accion="soporte-enviar" data-i18n="soporte_enviar">Enviar</button>
+                            </details>
+
+                            <!-- Conversación abierta -->
+                            <div id="soporte-hilo" class="hidden">
+                                <button class="btn-neutro" data-accion="soporte-volver" data-i18n="soporte_volver">← Volver</button>
+                                <h4 id="soporte-hilo-titulo"></h4>
+                                <div id="soporte-hilo-mensajes"></div>
+                                <textarea id="soporte-hilo-respuesta" rows="3" maxlength="4000" placeholder="Escribe tu respuesta…" data-i18n="soporte_responder"></textarea>
+                                <button class="btn-ok" data-accion="soporte-responder" data-i18n="soporte_enviar">Enviar</button>
+                                <button class="btn-neutro" data-accion="soporte-resolver" data-i18n="soporte_marcar_resuelto">Dar por resuelta</button>
+                            </div>
+                        </div>
+                        <p class="settings-msg"></p>
+                    </div>
+                </details>
+
+                <!-- Acceso al panel de administración: solo con el bit is_admin -->
+                <div class="settings-fila hidden" id="settings-fila-admin">
+                    <a href="/admin" target="_blank" rel="noopener" id="settings-link-admin"
+                       data-i18n="ajustes_panel_admin">🛠 Panel de administración</a>
+                </div>
+
+                <!-- ================= INVITADO ================= -->
+                <div id="settings-invitado" class="hidden">
+                    <div class="settings-fila settings-fila-col">
+                        <label for="settings-nombre-invitado" data-i18n="ajustes_nombre_invitado">Tu nombre en la mesa</label>
+                        <input type="text" id="settings-nombre-invitado" maxlength="20" placeholder="Tu nombre..." data-i18n="tu_nombre">
+                    </div>
+                    <p class="settings-nota" data-i18n="ajustes_invitado_nota">Crea una cuenta para guardar tu nombre, tu ELO y tus amigos.</p>
+                    <div class="settings-acciones">
+                        <button id="settings-btn-login" class="btn-ok" data-i18n="btn_login">Iniciar Sesión</button>
+                        <button id="settings-btn-signup" class="btn-neutro" data-i18n="btn_signup">Registrarse</button>
+                    </div>
+                </div>
+
+                <!-- ================= CON CUENTA ================= -->
+                <div id="settings-cuenta" class="hidden">
+
+                    <p class="settings-resumen">
+                        <span id="settings-username"></span>
+                        <span id="settings-email" class="settings-nota"></span>
+                    </p>
+
+                    <!-- Código público: permanente, no cambia al renombrarse y no se
+                         recicla. Es lo que hay que dar para que te añadan sin líos. -->
+                    <p class="settings-codigo">
+                        <span id="settings-codigo" title="" data-i18n-title="ajustes_codigo_copiar"></span>
+                        <span class="settings-nota" data-i18n="ajustes_codigo_expl">Tu identificador permanente. Compártelo para que te añadan.</span>
+                    </p>
+
+                    <!-- Cambiar nombre de usuario -->
+                    <details class="settings-seccion" data-panel="username">
+                        <summary data-i18n="ajustes_cambiar_username">Cambiar nombre de usuario</summary>
+                        <div class="settings-panel">
+                            <input type="text" id="in-nuevo-username" maxlength="20" placeholder="Nuevo nombre de usuario" data-i18n="ajustes_nuevo_username">
+                            <p id="aviso-cooldown-username" class="settings-nota hidden"></p>
+                            <div class="credencial"></div>
+                            <button class="btn-ok" data-accion="username" data-i18n="ajustes_guardar">Guardar</button>
+                            <p class="settings-msg"></p>
+                        </div>
+                    </details>
+
+                    <!-- Cambiar correo -->
+                    <details class="settings-seccion" data-panel="email">
+                        <summary data-i18n="ajustes_cambiar_email">Cambiar correo electrónico</summary>
+                        <div class="settings-panel">
+                            <input type="email" id="in-nuevo-email" placeholder="Nuevo correo electrónico" data-i18n="ajustes_nuevo_email">
+                            <div class="credencial"></div>
+                            <button class="btn-ok" data-accion="email-solicitar" data-i18n="ajustes_enviar_codigo">Enviarme el código</button>
+
+                            <div id="paso-confirmar-email" class="hidden">
+                                <p class="settings-nota" data-i18n="ajustes_email_codigo_nota">Escribe el código de 6 dígitos que hemos enviado a tu correo nuevo.</p>
+                                <input type="text" id="in-codigo-email" inputmode="numeric" maxlength="6" placeholder="Código de 6 dígitos" data-i18n="ajustes_codigo_placeholder">
+                                <button class="btn-ok" data-accion="email-confirmar" data-i18n="ajustes_confirmar">Confirmar</button>
+                            </div>
+                            <p class="settings-msg"></p>
+                        </div>
+                    </details>
+
+                    <!-- Cambiar contraseña -->
+                    <details class="settings-seccion" data-panel="password">
+                        <summary id="summary-password" data-i18n="ajustes_cambiar_password">Cambiar contraseña</summary>
+                        <div class="settings-panel">
+                            <input type="password" id="in-password-nueva" placeholder="Contraseña nueva (mín. 6)" data-i18n="password_min">
+                            <input type="password" id="in-password-repetir" placeholder="Repite la contraseña nueva" data-i18n="ajustes_password_repetir">
+                            <div class="credencial"></div>
+                            <button class="btn-ok" data-accion="password" data-i18n="ajustes_guardar">Guardar</button>
+                            <p class="settings-msg"></p>
+                        </div>
+                    </details>
+
+                    <!-- Eliminar cuenta -->
+                    <details class="settings-seccion peligro" data-panel="eliminar">
+                        <summary data-i18n="ajustes_eliminar_cuenta">Eliminar mi cuenta</summary>
+                        <div class="settings-panel">
+                            <p class="settings-nota" data-i18n="ajustes_eliminar_aviso">Se borrarán tu correo, tus datos personales, tus amistades y tus mensajes. Tus partidas jugadas se conservan de forma anónima para no alterar el historial de tus rivales. Esto no se puede deshacer.</p>
+                            <input type="text" id="in-confirmar-borrado" placeholder="Escribe tu nombre de usuario" data-i18n="ajustes_eliminar_confirmar">
+                            <div class="credencial"></div>
+                            <button class="btn-peligro" data-accion="eliminar" data-i18n="ajustes_eliminar_boton">Eliminar mi cuenta para siempre</button>
+                            <p class="settings-msg"></p>
+                        </div>
+                    </details>
+
+                    <div class="settings-acciones">
+                        <button id="btn-logout" class="btn-neutro" data-i18n="btn_logout">Cerrar Sesión</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="modal-tutorial" class="hidden" style="position: relative; background: #2e3440; padding: 0; border-radius: 12px; border: 1px solid #4c566a; width: 600px; max-width: 95vw; height: 80vh; max-height: 700px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden;">
             <button id="btn-cerrar-tutorial" style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.5); border: none; color: #eceff4; font-size: 1.5em; cursor: pointer; font-weight: bold; line-height: 1; width: 35px; height: 35px; border-radius: 50%; z-index: 10;">&times;</button>
             
@@ -558,6 +715,14 @@
     <!-- Toast flotante de notificaciones sociales (mensajes, solicitudes) -->
     <div id="social-toast" class="hidden" style="position: fixed; bottom: 20px; right: 20px; z-index: 2000; background: #3b4252; color: #eceff4; border: 1px solid #88c0d0; border-radius: 8px; padding: 12px 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); max-width: 300px; font-size: 0.95em;"></div>
 
+    <!-- Aviso puntual del administrador (Roadmap #13). Se cierra al leerlo y no
+         vuelve: el servidor lo marca como leído para esa cuenta. -->
+    <div id="anuncio-popup" class="hidden" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 2002; background: #2e3440; color: #eceff4; border: 2px solid #ebcb8b; border-radius: 10px; padding: 18px 20px; box-shadow: 0 8px 22px rgba(0,0,0,0.7); max-width: 420px; width: calc(100% - 40px); text-align: center;">
+        <h4 id="anuncio-popup-titulo" style="margin: 0 0 8px 0; color: #ebcb8b;"></h4>
+        <p id="anuncio-popup-cuerpo" style="margin: 0 0 14px 0; font-size: 0.95em; line-height: 1.5; white-space: pre-wrap;"></p>
+        <button id="anuncio-popup-ok" data-i18n="anuncio_cerrar" style="background: #a3be8c; color: #2e3440; border: none; padding: 8px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Entendido</button>
+    </div>
+
     <!-- Popup de invitación a partida entrante -->
     <div id="invite-popup" class="hidden" style="position: fixed; bottom: 20px; right: 20px; z-index: 2001; background: #2e3440; color: #eceff4; border: 2px solid #a3be8c; border-radius: 10px; padding: 18px; box-shadow: 0 8px 22px rgba(0,0,0,0.7); max-width: 320px; text-align: center;">
         <p id="invite-popup-text" style="margin: 0 0 14px 0; font-size: 1em;"></p>
@@ -611,9 +776,14 @@
         </div>
     </div>
 
-    <script src="/static/app.js?=v8"></script>
-    <script src="/static/auth.js?=v2"></script>
-    <script src="/static/social.js?=v2"></script>
+    <script src="/static/app.js?=v9"></script>
+    <script src="/static/auth.js?=v4"></script>
+    <!-- Ventana de ajustes (idioma, cuenta). Carga tras auth.js: usa usuarioActual. -->
+    <script src="/static/settings.js?=v2"></script>
+    <script src="/static/social.js?=v3"></script>
+    <!-- Soporte y avisos del administrador (Roadmap #13). Tras settings.js: se
+         engancha a la ventana de ajustes y reutiliza su _post/_traducir. -->
+    <script src="/static/soporte.js?=v1"></script>
     <script src="/static/tutorial.js"></script>
     <!-- Mus 4 jugadores (Roadmap #6): app4 (lógica) + table4 (render). Cargan tras app.js para reusar socket/dict/t. -->
     <script src="/static/table4.js?=v1"></script>

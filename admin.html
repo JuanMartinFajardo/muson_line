@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>CallMus · Administración</title>
+<style>
+/* Paleta Nord, la misma del juego. Hoja propia: el panel no comparte nada con
+   la SPA para poder tocarlo sin riesgo de romper la mesa. */
+:root{
+  --bg:#2e3440; --bg2:#3b4252; --bg3:#434c5e; --linea:#4c566a;
+  --txt:#eceff4; --txt2:#d8dee9; --azul:#88c0d0; --azul2:#5e81ac;
+  --verde:#a3be8c; --rojo:#bf616a; --amarillo:#ebcb8b; --morado:#b48ead;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);
+     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px}
+a{color:var(--azul)}
+h1,h2,h3{margin:0 0 10px 0}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+       padding:14px 22px;background:var(--bg2);border-bottom:1px solid var(--linea)}
+header h1{font-size:1.25em;color:var(--azul);margin:0}
+header .quien{margin-left:auto;color:var(--txt2);font-size:.9em}
+nav{display:flex;gap:6px;flex-wrap:wrap;padding:10px 22px;background:var(--bg2);
+    border-bottom:1px solid var(--linea);position:sticky;top:0;z-index:10}
+nav button{background:transparent;border:1px solid var(--linea);color:var(--txt2);
+           padding:7px 14px;border-radius:6px;cursor:pointer;font-size:.92em}
+nav button:hover{border-color:var(--azul);color:var(--azul)}
+nav button.activa{background:var(--azul2);border-color:var(--azul2);color:#fff;font-weight:bold}
+nav .badge{background:var(--rojo);border-radius:10px;padding:0 6px;margin-left:6px;font-size:.8em}
+main{padding:22px;max-width:1200px;margin:0 auto}
+section{display:none}
+section.activa{display:block}
+.tarjetas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.tarjeta{background:var(--bg2);border:1px solid var(--linea);border-radius:8px;padding:14px}
+.tarjeta .n{font-size:1.7em;font-weight:bold;color:var(--amarillo)}
+.tarjeta .et{font-size:.82em;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px}
+.caja{background:var(--bg2);border:1px solid var(--linea);border-radius:8px;padding:16px;margin-bottom:18px}
+.caja h3{color:var(--azul);font-size:1.05em}
+table{width:100%;border-collapse:collapse;font-size:.9em}
+th,td{padding:8px 10px;border-bottom:1px solid var(--linea);text-align:left;vertical-align:middle}
+th{background:var(--bg3);color:var(--txt2);font-size:.82em;text-transform:uppercase;letter-spacing:.4px}
+tr:hover td{background:#39404f}
+.tabla-scroll{max-height:460px;overflow:auto;border:1px solid var(--linea);border-radius:6px}
+input,select,textarea{background:var(--bg);color:var(--txt);border:1px solid var(--linea);
+                      border-radius:5px;padding:7px 9px;font-size:.92em;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--azul)}
+textarea{width:100%;min-height:90px;resize:vertical}
+button.b{border:none;border-radius:5px;padding:7px 13px;cursor:pointer;font-weight:bold;font-size:.86em}
+.b-ok{background:var(--verde);color:var(--bg)}
+.b-azul{background:var(--azul2);color:#fff}
+.b-mal{background:var(--rojo);color:#fff}
+.b-gris{background:var(--linea);color:var(--txt)}
+button.b:disabled{opacity:.45;cursor:not-allowed}
+.fila{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.75em;font-weight:bold}
+.p-admin{background:var(--morado);color:var(--bg)}
+.p-ban{background:var(--rojo);color:#fff}
+.p-del{background:var(--linea);color:var(--txt2)}
+.p-ok{background:var(--verde);color:var(--bg)}
+.p-esp{background:var(--amarillo);color:var(--bg)}
+.nota{color:var(--txt2);font-size:.85em;line-height:1.5}
+.aviso{padding:10px 12px;border-radius:6px;margin-bottom:12px;font-size:.9em;display:none}
+.aviso.ok{background:rgba(163,190,140,.15);border:1px solid var(--verde);color:var(--verde);display:block}
+.aviso.mal{background:rgba(191,97,106,.15);border:1px solid var(--rojo);color:var(--rojo);display:block}
+.hilo{max-height:340px;overflow:auto;background:var(--bg);border:1px solid var(--linea);
+      border-radius:6px;padding:12px;margin-bottom:12px}
+.burbuja{margin-bottom:10px;padding:9px 12px;border-radius:8px;max-width:80%;white-space:pre-wrap;
+         word-break:break-word;font-size:.9em;line-height:1.45}
+.burbuja.user{background:var(--bg3)}
+.burbuja.admin{background:var(--azul2);margin-left:auto}
+.burbuja .meta{display:block;font-size:.75em;opacity:.65;margin-bottom:3px}
+.oculto{display:none !important}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:820px){.dos{grid-template-columns:1fr}}
+code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.88em;color:var(--amarillo)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚙ CallMus · Administración</h1>
+  <span class="quien">{{ admin }} · <a href="/">volver al juego</a></span>
+</header>
+
+<nav>
+  <button data-vista="resumen" class="activa">Resumen</button>
+  <button data-vista="cuentas">Cuentas</button>
+  <button data-vista="salas">Salas</button>
+  <button data-vista="soporte">Soporte<span id="badge-soporte" class="badge oculto">0</span></button>
+  <button data-vista="anuncios">Anuncios</button>
+  <button data-vista="ajustes">Variables y bot</button>
+  <button data-vista="datos">Datos</button>
+  <button data-vista="auditoria">Auditoría</button>
+</nav>
+
+<main>
+  <div id="aviso" class="aviso"></div>
+
+  <!-- ============================ RESUMEN ============================ -->
+  <section id="v-resumen" class="activa">
+    <div class="tarjetas" id="tarjetas-resumen"></div>
+    <p class="nota">Se actualiza cada 15 segundos mientras esta pestaña esté abierta.</p>
+  </section>
+
+  <!-- ============================ CUENTAS ============================ -->
+  <section id="v-cuentas">
+    <div class="caja">
+      <div class="fila">
+        <input id="q-usuarios" placeholder="Nombre, correo o #CÓDIGO" style="flex:1;min-width:220px">
+        <label class="nota"><input type="checkbox" id="ver-eliminadas"> ver cuentas eliminadas</label>
+        <button class="b b-azul" id="btn-buscar">Buscar</button>
+      </div>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Usuario</th><th>Correo</th><th>ELO</th><th>V/D</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tbody-usuarios"><tr><td colspan="7" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="caja oculto" id="caja-usuario">
+      <h3 id="det-usuario-nombre"></h3>
+      <p class="nota" id="det-usuario-meta"></p>
+      <div class="dos">
+        <div>
+          <h3>Corregir estadísticas</h3>
+          <div class="fila">
+            <label class="nota">ELO <input id="ed-elo" type="number" step="0.1" style="width:90px"></label>
+            <label class="nota">Victorias <input id="ed-vic" type="number" min="0" style="width:80px"></label>
+            <label class="nota">Derrotas <input id="ed-der" type="number" min="0" style="width:80px"></label>
+          </div>
+          <button class="b b-ok" id="btn-guardar-stats">Guardar</button>
+        </div>
+        <div>
+          <h3>Acciones</h3>
+          <div class="fila">
+            <input id="motivo-ban" placeholder="Motivo del baneo" style="flex:1;min-width:180px">
+          </div>
+          <div class="fila">
+            <button class="b b-mal" id="btn-ban">Banear</button>
+            <button class="b b-gris" id="btn-desban">Levantar baneo</button>
+            <button class="b b-azul" id="btn-reset">Enviar código de contraseña</button>
+          </div>
+          <div class="fila">
+            <button class="b b-gris" id="btn-admin">Hacer administrador</button>
+            <button class="b b-mal" id="btn-eliminar">Eliminar cuenta</button>
+          </div>
+          <p class="nota">Banear cierra al momento sus sesiones abiertas. Eliminar
+            anonimiza la cuenta (igual que si lo hiciera el propio usuario): el historial
+            de partidas de sus rivales se conserva.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================= SALAS ============================= -->
+  <section id="v-salas">
+    <div class="caja">
+      <div class="fila">
+        <button class="b b-azul" id="btn-refrescar-salas">Refrescar</button>
+        <label class="nota"><input type="checkbox" id="auto-salas" checked> auto cada 10 s</label>
+      </div>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>Código</th><th>Modo</th><th>Estado</th><th>Jugadores</th><th>Fase</th><th>Edad</th><th>Inactiva</th><th></th></tr></thead>
+          <tbody id="tbody-salas"><tr><td colspan="8" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="nota">Cerrar una sala avisa a quien esté dentro y la borra de memoria.
+        Es el arreglo manual para una partida atascada.</p>
+    </div>
+  </section>
+
+  <!-- ============================ SOPORTE ============================ -->
+  <section id="v-soporte">
+    <div class="caja">
+      <div class="fila">
+        <select id="filtro-tickets">
+          <option value="">Sin resolver</option>
+          <option value="abierto">Esperando respuesta</option>
+          <option value="respondido">Respondidos</option>
+          <option value="resuelto">Resueltos</option>
+        </select>
+        <button class="b b-azul" id="btn-refrescar-tickets">Refrescar</button>
+      </div>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Usuario</th><th>Asunto</th><th>Tipo</th><th>Estado</th><th>Actualizado</th></tr></thead>
+          <tbody id="tbody-tickets"><tr><td colspan="6" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="caja oculto" id="caja-ticket">
+      <h3 id="ticket-titulo"></h3>
+      <p class="nota" id="ticket-meta"></p>
+      <div class="hilo" id="ticket-hilo"></div>
+      <textarea id="ticket-respuesta" placeholder="Escribe la respuesta al jugador…"></textarea>
+      <div class="fila" style="margin-top:10px">
+        <button class="b b-ok" id="btn-responder-ticket">Responder</button>
+        <button class="b b-gris" id="btn-resolver-ticket">Marcar como resuelto</button>
+        <button class="b b-gris" id="btn-cerrar-ticket">Cerrar hilo</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================== ANUNCIOS ============================ -->
+  <section id="v-anuncios">
+    <div class="caja">
+      <h3>Nuevo aviso</h3>
+      <div class="fila">
+        <label class="nota">Forma
+          <select id="an-tipo">
+            <option value="notificacion">Notificación (llega una vez)</option>
+            <option value="pin">Mensaje fijado en el menú</option>
+          </select>
+        </label>
+        <label class="nota">Para
+          <select id="an-audiencia">
+            <option value="todos">Todos los jugadores</option>
+            <option value="grupo">Un grupo</option>
+            <option value="usuarios">Jugadores concretos</option>
+          </select>
+        </label>
+        <label class="nota oculto" id="lbl-grupo">Grupo <select id="an-grupo"></select></label>
+        <label class="nota">Caduca en
+          <input id="an-horas" type="number" min="0" step="1" value="0" style="width:70px"> h (0 = nunca)
+        </label>
+      </div>
+      <div class="fila">
+        <input id="an-titulo" placeholder="Título (opcional)" style="flex:1;min-width:220px">
+      </div>
+      <div class="fila oculto" id="lbl-usuarios" style="display:block">
+        <input id="an-usuarios" placeholder="Nombres o #CÓDIGOS separados por comas" style="width:100%">
+      </div>
+      <textarea id="an-cuerpo" placeholder="Mensaje para los jugadores…"></textarea>
+      <div class="fila" style="margin-top:10px">
+        <button class="b b-ok" id="btn-crear-anuncio">Enviar</button>
+      </div>
+      <p class="nota">Una <b>notificación</b> aparece como aviso y desaparece cuando el
+        jugador la lee. Un <b>mensaje fijado</b> se queda visible en el menú principal
+        hasta que caduque o lo retires aquí.</p>
+    </div>
+
+    <div class="caja">
+      <h3>Avisos enviados</h3>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Forma</th><th>Título</th><th>Para</th><th>Creado</th><th>Caduca</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tbody-anuncios"><tr><td colspan="8" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================== VARIABLES Y BOT ======================== -->
+  <section id="v-ajustes">
+    <div class="caja">
+      <h3>Cerebro del bot</h3>
+      <div class="fila">
+        <select id="sel-checkpoint" style="flex:1;min-width:280px"></select>
+        <button class="b b-ok" id="btn-guardar-checkpoint">Activar</button>
+      </div>
+      <p class="nota">Los checkpoints salen de <code>learn/cfr/</code>, ordenados del más
+        reciente al más antiguo. Cambiarlo tiene efecto en la siguiente partida contra la
+        IA, sin reiniciar el servidor.</p>
+    </div>
+
+    <div class="caja">
+      <h3>Variables globales</h3>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>Clave</th><th>Valor</th><th>Para qué sirve</th><th></th></tr></thead>
+          <tbody id="tbody-config"><tr><td colspan="4" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+      <h3 style="margin-top:16px">Añadir una clave nueva</h3>
+      <div class="fila">
+        <input id="cfg-clave" placeholder="clave" style="width:200px">
+        <input id="cfg-valor" placeholder="valor" style="flex:1;min-width:180px">
+        <button class="b b-azul" id="btn-crear-config">Guardar</button>
+      </div>
+      <p class="nota">Las claves libres se guardan igual, pero solo hacen algo cuando hay
+        código que las lea. Las de la tabla de arriba sí están conectadas.</p>
+    </div>
+  </section>
+
+  <!-- ============================= DATOS ============================= -->
+  <section id="v-datos">
+    <div class="caja">
+      <h3>Copia de la base de datos</h3>
+      <p class="nota">Copia consistente de <code>mus.db</code> (usa la API de backup de
+        SQLite, así que se puede descargar con el servidor en marcha).</p>
+      <a class="b b-azul" href="/admin/api/descargas/db"
+         style="display:inline-block;text-decoration:none">Descargar mus.db</a>
+    </div>
+    <div class="caja">
+      <h3>Registros de partidas</h3>
+      <p class="nota">Zip con los <code>logs/*.jsonl</code>. Las fechas filtran por fecha
+        de modificación del archivo; déjalas vacías para bajarlo todo.</p>
+      <div class="fila">
+        <label class="nota">Desde <input type="date" id="log-desde"></label>
+        <label class="nota">Hasta <input type="date" id="log-hasta"></label>
+        <button class="b b-azul" id="btn-descargar-logs">Descargar zip</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================== AUDITORÍA =========================== -->
+  <section id="v-auditoria">
+    <div class="caja">
+      <div class="fila">
+        <button class="b b-azul" id="btn-refrescar-auditoria">Refrescar</button>
+      </div>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>Fecha</th><th>Admin</th><th>Acción</th><th>Objetivo</th><th>Detalle</th><th>IP</th></tr></thead>
+          <tbody id="tbody-auditoria"><tr><td colspan="6" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="nota">Toda acción de administración queda aquí. No se puede borrar desde el panel.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+// ==========================================================================
+// Panel de administración (Roadmap #13). Vanilla JS, sin dependencias.
+// Todo el texto que entra de la base de datos se pinta con textContent para
+// que un nombre de usuario o un mensaje de soporte no pueda inyectar HTML.
+// ==========================================================================
+const $ = id => document.getElementById(id);
+
+function aviso(texto, malo) {
+  const caja = $('aviso');
+  caja.textContent = texto;
+  caja.className = 'aviso ' + (malo ? 'mal' : 'ok');
+  clearTimeout(aviso._t);
+  aviso._t = setTimeout(() => { caja.className = 'aviso'; }, 5000);
+}
+
+async function api(url, metodo, cuerpo) {
+  try {
+    const res = await fetch(url, {
+      method: metodo || 'GET',
+      headers: cuerpo ? { 'Content-Type': 'application/json' } : {},
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: cuerpo ? JSON.stringify(cuerpo) : undefined
+    });
+    if (res.status === 403) { aviso('Tu sesión ya no es de administrador.', true); return null; }
+    return await res.json();
+  } catch (e) {
+    aviso('Error de red: ' + e.message, true);
+    return null;
+  }
+}
+
+function td(texto, clase) {
+  const c = document.createElement('td');
+  c.textContent = (texto === null || texto === undefined) ? '—' : String(texto);
+  if (clase) c.className = clase;
+  return c;
+}
+
+function pill(texto, clase) {
+  const s = document.createElement('span');
+  s.className = 'pill ' + clase;
+  s.textContent = texto;
+  return s;
+}
+
+function boton(texto, clase, alPulsar) {
+  const b = document.createElement('button');
+  b.className = 'b ' + clase;
+  b.textContent = texto;
+  b.addEventListener('click', alPulsar);
+  return b;
+}
+
+function fecha(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function duracion(segundos) {
+  if (segundos === null || segundos === undefined) return '—';
+  if (segundos < 60) return segundos + ' s';
+  if (segundos < 3600) return Math.round(segundos / 60) + ' min';
+  return (segundos / 3600).toFixed(1) + ' h';
+}
+
+// -------------------- Navegación --------------------
+let vistaActual = 'resumen';
+const cargadores = {};
+
+document.querySelectorAll('nav button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(x => x.classList.remove('activa'));
+    document.querySelectorAll('section').forEach(x => x.classList.remove('activa'));
+    b.classList.add('activa');
+    vistaActual = b.dataset.vista;
+    $('v-' + vistaActual).classList.add('activa');
+    if (cargadores[vistaActual]) cargadores[vistaActual]();
+  });
+});
+
+// ==========================================================================
+// Resumen
+// ==========================================================================
+const ETIQUETAS = {
+  usuarios: 'Cuentas', usuarios_hoy: 'Altas hoy', baneados: 'Baneados', admins: 'Admins',
+  partidas: 'Partidas 1v1', partidas_hoy: 'Partidas hoy', partidas4: 'Partidas 2v2',
+  partidas4_hoy: 'Partidas 2v2 hoy', tickets_pendientes: 'Soporte sin leer',
+  anuncios_activos: 'Avisos activos', salas_2p: 'Salas 1v1', salas_4p: 'Salas 2v2',
+  jugando_2p: 'Jugando 1v1', jugando_4p: 'Jugando 2v2', conexiones: 'Conexiones',
+  online: 'Con sesión online'
+};
+
+cargadores.resumen = async function () {
+  const d = await api('/admin/api/resumen');
+  if (!d || !d.exito) return;
+  const caja = $('tarjetas-resumen');
+  caja.replaceChildren();
+  Object.keys(ETIQUETAS).forEach(k => {
+    if (d.resumen[k] === undefined) return;
+    const t = document.createElement('div');
+    t.className = 'tarjeta';
+    const n = document.createElement('div');
+    n.className = 'n'; n.textContent = d.resumen[k];
+    const e = document.createElement('div');
+    e.className = 'et'; e.textContent = ETIQUETAS[k];
+    t.append(n, e);
+    caja.appendChild(t);
+  });
+  pintarBadgeSoporte(d.resumen.tickets_pendientes);
+};
+
+function pintarBadgeSoporte(n) {
+  const b = $('badge-soporte');
+  b.textContent = n;
+  b.classList.toggle('oculto', !n);
+}
+
+// ==========================================================================
+// Cuentas
+// ==========================================================================
+let usuarioSel = null;
+
+cargadores.cuentas = async function () {
+  const q = encodeURIComponent($('q-usuarios').value.trim());
+  const elim = $('ver-eliminadas').checked ? '1' : '0';
+  const d = await api(`/admin/api/usuarios?q=${q}&eliminadas=${elim}`);
+  const cuerpo = $('tbody-usuarios');
+  cuerpo.replaceChildren();
+  if (!d || !d.exito) return;
+  if (!d.usuarios.length) {
+    const fila = document.createElement('tr');
+    fila.appendChild(td('Sin resultados.'));
+    fila.firstChild.colSpan = 7;
+    cuerpo.appendChild(fila);
+    return;
+  }
+  d.usuarios.forEach(u => {
+    const fila = document.createElement('tr');
+    fila.append(td(u.id), td(u.username + (u.codigo ? ' · #' + u.codigo : '')),
+                td(u.email), td(u.elo), td(`${u.victorias}/${u.derrotas}`));
+    const estado = document.createElement('td');
+    if (u.is_admin) estado.appendChild(pill('admin', 'p-admin'));
+    if (u.banned) estado.appendChild(pill('baneado', 'p-ban'));
+    if (u.eliminada) estado.appendChild(pill('eliminada', 'p-del'));
+    if (!u.is_admin && !u.banned && !u.eliminada) estado.appendChild(pill('activa', 'p-ok'));
+    fila.appendChild(estado);
+    const acc = document.createElement('td');
+    acc.appendChild(boton('Gestionar', 'b-azul', () => abrirUsuario(u)));
+    fila.appendChild(acc);
+    cuerpo.appendChild(fila);
+  });
+};
+
+function abrirUsuario(u) {
+  usuarioSel = u;
+  $('caja-usuario').classList.remove('oculto');
+  $('det-usuario-nombre').textContent = u.username + (u.codigo ? '  #' + u.codigo : '');
+  $('det-usuario-meta').textContent =
+    `id ${u.id} · ${u.email || 'sin correo'} · alta ${u.fecha_registro || '—'} · ` +
+    `${u.google ? 'cuenta de Google' : 'contraseña propia'} · ` +
+    `4p ${u.victorias_4p}/${u.derrotas_4p}` + (u.ban_motivo ? ` · motivo del baneo: ${u.ban_motivo}` : '');
+  $('ed-elo').value = u.elo;
+  $('ed-vic').value = u.victorias;
+  $('ed-der').value = u.derrotas;
+  $('motivo-ban').value = u.ban_motivo || '';
+  $('btn-admin').textContent = u.is_admin ? 'Quitar administrador' : 'Hacer administrador';
+  $('caja-usuario').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+$('btn-buscar').addEventListener('click', cargadores.cuentas);
+$('q-usuarios').addEventListener('keydown', e => { if (e.key === 'Enter') cargadores.cuentas(); });
+$('ver-eliminadas').addEventListener('change', cargadores.cuentas);
+
+async function accionUsuario(ruta, cuerpo, mensajeOk) {
+  if (!usuarioSel) return;
+  const d = await api(`/admin/api/usuarios/${usuarioSel.id}/${ruta}`, 'POST', cuerpo);
+  if (!d) return;
+  if (!d.exito) { aviso('No se pudo: ' + (d.mensaje || 'error'), true); return; }
+  aviso(mensajeOk);
+  if (d.usuario) abrirUsuario(d.usuario);
+  cargadores.cuentas();
+}
+
+$('btn-guardar-stats').addEventListener('click', () => accionUsuario('estadisticas', {
+  elo: parseFloat($('ed-elo').value),
+  victorias: parseInt($('ed-vic').value, 10),
+  derrotas: parseInt($('ed-der').value, 10)
+}, 'Estadísticas actualizadas.'));
+
+$('btn-ban').addEventListener('click', () => {
+  if (!confirm(`¿Banear a ${usuarioSel.username}? Se cerrarán sus sesiones abiertas.`)) return;
+  accionUsuario('ban', { banear: true, motivo: $('motivo-ban').value }, 'Cuenta baneada.');
+});
+$('btn-desban').addEventListener('click', () =>
+  accionUsuario('ban', { banear: false }, 'Baneo levantado.'));
+$('btn-reset').addEventListener('click', () =>
+  accionUsuario('reset_password', {}, 'Código de recuperación enviado a su correo.'));
+$('btn-admin').addEventListener('click', () => {
+  const dar = !usuarioSel.is_admin;
+  if (!confirm(dar ? `¿Dar acceso de administrador a ${usuarioSel.username}?`
+                   : `¿Quitar el acceso de administrador a ${usuarioSel.username}?`)) return;
+  accionUsuario('admin', { admin: dar }, dar ? 'Ahora es administrador.' : 'Ya no es administrador.');
+});
+$('btn-eliminar').addEventListener('click', () => {
+  if (!confirm(`¿Eliminar la cuenta de ${usuarioSel.username}? Se anonimiza y no se puede deshacer.`)) return;
+  accionUsuario('eliminar', {}, 'Cuenta eliminada.');
+});
+
+// ==========================================================================
+// Salas
+// ==========================================================================
+cargadores.salas = async function () {
+  const d = await api('/admin/api/salas');
+  const cuerpo = $('tbody-salas');
+  cuerpo.replaceChildren();
+  if (!d || !d.exito) return;
+  if (!d.salas.length) {
+    const fila = document.createElement('tr');
+    const c = td('No hay ninguna sala viva.'); c.colSpan = 8;
+    fila.appendChild(c); cuerpo.appendChild(fila);
+    return;
+  }
+  d.salas.forEach(s => {
+    const fila = document.createElement('tr');
+    fila.append(td(s.codigo), td(s.modo + (s.vs_bot ? ' · bot' : '')));
+    const est = document.createElement('td');
+    est.appendChild(pill(s.estado, s.estado === 'jugando' ? 'p-ok' : 'p-esp'));
+    fila.appendChild(est);
+    fila.append(td((s.jugadores || []).map(n => n || '—').join(', ')),
+                td(s.fase), td(duracion(s.edad_s)), td(duracion(s.inactiva_s)));
+    const acc = document.createElement('td');
+    acc.appendChild(boton('Cerrar', 'b-mal', async () => {
+      if (!confirm(`¿Cerrar la sala ${s.codigo}? Se avisará a quien esté dentro.`)) return;
+      const r = await api(`/admin/api/salas/${s.codigo}/cerrar`, 'POST', {});
+      if (r && r.exito) { aviso('Sala cerrada.'); cargadores.salas(); }
+      else aviso('No se pudo cerrar la sala.', true);
+    }));
+    fila.appendChild(acc);
+    cuerpo.appendChild(fila);
+  });
+};
+$('btn-refrescar-salas').addEventListener('click', cargadores.salas);
+
+// ==========================================================================
+// Soporte
+// ==========================================================================
+let ticketSel = null;
+
+cargadores.soporte = async function () {
+  const estado = $('filtro-tickets').value;
+  const d = await api('/admin/api/tickets' + (estado ? '?estado=' + estado : ''));
+  const cuerpo = $('tbody-tickets');
+  cuerpo.replaceChildren();
+  if (!d || !d.exito) return;
+  pintarBadgeSoporte(d.pendientes);
+  if (!d.tickets.length) {
+    const fila = document.createElement('tr');
+    const c = td('Nada por aquí.'); c.colSpan = 6;
+    fila.appendChild(c); cuerpo.appendChild(fila);
+    return;
+  }
+  d.tickets.forEach(t => {
+    const fila = document.createElement('tr');
+    fila.style.cursor = 'pointer';
+    fila.addEventListener('click', () => abrirTicket(t.id));
+    const num = td('#' + t.id);
+    if (!t.leido_admin) num.appendChild(pill('nuevo', 'p-ban'));
+    fila.append(num, td(t.username || '(cuenta eliminada)'), td(t.asunto), td(t.tipo));
+    const est = document.createElement('td');
+    est.appendChild(pill(t.estado, t.estado === 'resuelto' ? 'p-ok'
+                                 : t.estado === 'respondido' ? 'p-esp' : 'p-ban'));
+    fila.append(est, td(fecha(t.updated_at)));
+    cuerpo.appendChild(fila);
+  });
+};
+
+async function abrirTicket(id) {
+  const d = await api('/admin/api/tickets/' + id);
+  if (!d || !d.exito) return;
+  ticketSel = d.ticket;
+  $('caja-ticket').classList.remove('oculto');
+  $('ticket-titulo').textContent = `#${d.ticket.id} · ${d.ticket.asunto}`;
+  $('ticket-meta').textContent =
+    `${d.ticket.username || '(cuenta eliminada)'} · ${d.ticket.tipo} · ` +
+    `abierto ${fecha(d.ticket.created_at)} · estado: ${d.ticket.estado}`;
+  const hilo = $('ticket-hilo');
+  hilo.replaceChildren();
+  d.mensajes.forEach(m => {
+    const b = document.createElement('div');
+    b.className = 'burbuja ' + m.autor;
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = `${m.autor_nombre || m.autor} · ${fecha(m.created_at)}`;
+    b.appendChild(meta);
+    b.appendChild(document.createTextNode(m.body));
+    hilo.appendChild(b);
+  });
+  hilo.scrollTop = hilo.scrollHeight;
+  $('ticket-respuesta').value = '';
+  $('caja-ticket').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+$('filtro-tickets').addEventListener('change', cargadores.soporte);
+$('btn-refrescar-tickets').addEventListener('click', cargadores.soporte);
+$('btn-responder-ticket').addEventListener('click', async () => {
+  const body = $('ticket-respuesta').value.trim();
+  if (!ticketSel || !body) return;
+  const d = await api(`/admin/api/tickets/${ticketSel.id}/responder`, 'POST', { body });
+  if (d && d.exito) { aviso('Respuesta enviada.'); abrirTicket(ticketSel.id); cargadores.soporte(); }
+  else aviso('No se pudo enviar la respuesta.', true);
+});
+$('btn-resolver-ticket').addEventListener('click', async () => {
+  if (!ticketSel) return;
+  const d = await api(`/admin/api/tickets/${ticketSel.id}/estado`, 'POST', { estado: 'resuelto' });
+  if (d && d.exito) { aviso('Marcado como resuelto.'); cargadores.soporte(); $('caja-ticket').classList.add('oculto'); }
+});
+$('btn-cerrar-ticket').addEventListener('click', () => $('caja-ticket').classList.add('oculto'));
+
+// ==========================================================================
+// Anuncios
+// ==========================================================================
+cargadores.anuncios = async function () {
+  const d = await api('/admin/api/anuncios');
+  if (!d || !d.exito) return;
+
+  const sel = $('an-grupo');
+  sel.replaceChildren();
+  d.grupos.forEach(g => {
+    const o = document.createElement('option');
+    o.value = g.id;
+    o.textContent = `${g.name} (${g.n})`;
+    sel.appendChild(o);
+  });
+
+  const cuerpo = $('tbody-anuncios');
+  cuerpo.replaceChildren();
+  if (!d.anuncios.length) {
+    const fila = document.createElement('tr');
+    const c = td('Todavía no has enviado ninguno.'); c.colSpan = 8;
+    fila.appendChild(c); cuerpo.appendChild(fila);
+    return;
+  }
+  d.anuncios.forEach(a => {
+    const fila = document.createElement('tr');
+    fila.append(td(a.id), td(a.tipo === 'pin' ? 'fijado' : 'notificación'),
+                td(a.titulo || a.cuerpo.slice(0, 40)), td(a.audiencia),
+                td(fecha(a.created_at)), td(a.expira_en ? fecha(a.expira_en) : 'nunca'));
+    const est = document.createElement('td');
+    est.appendChild(a.activo && !a.caducado ? pill('activo', 'p-ok')
+                                            : pill(a.caducado ? 'caducado' : 'retirado', 'p-del'));
+    fila.appendChild(est);
+    const acc = document.createElement('td');
+    if (a.activo) {
+      acc.appendChild(boton('Retirar', 'b-mal', async () => {
+        const r = await api(`/admin/api/anuncios/${a.id}/desactivar`, 'POST', {});
+        if (r && r.exito) { aviso('Aviso retirado.'); cargadores.anuncios(); }
+      }));
+    }
+    fila.appendChild(acc);
+    cuerpo.appendChild(fila);
+  });
+};
+
+$('an-audiencia').addEventListener('change', () => {
+  const v = $('an-audiencia').value;
+  $('lbl-grupo').classList.toggle('oculto', v !== 'grupo');
+  $('lbl-usuarios').classList.toggle('oculto', v !== 'usuarios');
+});
+$('lbl-usuarios').classList.add('oculto');
+
+$('btn-crear-anuncio').addEventListener('click', async () => {
+  const cuerpo = $('an-cuerpo').value.trim();
+  if (!cuerpo) { aviso('Escribe el mensaje.', true); return; }
+  const d = await api('/admin/api/anuncios', 'POST', {
+    tipo: $('an-tipo').value,
+    audiencia: $('an-audiencia').value,
+    group_id: parseInt($('an-grupo').value, 10) || null,
+    usuarios: $('an-usuarios').value,
+    titulo: $('an-titulo').value,
+    cuerpo: cuerpo,
+    horas: parseFloat($('an-horas').value) || 0
+  });
+  if (!d) return;
+  if (!d.exito) {
+    aviso('No se pudo enviar: ' + d.mensaje + (d.detalle ? ' → ' + d.detalle.join(', ') : ''), true);
+    return;
+  }
+  aviso(`Enviado a ${d.destinatarios} jugadores.`);
+  $('an-cuerpo').value = ''; $('an-titulo').value = '';
+  cargadores.anuncios();
+});
+
+// ==========================================================================
+// Variables y bot
+// ==========================================================================
+cargadores.ajustes = async function () {
+  const d = await api('/admin/api/config');
+  if (!d || !d.exito) return;
+
+  const actual = (d.conocidas.find(c => c.key === 'bot_checkpoint') || {}).value || '';
+  const sel = $('sel-checkpoint');
+  sel.replaceChildren();
+  const vacio = document.createElement('option');
+  vacio.value = ''; vacio.textContent = '(el que trae bot_ml.py por defecto)';
+  sel.appendChild(vacio);
+  d.checkpoints.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    if (c === actual) o.selected = true;
+    sel.appendChild(o);
+  });
+
+  const cuerpo = $('tbody-config');
+  cuerpo.replaceChildren();
+  d.conocidas.concat(d.otras.map(o => ({ ...o, ayuda: '(clave libre)', defecto: '' })))
+    .forEach(c => {
+      const fila = document.createElement('tr');
+      fila.appendChild(td(c.key));
+      const celdaValor = document.createElement('td');
+      const campo = document.createElement('input');
+      campo.value = c.value === null || c.value === undefined ? '' : c.value;
+      campo.style.width = '100%';
+      celdaValor.appendChild(campo);
+      fila.appendChild(celdaValor);
+      fila.appendChild(td(c.ayuda));
+      const acc = document.createElement('td');
+      acc.appendChild(boton('Guardar', 'b-ok', async () => {
+        const r = await api('/admin/api/config', 'POST', { key: c.key, value: campo.value });
+        if (r && r.exito) { aviso(`«${c.key}» guardada.`); cargadores.ajustes(); }
+        else aviso('No se pudo guardar: ' + ((r && r.mensaje) || 'error'), true);
+      }));
+      fila.appendChild(acc);
+      cuerpo.appendChild(fila);
+    });
+};
+
+$('btn-guardar-checkpoint').addEventListener('click', async () => {
+  const r = await api('/admin/api/config', 'POST',
+                      { key: 'bot_checkpoint', value: $('sel-checkpoint').value });
+  if (r && r.exito) aviso('Checkpoint activado. Se usará en la próxima partida contra la IA.');
+  else aviso('No se pudo activar: ' + ((r && r.mensaje) || 'error'), true);
+});
+
+$('btn-crear-config').addEventListener('click', async () => {
+  const key = $('cfg-clave').value.trim();
+  if (!key) return;
+  const r = await api('/admin/api/config', 'POST', { key, value: $('cfg-valor').value });
+  if (r && r.exito) {
+    aviso('Guardada.');
+    $('cfg-clave').value = ''; $('cfg-valor').value = '';
+    cargadores.ajustes();
+  } else aviso('No se pudo guardar: ' + ((r && r.mensaje) || 'error'), true);
+});
+
+// ==========================================================================
+// Datos
+// ==========================================================================
+$('btn-descargar-logs').addEventListener('click', () => {
+  const p = new URLSearchParams();
+  if ($('log-desde').value) p.set('desde', $('log-desde').value);
+  if ($('log-hasta').value) p.set('hasta', $('log-hasta').value);
+  window.location = '/admin/api/descargas/logs?' + p.toString();
+});
+
+// ==========================================================================
+// Auditoría
+// ==========================================================================
+cargadores.auditoria = async function () {
+  const d = await api('/admin/api/auditoria');
+  const cuerpo = $('tbody-auditoria');
+  cuerpo.replaceChildren();
+  if (!d || !d.exito) return;
+  d.registros.forEach(r => {
+    const fila = document.createElement('tr');
+    fila.append(td(fecha(r.fecha)), td(r.admin), td(r.accion), td(r.objetivo), td(r.detalle), td(r.ip));
+    cuerpo.appendChild(fila);
+  });
+};
+$('btn-refrescar-auditoria').addEventListener('click', cargadores.auditoria);
+
+// ==========================================================================
+// Arranque + refrescos automáticos
+// ==========================================================================
+cargadores.resumen();
+cargadores.cuentas();
+
+setInterval(() => {
+  if (vistaActual === 'resumen') cargadores.resumen();
+  if (vistaActual === 'salas' && $('auto-salas').checked) cargadores.salas();
+}, 10000);
+</script>
+</body>
+</html>

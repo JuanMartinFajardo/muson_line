@@ -47,7 +47,18 @@ root (loaded by a tiny built-in parser — python-dotenv is **not** required). C
 | `SMTP_PASS` | Gmail **app password** (16 letters) | Google Account → Security → 2-Step Verification → App passwords |
 | `SMTP_HOST` / `SMTP_PORT` | SMTP server (optional) | default `smtp.gmail.com` / `465` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID |
-| CFR model checkpoint | (unrelated) hardcoded in `bot_ml.py` | config/env or admin-adjustable |
+| `ADMIN_USERNAME` | Account promoted to admin at startup — the only way to create the **first** admin. Afterwards the flag is granted from `/admin` and this can be left empty | an existing username |
+| `DEBUG_TOKEN` | Optional: enables `GET /api/debug/salas?token=…` (404 without it). `/admin` → *Salas* shows the same thing with a real login | any random string |
+
+The CFR checkpoint the bot uses is **no longer hardcoded**: it is the `bot_checkpoint` row
+of the `Config` table, chosen from `/admin` → *Variables y bot*, with the value in
+`bot_ml.CHECKPOINT_POR_DEFECTO` as the fallback.
+
+### Admin panel
+
+There is **nothing extra to deploy**: `/admin` runs inside the same Flask process, port
+and session as the game. Set `ADMIN_USERNAME` to your account, restart once, and the ⚙
+settings window will show a link to the panel.
 
 ### Gmail app password (for verification & recovery emails)
 

@@ -35,18 +35,73 @@ def cargar_modelo(ruta):
     return modelo
 
 
+# ==========================================================================
+# Checkpoint activo (Roadmap #13: se elige desde el panel de administración)
+# --------------------------------------------------------------------------
+# El modelo se carga UNA vez por proceso y se comparte entre todas las salas:
+# antes cada SmartBot releía el .pth del disco, así que cada partida contra la
+# IA pagaba la carga entera. El panel llama a invalidar_modelo_cacheado() al
+# cambiar la variable `bot_checkpoint`, y el siguiente bot que nazca coge el
+# modelo nuevo sin reiniciar el servidor.
+# ==========================================================================
+
+CHECKPOINT_POR_DEFECTO = 'deep_cfr_mus_bot_cfr5_iter_2350'
+DIR_CHECKPOINTS = 'learn/cfr'
+
+_modelo_cache = None        # (ruta, modelo) ya cargado
+_ruta_cache = None
+
+
+def invalidar_modelo_cacheado():
+    """Suelta el modelo en memoria para que el próximo bot relea la variable."""
+    global _modelo_cache, _ruta_cache
+    _modelo_cache = None
+    _ruta_cache = None
+
+
+def ruta_checkpoint_activa():
+    """Ruta del .pth que toca usar: lo que diga la variable `bot_checkpoint` del
+    panel, y si no hay nada (o apunta a un archivo que ya no existe) el de
+    siempre. Nunca se acepta una ruta: solo un nombre de archivo dentro de
+    learn/cfr, para que la variable no pueda leer nada más del disco."""
+    elegido = ''
+    try:
+        import base_datos
+        elegido = (base_datos.config_get('bot_checkpoint', '') or '').strip()
+    except Exception as e:
+        print(f"⚠️ [BOT] No se pudo leer bot_checkpoint: {e}")
+
+    if elegido:
+        elegido = os.path.basename(elegido)
+        if not elegido.endswith('.pth'):
+            elegido += '.pth'
+        ruta = os.path.join(DIR_CHECKPOINTS, elegido)
+        if os.path.exists(ruta):
+            return ruta
+        print(f"⚠️ [BOT] El checkpoint configurado ({elegido}) no existe: uso el de por defecto.")
+
+    return os.path.join(DIR_CHECKPOINTS, CHECKPOINT_POR_DEFECTO + '.pth')
+
+
+def obtener_modelo_apuestas():
+    global _modelo_cache, _ruta_cache
+    ruta = ruta_checkpoint_activa()
+    if _modelo_cache is None or _ruta_cache != ruta:
+        _modelo_cache = cargar_modelo(ruta)
+        _ruta_cache = ruta
+        print(f"🧠 [BOT] Modelo de apuestas cargado: {ruta}")
+    return _modelo_cache
+
+
 class SmartBot:
     def __init__(self, sid="BOT_ML"):
         self.sid = sid
         self.memoria = {'mis_descartes': [], 'descartes_rival': 0, 'hubo_fase_pares': False, 'ronda': -1}
         self.meta_variables = self.update_meta_variables(show=False)  # Inicializamos las meta-variables con valores aleatorios
-        
 
-        # 1. Cargar Cerebro de Apuestas CFR
-        self.modelo_apuestas_cfr = None
-        name_model = 'deep_cfr_mus_bot_cfr5_iter_2350'  #'checkpoint_mus_latest' #'deep_cfr_mus_bot_iter_1400'
-        ruta_cfr = f"learn/cfr/{name_model}.pth"
-        self.modelo_apuestas_cfr = cargar_modelo(ruta_cfr)
+
+        # 1. Cerebro de Apuestas CFR (compartido y elegible desde /admin)
+        self.modelo_apuestas_cfr = obtener_modelo_apuestas()
 
 
         self.expected_values_mus = {}

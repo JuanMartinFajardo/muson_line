@@ -109,6 +109,23 @@ def _mi_id():
     return base_datos.obtener_id_usuario(session.get('username'))
 
 
+def _resolver_objetivo(texto):
+    """Traduce lo que el usuario ha escrito en la caja de 'añadir' a (id, username).
+
+    Acepta el nombre o el código público (#A7K2QX, Roadmap #23). El código es la vía
+    fiable: no cambia al renombrarse y no se recicla, así que nunca acaba señalando a
+    otra persona. Devuelve (None, None) si no hay ninguna cuenta viva que encaje.
+    """
+    texto = (texto or '').strip()
+    if not texto:
+        return (None, None)
+    if texto.startswith('#'):
+        encontrado = base_datos.obtener_usuario_por_codigo(texto)
+        return encontrado if encontrado else (None, None)
+    uid = base_datos.obtener_id_usuario(texto)
+    return (uid, base_datos.obtener_username_por_id(uid)) if uid else (None, None)
+
+
 # ==========================================================================
 # Registro de rutas HTTP y eventos de socket
 # ==========================================================================
@@ -119,8 +136,17 @@ def init_social(app, socketio, ctx):
     _ctx = ctx or {}
 
     # -------------------- Presencia (connect) --------------------
+    # Flask-SocketIO 5.x solo admite UN handler por evento y este es el único
+    # 'connect' del servidor, así que la comprobación de baneo (Roadmap #13) vive
+    # aquí: devolver False rechaza la conexión antes de que el socket exista.
     @socketio.on('connect')
     def _social_connect():
+        usuario = session.get('username')
+        if usuario:
+            baneado, _motivo = base_datos.esta_baneado(usuario)
+            if baneado:
+                print(f"⛔ Conexión rechazada: {usuario} está baneado.")
+                return False
         presencia_connect()
 
     # ======================================================================
@@ -156,8 +182,7 @@ def init_social(app, socketio, ctx):
         if not _rate_ok(_rl_solicitudes, me, 20, 3600):
             return jsonify({'exito': False, 'mensaje': 'rate_limit'})
         datos = request.json or {}
-        objetivo = (datos.get('username') or '').strip()
-        to_id = base_datos.obtener_id_usuario(objetivo)
+        to_id, _nombre = _resolver_objetivo(datos.get('username'))
         if not to_id:
             return jsonify({'exito': False, 'mensaje': 'no_existe'})
         ok, codigo = base_datos.enviar_solicitud_amistad(me, to_id)
@@ -254,8 +279,7 @@ def init_social(app, socketio, ctx):
     def api_group_invite(group_id):
         me = _mi_id()
         datos = request.json or {}
-        objetivo = (datos.get('username') or '').strip()
-        to_id = base_datos.obtener_id_usuario(objetivo)
+        to_id, objetivo = _resolver_objetivo(datos.get('username'))
         if not to_id:
             return jsonify({'exito': False, 'mensaje': 'no_existe'})
         ok, codigo = base_datos.añadir_miembro(group_id, to_id, me)

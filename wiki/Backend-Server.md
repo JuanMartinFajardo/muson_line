@@ -14,11 +14,36 @@ Flask app served with **eventlet** (`eventlet.monkey_patch()` at the very top) a
 | `/auth/login` | POST | Login by **username or email** (`session['username']`; `remember` → permanent session) |
 | `/auth/solicitar_reset` | POST | Step 1 of password recovery: emails a reset code if the account exists (same response either way, no enumeration) |
 | `/auth/reset` | POST | Step 2: verifies the code and updates the password hash |
-| `/auth/sesion` | GET | Returns the logged-in user's profile if a session exists |
+| `/auth/sesion` | GET | Returns the logged-in user's profile if a session exists (includes `email`, `codigo`, `tiene_password`, `google` and `dias_para_cambiar_username` — it only ever goes to its owner). Clears the session cookie if it names an account that no longer exists |
 | `/auth/logout` | POST | Clears the session |
-| `/auth/google/login`, `/auth/google/callback` | GET | Google OAuth via Authlib — active when `GOOGLE_CLIENT_ID`/`SECRET` are set (503 otherwise). See [Authentication](Authentication.md) |
+| `/auth/cuenta/codigo` | POST | Emails a single-use 6-digit code to authorize an account change (the only route for Google accounts with no password) |
+| `/auth/cuenta/username` | POST | Renames the account (signup rules + 30-day cooldown) and moves the session to the new name |
+| `/auth/cuenta/email/solicitar` | POST | Step 1 of an email change: code to the **new** address, notification to the old one |
+| `/auth/cuenta/email/confirmar` | POST | Step 2: verifies the code and writes the new address |
+| `/auth/cuenta/password` | POST | Sets a new password (also how a Google account creates its first one) |
+| `/auth/cuenta/eliminar` | POST | Deletes the account (anonymizes — see [Authentication](Authentication.md)); requires typing your own username |
+| `/api/soporte`, `/api/soporte/<id>`, `/api/soporte/<id>/cerrar` | GET/POST | Player's side of a support thread — always scoped to `session['username']`, so nobody can read another user's ticket (Roadmap #13) |
+| `/api/anuncios`, `/api/anuncios/<id>/leido` | GET/POST | Admin announcements the caller must see: pinned messages, unread one-shot notifications and the maintenance banner. Works **without** a session (guests get the public pinned ones) |
+| `/admin` | GET | The admin panel page (`admin.html`); 403 without the `is_admin` flag |
+| `/admin/api/**` | GET/POST | Panel API: `resumen`, `usuarios[/<id>/{ban,estadisticas,admin,reset_password,eliminar}]`, `salas[/<code>/cerrar]`, `descargas/{db,logs}`, `config`, `tickets`, `anuncios`, `auditoria`. All behind `admin_requerido`, all mutations written to `AdminAudit` (Roadmap #13) |
+| `/auth/google/login`, `/auth/google/callback` | GET | Google OAuth via Authlib — active when `GOOGLE_CLIENT_ID`/`SECRET` are set (503 otherwise). `login` takes `?intent=login\|signup` (kept in the session): only `signup` may create an account; `login` with no match redirects to `/?auth_error=google_sin_cuenta`. See [Authentication](Authentication.md) |
 
-An `after_request` hook sets 1-year immutable cache headers on `/static/img/*`.
+An `after_request` hook sets 1-year immutable cache headers on `/static/img/*`, and
+`no-store, no-cache, must-revalidate` (+ `Pragma`/`Expires`) on everything under `/auth/`
+and `/api/`. The second half is not optional: without it a browser could reuse a stale
+`/auth/sesion` response and show you as logged out right after logging in, or as logged
+in right after logging out (Roadmap #22).
+
+### Account settings (`/auth/cuenta/*`)
+
+All six routes take the target user from `session['username']` — never from the request —
+and reply `{exito, codigo, mensaje, …}` where `codigo` is a `dict.es`/`dict.en` key so the
+client localizes it (`mensaje` is the Spanish fallback). Sensitive operations go through
+`_autorizar_cambio(username, datos)`, which accepts **either** the current password
+**or** a single-use code emailed to the account, kept in the same in-memory
+`codigos_pendientes` dict as signup/reset codes but tagged `tipo: 'cuenta'` (email changes
+use `tipo: 'cambio_email'`, keyed by the new address). Accounts created through Google have
+no usable password — see [Authentication](Authentication.md).
 
 ## Socket.IO events (client → server)
 
@@ -95,13 +120,14 @@ Builds one payload per human player and emits `actualizar_mesa` **to the whole r
 This function also has two side effects:
 
 1. **Result persistence:** on recuento, if the game was just won and not yet recorded, calls `base_datos.registrar_partida_completa(winner, loser)` (only affects ELO when both are registered users).
-2. **Bot turn:** if the room has a bot, asks `SmartBot.obtener_accion(partida)`; if there is a move, spawns a background task that sleeps 1.5 s (fixed "thinking" delay) and re-enters `procesar_accion_interna` as the bot. The task body is wrapped in `try/except` so a bot error cannot kill the greenlet and strand the table.
+2. **Bot turn:** if the room has a bot, asks `SmartBot.obtener_accion(partida)`; if there is a move, spawns a background task that sleeps the `bot_delay` `Config` variable (default 1.5 s, clamped to 0–10, editable from `/admin`) and re-enters `procesar_accion_interna` as the bot. The task body is wrapped in `try/except` so a bot error cannot kill the greenlet and strand the table.
 
 ## Known issues / hardcoded values
 
 - `SECRET_KEY`, SMTP and Google OAuth credentials now come from env vars / `.env` (a dev fallback `SECRET_KEY` is used with a warning if unset). ✅ resolved.
 - Google OAuth is wired via Authlib and only needs real credentials to go live. ✅ resolved.
-- Bot delay fixed at 1.5 s (Roadmap: speed setting).
+- Bot delay is the `bot_delay` `Config` variable (default 1.5 s), editable live from `/admin`. A per-room / per-player speed selector is still Roadmap #15.
+- Do **not** re-`import base_datos` inside a function of `server.py`: it makes the name local to the whole function body and every other use of the module in it raises `UnboundLocalError`, killing the greenlet mid-update (this bit `enviar_estado_a_jugadores` and read as a frozen table).
 - Disconnection mid-game no longer destroys the game: 90 s of grace to reconnect, then the seat is offered to a substitute for 5 more minutes. ✅ resolved.
 - Ghost rooms (dead rooms in the lobby, orphan `jugadores` entries, frozen tables): all six Roadmap #21 vectors fixed — see *Room lifecycle and ghost-room sweeping* above. ✅ resolved.
 - `codigos_pendientes` and the per-email rate-limit counters are in-memory: codes now expire after 15 min, but state is still lost on restart and not shared across processes (would need Redis if scaled beyond one eventlet worker).

@@ -4,6 +4,235 @@ Historial cronológico de cambios relevantes del proyecto. El más reciente arri
 
 ---
 
+## 2026-07-25 — Panel de administración online (Roadmap #13)
+
+Gestionar el juego desde el navegador en vez de por SSH: cuentas, salas en curso,
+descargas, variables globales, soporte a los jugadores y avisos.
+
+### Dónde vive y qué hace falta para desplegarlo
+
+**No hace falta desplegar nada aparte.** El panel es un módulo más (`admin.py`) que se
+engancha en el mismo proceso Flask, el mismo puerto y la misma sesión que el juego, con
+el patrón de `social.py` (`init_admin(app, socketio, ctx)`). Basta con abrir `/admin`.
+Lo único nuevo en el entorno es `ADMIN_USERNAME`: la cuenta que se promueve a
+administradora al arrancar el servidor. Es la única forma de crear el **primer**
+administrador; a partir de ahí el acceso se otorga desde el propio panel y la variable
+se puede dejar vacía.
+
+### Permisos
+
+Columnas nuevas en `Usuarios`: `is_admin`, `banned`, `ban_motivo`, `ban_en` (migración
+idempotente como siempre). El decorador `admin_requerido` cierra todo `/admin/**`; los
+no administradores reciben 403, nunca una pista de si la ruta existe. Un baneo actúa en
+tres sitios: `/auth/login` lo rechaza con motivo, `/auth/sesion` vacía la cookie de una
+sesión ya abierta, y el handler `connect` de `social.py` devuelve `False`, que rechaza
+el socket antes de crearlo (es el único `connect` del servidor, por el límite de un
+handler por evento de Flask-SocketIO 5.x). Al banear, además, se cierran al momento las
+conexiones vivas de esa cuenta y se la saca de su sala.
+
+### Qué se puede hacer desde `/admin`
+
+- **Resumen:** cuentas, altas de hoy, partidas 1v1 y 2v2, salas vivas y conexiones.
+- **Cuentas:** búsqueda por nombre, correo o `#código`; banear/desbanear con motivo;
+  corregir ELO, victorias y derrotas; dar o quitar administrador; borrar la cuenta
+  (reusa `anonimizar_usuario`, así que el historial de los rivales se conserva); y
+  "enviar código de contraseña", que **no** fija ninguna contraseña: manda al correo del
+  usuario el mismo código de recuperación que el flujo de "he olvidado mi contraseña",
+  de modo que el administrador nunca llega a conocer la contraseña de nadie.
+- **Salas:** instantánea unificada de `salas` (2p) y `salas4` (4p) con estado, fase,
+  ocupantes, edad e inactividad, y un botón para cerrar una sala atascada. Sustituye a
+  `/api/debug/salas`, que se queda como está para depuración sin sesión.
+- **Datos:** copia de `mus.db` hecha con la API de *backup* de SQLite (se puede
+  descargar con el servidor en marcha) y zip de `logs/*.jsonl` filtrable por fechas.
+- **Variables y bot:** tabla `Config` (clave→valor) editable en caliente. Hoy están
+  conectadas `bot_checkpoint`, `bot_delay`, `mantenimiento_activo` y
+  `mantenimiento_texto`; se pueden crear claves libres para el futuro, y la tabla marca
+  cuáles tienen quien las lea.
+- **Auditoría:** tabla `AdminAudit` con fecha, administrador, acción, objetivo, detalle
+  e IP (respetando `X-Forwarded-For` para cuando llegue el proxy de #16). Toda acción de
+  administración queda registrada y no se puede borrar desde el panel.
+
+### Checkpoint del bot elegible sin reiniciar
+
+`bot_ml` carga el modelo **una sola vez por proceso** y lo comparte entre todas las
+salas (antes cada `SmartBot` releía el `.pth` del disco: cada partida contra la IA
+pagaba la carga entera). `ruta_checkpoint_activa()` lee `bot_checkpoint` de la tabla
+`Config`, acepta solo un nombre de archivo dentro de `learn/cfr` (nunca una ruta) y cae
+al de por defecto si no existe. El panel llama a `invalidar_modelo_cacheado()` al
+guardar, así que el siguiente bot nace con el modelo nuevo.
+
+### Soporte con conversación
+
+Botón **Soporte y contacto** dentro de Ajustes (visible con y sin cuenta; sin cuenta
+explica que hace falta una para poder contestar). Tablas `SupportTickets` y
+`SupportMessages`: el jugador abre una incidencia con tipo y asunto, y el hilo va y
+viene hasta que alguno lo da por resuelto. El estado se mueve solo — a `respondido`
+cuando contesta el administrador y a `abierto` cuando escribe el jugador —, de forma que
+la bandeja del panel siempre enseña lo que falta atender. Contador de respuestas sin
+leer sobre el botón ⚙ y notificación en vivo por el canal `notificacion` de #3.
+
+### Avisos a los jugadores
+
+Tabla `Anuncios` con dos formas: **notificación** (llega una vez, sale en un popup y se
+marca leída en `AnuncioLeido`, de modo que quien estaba desconectado la ve al volver) y
+**mensaje fijado**, que se queda en el menú principal hasta que caduque o se retire.
+Audiencia: todos, un grupo de #3, o una lista de nombres/`#códigos`. El cartel de
+mantenimiento sale del par de variables `mantenimiento_*` y lo ve todo el mundo,
+incluidos los invitados.
+
+### Dos fallos ajenos encontrados por el camino
+
+- `enviar_estado_a_jugadores` repetía `import base_datos` dentro de la función, lo que
+  convertía el nombre en local de todo el cuerpo: cualquier otro uso del módulo dentro
+  de esa función reventaba con `UnboundLocalError` y mataba el greenlet — el bot dejaba
+  de mover y la partida se quedaba congelada. Import redundante eliminado.
+- `mus_mecanicas.py` usaba `json.dumps` para volcar `logs/<match_id>.jsonl` sin tener
+  `json` importado a nivel de módulo: **todos los archivos de log se creaban vacíos**.
+  Con el `import json` puesto, una partida completa contra la IA escribe sus ~10 KB.
+  Sin esto, la descarga de logs del panel bajaba archivos vacíos.
+
+**Verificación:** ciclo completo probado contra el servidor real — permisos (403 sin
+sesión y con cuenta normal), baneo (login, sesión abierta, socket vivo expulsado y
+reconexión rechazada), protecciones (no banear a un administrador, no quedarse sin
+ningún administrador), edición de estadísticas, hilo de soporte de ida y vuelta con
+aislamiento entre usuarios, anuncios de los tres alcances con lectura y retirada,
+validaciones de `bot_delay` y `bot_checkpoint` (incluido un intento de ruta con `../`),
+descarga de la copia de la BD y del zip de logs con filtro de fechas, listado y cierre
+forzado de una sala, y auditoría de todo lo anterior. En el navegador: cartel de
+mantenimiento como invitado, ventana de soporte y conversación, popup de aviso en vivo,
+y las siete pestañas del panel. Regresión: una partida completa contra la IA hasta 40.
+
+---
+
+## 2026-07-25 — Código de jugador permanente y "entrar con Google" no registra (Roadmap #23)
+
+Tres cosas encadenadas, todas a raíz de un informe: *crear cuenta con Google, borrarla,
+pulsar Entrar… y aparecer dentro sin haberse registrado.*
+
+### Por qué pasaba
+
+`Entrar con Google` y `Registrarse con Google` iban al mismo sitio y hacían lo mismo:
+`registrar_o_loguear_google()` creaba la cuenta si no la encontraba. Al borrar la cuenta
+se le quitaba el `google_id`, así que al volver a pulsar Entrar no la encontraba y la
+creaba otra vez — y como el borrado también dejaba libre el nombre, salía con el mismo
+nombre de antes. Parecía que la cuenta había resucitado.
+
+Ahora `/auth/google/login` acepta `?intent=login|signup`, guardado en la sesión de Flask
+(no en la URL de vuelta, para que no se pueda forzar desde fuera). Solo el botón de
+registrarse autoriza a crear; el de entrar recibe `None` y el callback redirige a
+`/?auth_error=google_sin_cuenta`, que el cliente traduce y acompaña abriendo el registro.
+Sin `intent` se asume "entrar", que es la opción prudente.
+
+### Código público permanente (`#A7K2QX`)
+
+Columna nueva `Usuarios.codigo`: 6 caracteres de un alfabeto sin `0/O` ni `1/I/L` (está
+pensado para dictarlo y teclearlo), índice único parcial, asignado al registrarse y
+rellenado por la migración en las cuentas que ya existían. **No cambia nunca y no se
+recicla:** sobrevive a un cambio de nombre y sobrevive al borrado de la cuenta, así que
+el índice único basta para garantizar que nadie hereda el identificador de otro.
+
+Se enseña en la ventana de ajustes (se copia con un click) y junto a cada nombre en la
+clasificación mundial. `/api/friends/request` y la invitación a grupos aceptan tanto el
+nombre como el `#código`, resueltos por `social._resolver_objetivo()`.
+
+### Borrar la cuenta libera el nombre
+
+Antes la fila anonimizada se quedaba llamándose `EliminadoNN`, que es un nombre
+perfectamente registrable y por tanto ocupado para siempre. Ahora pasa a llamarse
+`#CODIGO` — imposible de registrar, porque el regex de alta solo admite `[A-Za-z0-9_]` —
+y se marca con `eliminada_en`. El nombre original queda libre para otro jugador, y si
+alguien lo coge no hay confusión posible: son códigos distintos.
+
+Una fila marcada queda fuera de la clasificación, de `obtener_usuario`,
+`obtener_id_usuario`, `verificar_login`, de las dos búsquedas de Google y de la búsqueda
+por código: no se puede entrar en ella, ni encontrarla, ni pedirle amistad. Para cuando
+haya pantalla de historial de partidas (Roadmap #19), `obtener_jugador_publico(id)`
+devuelve `{codigo, eliminada, username=None}` para que se pinte como cuenta eliminada y
+no como quien ahora se llama igual. Las cuentas borradas con el esquema anterior las
+convierte una migración de una sola pasada.
+
+De propina, `/auth/sesion` ahora vacía la cookie cuando la cuenta a la que apunta ya no
+existe, en vez de dejarla señalando a la nada.
+
+**Verificación:** dos suites nuevas (44 comprobaciones) sobre la migración y su
+idempotencia, la unicidad de los códigos, su supervivencia a un renombrado, los efectos
+del borrado, la reutilización del nombre por otra persona y los cuatro caminos de Google
+(incluido borrar → entrar → *no hay cuenta* y borrar → registrarse → *código nuevo*).
+Comprobado además en el navegador (código en ajustes en ES/EN, clasificación, añadir por
+código en minúsculas) y con las suites de #21 y #22, que siguen pasando.
+
+---
+
+## 2026-07-25 — Menú de ajustes y arreglo del estado de sesión (Roadmap #22)
+
+Dos cosas: el bug de "inicio sesión y sigo apareciendo fuera hasta que refresco" (y su
+simétrico al cerrar sesión), y una ventana de ajustes que sustituye al botón EN/ES.
+
+### El bug de la sesión
+
+Tenía dos causas y se han cerrado las dos:
+
+- **`/auth/sesion` viajaba sin cabeceras de caché.** Sin `Cache-Control`, algunos
+  navegadores (Safari es el caso típico) reutilizan la respuesta anterior de un GET: si
+  la guardada decía "no hay sesión", al entrar seguías apareciendo fuera; si decía que
+  sí, al salir y recargar volvías a aparecer dentro. Es exactamente el síntoma descrito.
+  El `after_request` manda ahora `no-store, no-cache, must-revalidate` (más `Pragma` y
+  `Expires`) en todo `/auth/*` y `/api/*`, y el cliente pide la sesión con
+  `cache: 'no-store'`.
+- **El cliente solo pintaba la rama "logueado".** Si `/auth/sesion` decía que no, no se
+  tocaba nada y la pantalla se quedaba como estuviera. `comprobarSesion()` deriva ahora
+  la interfaz de la respuesta en los dos sentidos (nueva
+  `actualizarInterfazDeslogueado()`), se vuelve a comprobar en `pageshow` cuando el
+  navegador restaura la página desde la bfcache, y al cerrar sesión se pinta la salida
+  *antes* de recargar, no después.
+
+### Ventana de ajustes (`static/settings.js`, `#modal-settings`)
+
+El botón EN/ES de la esquina pasa a ser un ⚙ que abre la ventana. Existe con cuenta y
+sin ella (para un invitado no había ningún ajuste útil aparte del idioma, así que se le
+añaden también su nombre en la mesa y accesos a entrar/registrarse).
+
+- El botón de idioma conserva el id `btn-lang` dentro de la ventana: `app.js` y
+  `tutorial.js` ya escuchaban ahí y siguen funcionando sin tocarlos.
+- **Cerrar sesión** se ha quitado de la barra superior y vive ahora aquí.
+- Con cuenta hay cuatro secciones `<details>`: cambiar nombre, cambiar correo, cambiar
+  contraseña y eliminar la cuenta.
+
+### Cuenta (nuevos `POST /auth/cuenta/*`)
+
+- **Autorización:** `_autorizar_cambio()` acepta la contraseña actual **o** un código de
+  un solo uso enviado al correo. Las cuentas creadas con Google no tienen contraseña
+  utilizable (columna nueva `tiene_password`, a 0 al crearlas y en la migración para las
+  filas con `google_id`), así que sus paneles van por código y les ofrecen *crear* una.
+- **Correo en dos pasos:** el código va a la dirección NUEVA (es lo que demuestra que es
+  suya) y a la vieja le llega un aviso de que alguien ha pedido el cambio. El correo no
+  se escribe hasta confirmar.
+- **Nombre de usuario:** mismas reglas que en el registro y un cambio cada 30 días
+  (`DIAS_ESPERA_CAMBIO_USERNAME`, columna `username_cambiado_en`). Renombrar es seguro
+  porque amigos, grupos, mensajes e historial guardan `Usuarios.id`, nunca el nombre; se
+  recarga la página después porque el socket abierto todavía lleva el nombre viejo en su
+  copia de la sesión.
+- **Borrado de cuenta = anonimización.** `anonimizar_usuario()` borra correo, país,
+  fecha de nacimiento y `google_id`, renombra a `EliminadoNN`, deja una contraseña
+  inservible, elimina amistades y mensajes (directos y de grupo) y sale de todos los
+  grupos reutilizando `salir_del_grupo()` (la propiedad pasa al miembro más antiguo, o
+  el grupo desaparece si se queda vacío). La fila se conserva porque `Partidas` y
+  `Partidas4` apuntan a su id: borrarla dejaría a los rivales con un historial y un ELO
+  falseados. Además hay que teclear el propio nombre de usuario para confirmar.
+- Las respuestas llevan `{exito, codigo, mensaje}`: `codigo` es una clave del
+  diccionario para que el cliente la enseñe en su idioma, y `mensaje` el castellano de
+  respaldo.
+
+### Verificación
+
+Probado en el navegador (ventana de invitado y de cuenta, cambio de idioma, renombrado y
+su periodo de espera, cambio de contraseña, borrado) y con una batería de pruebas que
+cubre el ida y vuelta del correo, la credencial por código de las cuentas de Google
+(incluido que es de un solo uso), el periodo de espera, los efectos del borrado sobre las
+tablas sociales, los 401 sin sesión y las cabeceras anti-caché.
+
+---
+
 ## 2026-07-25 — Salas fantasma: corrección de los 6 vectores (Roadmap #21)
 
 Cerrados todos los agujeros por los que quedaban salas y jugadores "fantasma" en memoria

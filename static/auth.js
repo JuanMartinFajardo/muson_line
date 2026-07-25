@@ -39,15 +39,43 @@ function setMsg(id, texto, ok = false) {
 
 // ==========================================
 // 1. Comprobar sesión activa al cargar
+// ------------------------------------------
+// La interfaz SIEMPRE se deriva de esta respuesta, nunca se deja como estaba: si
+// solo pintáramos el caso "logueado", una pantalla vieja (pestaña restaurada,
+// vuelta atrás del navegador) seguiría enseñando al usuario dentro después de
+// haber cerrado sesión. Y va con cache:'no-store' porque algunos navegadores
+// reutilizaban la respuesta anterior de /auth/sesion, que es justo lo que hacía
+// que al entrar siguieras apareciendo fuera hasta recargar a mano.
 // ==========================================
-fetch('/auth/sesion')
-    .then(res => res.json())
-    .then(datos => {
-        if (datos.exito) {
-            miUsernameLogueado = datos.usuario.username;
-            actualizarInterfazLogueado(datos.usuario);
-        }
-    });
+
+let usuarioActual = null;   // Perfil de la sesión (lo lee settings.js)
+
+function comprobarSesion() {
+    return fetch('/auth/sesion', { cache: 'no-store', credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(datos => {
+            if (datos.exito) {
+                usuarioActual = datos.usuario;
+                miUsernameLogueado = datos.usuario.username;
+                actualizarInterfazLogueado(datos.usuario);
+            } else {
+                usuarioActual = null;
+                miUsernameLogueado = null;
+                actualizarInterfazDeslogueado();
+            }
+            return datos;
+        })
+        .catch(() => ({ exito: false }));
+}
+
+comprobarSesion();
+
+// Al volver con el botón "atrás" el navegador restaura la página tal cual estaba
+// (bfcache) sin ejecutar nada: revisamos la sesión otra vez para que lo que se ve
+// coincida con lo que hay.
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted) comprobarSesion();
+});
 
 function actualizarInterfazLogueado(usuario) {
     document.getElementById('user-buttons').classList.add('hidden');
@@ -61,16 +89,40 @@ function actualizarInterfazLogueado(usuario) {
         inNombre.style.backgroundColor = '#3b4252';
         inNombre.style.color = '#a3be8c';
     }
+    if (typeof refrescarAjustes === 'function') refrescarAjustes();
     cerrarModales(); // Definida en app.js
+}
+
+function actualizarInterfazDeslogueado() {
+    document.getElementById('user-buttons').classList.remove('hidden');
+    document.getElementById('user-info-logged').classList.add('hidden');
+    document.getElementById('txt-user-stats').innerText = '';
+
+    let inNombre = document.getElementById('nombre-jugador');
+    if (inNombre && inNombre.disabled) {
+        inNombre.value = localStorage.getItem('callmus_nombre') || '';
+        inNombre.disabled = false;
+        inNombre.style.backgroundColor = '';
+        inNombre.style.color = '';
+    }
+    if (typeof refrescarAjustes === 'function') refrescarAjustes();
 }
 
 // Si Google nos devuelve con error en la URL, lo mostramos
 (function comprobarErrorGoogle() {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('auth_error') === 'google') {
+    const error = params.get('auth_error');
+    if (!error) return;
+    // Limpiamos la query para que no reaparezca al recargar
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    if (error === 'google_sin_cuenta') {
+        // Pulsó "Entrar con Google" sin tener cuenta: antes se le creaba una sin
+        // avisar. Ahora se le manda al registro.
+        alert(_t('google_sin_cuenta'));
+        document.getElementById('btn-show-signup')?.click();   // abre el modal de registro
+    } else if (error === 'google') {
         alert(_t('google_error'));
-        // Limpiamos la query para que no reaparezca al recargar
-        window.history.replaceState({}, document.title, window.location.pathname);
     }
 })();
 
@@ -193,7 +245,18 @@ document.getElementById('login-pass')?.addEventListener('keydown', (e) => {
 // 5. Cerrar sesión
 // ==========================================
 document.getElementById('btn-logout')?.addEventListener('click', () => {
-    fetch('/auth/logout', { method: 'POST' }).then(() => window.location.reload());
+    fetch('/auth/logout', { method: 'POST', cache: 'no-store', credentials: 'same-origin' })
+        .then(() => {
+            // Pintamos la salida ANTES de recargar: si la recarga tarda (o falla),
+            // en ningún momento se ve una pantalla que dice que sigues dentro.
+            usuarioActual = null;
+            miUsernameLogueado = null;
+            actualizarInterfazDeslogueado();
+            localStorage.removeItem('callmus_sala');
+            localStorage.removeItem('callmus_token');
+            window.location.reload();
+        })
+        .catch(() => setMsg('msg-login', _t('err_red')));
 });
 
 // ==========================================
@@ -272,9 +335,11 @@ document.getElementById('btn-submit-reset')?.addEventListener('click', () => {
 // ==========================================
 // 7. Botones de Google (OAuth) — la lógica ocurre en el backend
 // ==========================================
+// El botón de registrarse es el ÚNICO que puede crear una cuenta nueva; el de entrar
+// solo inicia sesión (si no hay cuenta, el servidor devuelve auth_error=google_sin_cuenta).
 document.getElementById('btn-google-signup')?.addEventListener('click', () => {
-    window.location.href = '/auth/google/login';
+    window.location.href = '/auth/google/login?intent=signup';
 });
 document.getElementById('btn-google-login')?.addEventListener('click', () => {
-    window.location.href = '/auth/google/login';
+    window.location.href = '/auth/google/login?intent=login';
 });

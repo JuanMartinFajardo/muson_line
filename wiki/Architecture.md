@@ -29,6 +29,9 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [bot_ml.py](../bot_ml.py) | `SmartBot`: decides mus/discard/bets using precomputed EV tables + a Deep CFR strategy network |
 | [mus_discard_chooser.py](../mus_discard_chooser.py) | Optimal-discard algorithm (bucketed EV maximization over the 16 possible discards) |
 | [redes_mus.py](../redes_mus.py) | PyTorch network definitions (`RegretNetwork`, `StrategyNetwork`, `ReplayBuffer`) and `estado_a_vector` state encoder |
+| [social.py](../social.py) | Friends, DMs, groups and group leaderboards (`init_social`); also owns the single Socket.IO `connect` handler (presence + ban check) |
+| [server_mus4.py](../server_mus4.py) | 4-player (2v2) room registry and handlers (`init_mus4`), engine `mus_mecanicas_4.py` |
+| [admin.py](../admin.py) | Admin panel (`init_admin`): accounts, live rooms, downloads, `Config` variables, audit, plus the player-facing support and announcement endpoints |
 
 ### Training / offline (not needed to run the server)
 
@@ -47,7 +50,11 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [index.html](../index.html) | Single page: lobby (menu screen), game screen, auth modals, leaderboard modal |
 | [static/app.js](../static/app.js) | i18n dictionary (ES/EN), Socket.IO client, all game rendering and UI logic (~1500 lines) |
 | [static/auth.js](../static/auth.js) | Login / signup / email-verification / logout flows (fetch to `/auth/*`) |
-| [static/tutorial.js](../static/tutorial.js) | Interactive "How to play" tutorial (currently Spanish-heavy) |
+| [static/tutorial.js](../static/tutorial.js) | Interactive "How to play" tutorial (bilingual, see Roadmap #2) |
+| [static/settings.js](../static/settings.js) | Settings window: language, account changes, deletion |
+| [static/social.js](../static/social.js) | Friends, chats, groups and game invites |
+| [static/soporte.js](../static/soporte.js) | Support inbox inside Settings + admin announcements (pinned banner and popups) |
+| [admin.html](../admin.html) | Server-rendered admin panel (`/admin`), self-contained CSS/JS, Spanish only |
 | [static/style.css](../static/style.css) | Nord-palette styling |
 | `static/img/` | Card images (`card_<suit>_<value>.webp`), logo, favicon |
 
@@ -83,12 +90,12 @@ Room codes are 4 random chars (`A-Z0-9`). Bot rooms use a fake SID `BOT_<code>`.
 1. Client emits `accion_juego` with `{accion, ...}` over Socket.IO.
 2. `handle_accion_juego` → `procesar_accion_interna(sid, room, datos)` validates turn ownership and calls the corresponding `PartidaMus` method (`cantar_mus`, `procesar_descarte`, `accion_apuesta`, …).
 3. `enviar_estado_a_jugadores(room)` builds a **per-player payload** (own cards visible, opponent's hidden except at showdown) and emits `actualizar_mesa` to the room.
-4. If the room has a bot, the same function asks `SmartBot.obtener_accion(partida)`; if the bot has a move, a background task sleeps ~1.5 s and re-enters `procesar_accion_interna` with the bot's SID.
+4. If the room has a bot, the same function asks `SmartBot.obtener_accion(partida)`; if the bot has a move, a background task sleeps `bot_delay` seconds (the `Config` variable, default 1.5, editable from `/admin`) and re-enters `procesar_accion_interna` with the bot's SID.
 5. When a game ends (`fase == 'recuento'` and someone reaches 40), the result is written to SQLite (`registrar_partida_completa`) and the per-turn history is flushed to `logs/<match_id>.jsonl`.
 
 ## Known architectural limitations
 
 - **All rooms are lost on server restart** (in-memory only); games vs bot cannot be resumed after disconnect.
 - **A room with every player disconnected survives until its timer fires** (grace or replacement window): it stops being advertised because the public lists skip rooms with no live player, but it stays in memory for up to 5 minutes so a refresh can reclaim the seat.
-- Secrets (Flask `SECRET_KEY`, SMTP credentials, Google OAuth keys) are **hardcoded placeholders** in `server.py` — must move to environment variables.
-- `server.py` mixes concerns (auth, rooms, game relay, bot orchestration) in one file; the Roadmap features (friends, tournaments, admin) will require splitting into blueprints/modules.
+- `server.py` still mixes concerns (auth, rooms, game relay, bot orchestration) in one file. The features added since then live in their own additive modules hooked in at the bottom of `server.py` (`social.init_social`, `server_mus4.init_mus4`, `admin.init_admin`), all sharing the same Flask app, Socket.IO instance and session; tournaments (#4) should follow the same pattern.
+- Only **one** handler per Socket.IO event is allowed (Flask-SocketIO 5.x): `connect` lives in `social.py` (presence + ban check) and `disconnect` in `server.py`, which calls into the other modules.

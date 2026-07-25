@@ -6,7 +6,7 @@ Implementation guide for planned CallMus features, written so an agent can pick 
 - Every user-visible string goes into both `dict.es` and `dict.en` in [static/app.js](../static/app.js) and is rendered via `t()` / `data-i18n`. Server → client messages that need localization are sent as `{code, ...params}` objects.
 - New DB tables go in [base_datos.py](../base_datos.py) `init_db()` with `CREATE TABLE IF NOT EXISTS`.
 - Secrets/config via `os.environ`, never hardcoded.
-- Suggested priority order: ~~1 (login)~~ → ~~21 (bug fixes)~~ → **14 (deck-exhausted notice) → 9 (turn timer) → 18 (resume bot games)** → ~~2 (tutorial i18n)~~ → **16 (security) → 13 (admin) → 19 (stats)** → ~~3 (friends/groups)~~ → **4 (tournaments)** — then the rest.
+- Suggested priority order: ~~1 (login)~~ → ~~21 (bug fixes)~~ → ~~22 (settings menu)~~ → ~~23 (player codes)~~ → **14 (deck-exhausted notice) → 9 (turn timer) → 18 (resume bot games)** → ~~2 (tutorial i18n)~~ → ~~13 (admin)~~ → **16 (security) → 19 (stats)** → ~~3 (friends/groups)~~ → **4 (tournaments)** — then the rest.
 
 ---
 
@@ -350,7 +350,78 @@ game still fires `rival_desconectado` on drop; table/showdown render verified in
 
 ---
 
-## 13. Online admin panel
+## 13. Online admin panel — ✅ DONE (2026-07-25)
+
+**Current state:** implemented and verified end-to-end. `/admin` is a server-rendered
+panel with seven views (Resumen, Cuentas, Salas, Soporte, Anuncios, Variables y bot,
+Datos, Auditoría); players get a **Support & contact** section inside Settings and see
+the admin's pinned/one-shot announcements in the lobby. See [log.md](../log.md) for the
+change entry.
+
+**Answer to the deployment question below: no extra deployment.** `admin.py` is an
+additive module hooked into the **same Flask process, port and session** as the game
+(`init_admin(app, socketio, ctx)`, the `social.py` pattern). The only new environment
+variable is `ADMIN_USERNAME`, which promotes the **first** admin at startup; after that
+the flag is granted from the panel itself and the variable can be left empty.
+
+**What was done:**
+1. ✅ **Auth:** `is_admin`, `banned`, `ban_motivo`, `ban_en` added to `Usuarios` by the
+   idempotent migration; `admin_requerido` decorator (403, never leaking whether a route
+   exists); `ADMIN_USERNAME` bootstrap. A ban bites in three places — `/auth/login`
+   (with reason), `/auth/sesion` (clears an already-open cookie) and the single `connect`
+   handler in `social.py` (returns `False`, refusing the socket) — and banning also drops
+   the account's live sockets and evicts it from its room.
+2. ✅ **`admin.py` + `admin.html`** (Spanish-only: it is the owner's internal tool; every
+   *player-facing* string added — support and announcements — is in `dict.es`/`dict.en`).
+   - **Accounts:** search by name/email/`#code`; ban/unban with reason; edit ELO/wins/
+     losses; grant or revoke admin (never leaving zero admins, never banning an admin);
+     delete (reuses `anonimizar_usuario`, so rivals' history survives); "send password
+     code", which sets **no** password — it emails the same recovery code as the normal
+     "forgot password" flow, so an admin never learns anyone's password.
+   - **Live ops:** unified snapshot of `salas` (2p) and `salas4` (4p) with state, phase,
+     occupants, age and idle time, plus force-close. `/api/debug/salas` stays as-is.
+   - **Data download:** `mus.db` via SQLite's backup API (safe with the server running)
+     and a date-filterable zip of `logs/`.
+   - **Bot settings:** dropdown over `learn/cfr/*.pth`; the choice lives in the new
+     `Config` table and `bot_ml.ruta_checkpoint_activa()` reads it, accepting only a
+     filename inside `learn/cfr` and falling back to the default if it is gone. The model
+     is cached **process-wide** (it used to be re-read from disk per `SmartBot`) and the
+     panel calls `invalidar_modelo_cacheado()` so the swap needs no restart.
+   - **Global variables:** generic `Config` editor. Wired today: `bot_checkpoint`,
+     `bot_delay` (#15), `mantenimiento_activo`, `mantenimiento_texto`. Free keys can be
+     created for the future; the table marks which ones actually have a reader — the
+     turn-timer (#9) and tournament (#4) keys will land with those features.
+   - **Stats overview:** users, signups today, 1v1/2v2 games, live rooms, connections.
+3. ✅ **Security:** in-memory rate limits on the player-facing support routes, and every
+   admin action written to `AdminAudit` (date, admin, action, target, detail, IP honouring
+   `X-Forwarded-For` for the future proxy of #16). HTTPS itself remains #16.
+4. ✅ **Support with conversation:** `SupportTickets` + `SupportMessages`; a **Support &
+   contact** section in the player's Settings window (visible with and without an account;
+   guests are told an account is needed so they can be answered). The thread goes back and
+   forth until either side marks it solved, and the state moves itself — `respondido` when
+   the admin writes, `abierto` when the player does — so the panel's inbox always shows
+   what is still pending. Unread badge on ⚙ and live delivery over the #3 `notificacion`
+   channel.
+5. ✅ **Announcements:** `Anuncios` + `AnuncioLeido`, two shapes — **notification** (one
+   popup, marked read per account, so an offline player still gets it on return) and
+   **pinned message** (stays in the lobby until it expires or is unpinned). Audience:
+   everyone, one #3 group, or a list of names/`#codes`. The maintenance banner comes from
+   the `mantenimiento_*` variables and reaches guests too.
+
+**Found and fixed along the way (both pre-existing, unrelated to the panel):** a repeated
+`import base_datos` *inside* `enviar_estado_a_jugadores` made the name local to the whole
+function (`UnboundLocalError` → dead greenlet → frozen game), and `mus_mecanicas.py` wrote
+`logs/*.jsonl` with `json.dumps` without importing `json` at module level, so **every log
+file was empty** — which would have made the panel's log download useless.
+
+**Acceptance:** ✅ an admin logs into `/admin`, bans a user (who is kicked off instantly,
+cannot log in and cannot open a socket), swaps the bot checkpoint without restarting,
+downloads the DB and the logs, and kills a stuck room; non-admins get 403. Verified with
+scripted end-to-end runs plus in-browser checks of the panel, the support window, the
+live announcement popup and the maintenance banner; regression: a full game vs the bot
+still plays to 40.
+
+<details><summary>Original plan (kept for reference)</summary>
 
 **Goal:** manage accounts, download data, tune the bot, and change global variables from the browser instead of SSH.
 
@@ -363,9 +434,15 @@ game still fires `rival_desconectado` on drop; table/showdown render verified in
    - **Bot settings:** dropdown of available checkpoints in `learn/cfr/` (list `*.pth`), select the active one — store the selection in a new `config` table (`key TEXT PRIMARY KEY, value TEXT`) and make `SmartBot.__init__` read it (cache the loaded model process-wide, reload when changed). Also expose default personality and bot delay (#15).
    - **Global variables:** a generic editor over the `config` table: turn-timer seconds (#9), tournament schedule (#4), maintenance-mode banner text.
    - **Stats overview:** counts of users, games today, active rooms.
-3. **Security:** admin routes must also be rate-limited and behind HTTPS (see #16); log every admin action to an `AdminAudit` table.
+1. **Security:** admin routes must also be rate-limited and behind HTTPS (see #16); log every admin action to an `AdminAudit` table.
+2. Add a feedback/support/bug report menu, where you see all support-requestig messages by user. For that you need to add to the settings menu of players a button saying support or something like that. And that allows them to report a bug or send a message to the admin. And then from the admin menu, admin can read and answer those messages and keep conversations until admin or user considers the issue fixed.
+3. Add a notifications menu where you can send a message to all (or a selected group of) players. You can either send a notification or pin a message in some suitable section in the main menu for a determined period of time (or until choose to unpin)
 
 **Acceptance:** an admin can log into `/admin`, ban a user (who then can't log in), swap the bot checkpoint without restarting, download the DB, and kill a stuck room. Non-admins get 403.
+
+I need to know if this admin mode requires extra deployment in the server, or just runs together with server.py
+
+</details>
 
 ---
 
@@ -547,3 +624,137 @@ the same `jugadores` dict.
 **Acceptance:** after a soak test of creating/abandoning/disconnecting rooms in every phase, `salas` and `jugadores` return to empty (except live games); the public list never shows dead rooms.
 
 </details>
+
+---
+
+## 22. Settings menu and session-state bug — ✅ DONE (2026-07-25)
+
+**Current state:** the ⚙ button replaced the EN/ES toggle in the lobby corner and opens
+a settings window; the login/logout state no longer needs a manual refresh. See
+[log.md](../log.md) for the change entry.
+
+**What was done:**
+
+1. ✅ **The session bug ("I log in but I'm still logged out until I refresh", and the
+   mirror case after logging out).** Two causes, both fixed:
+   - `/auth/sesion` was served with **no cache headers**, so a browser could reuse a
+     stale copy of it — that is exactly the observed symptom in both directions. The
+     `after_request` hook now sends `no-store, no-cache, must-revalidate` +
+     `Pragma`/`Expires` on every `/auth/*` and `/api/*` response, and the client fetches
+     it with `cache: 'no-store'`.
+   - The client only ever painted the *logged-in* branch: a negative answer left
+     whatever was on screen. `comprobarSesion()` now derives the interface from the
+     answer in **both** directions (new `actualizarInterfazDeslogueado()`), re-checks on
+     `pageshow` when the page comes back from the bfcache, and the logout handler paints
+     the logged-out state *before* reloading.
+2. ✅ **Settings window** (`static/settings.js`, `#modal-settings`), opened from the ⚙
+   button that now sits where EN/ES used to be. It is available with or without an
+   account, per the decision below.
+   - **Always:** language (the ES/EN toggle button keeps the id `btn-lang`, so the
+     listeners in `app.js` and `tutorial.js` keep working unchanged).
+   - **Guests:** their table name (synced with the lobby field and `localStorage`) and
+     shortcuts to log in / sign up.
+   - **With an account:** change username, change email, change password, log out and
+     delete account — each in its own `<details>` section.
+3. ✅ **Log out moved** out of the top bar into the settings window.
+4. ✅ **Authorization for sensitive changes** — new `_autorizar_cambio()` in `server.py`
+   accepts *either* the current password *or* a single-use 6-digit code emailed to the
+   account. Accounts created with Google have no usable password (new column
+   `tiene_password`, set to 0 at creation and by the migration for rows with a
+   `google_id`), so their panels default to the code and offer "create a password".
+5. ✅ **Email change is two-step:** the code goes to the **new** address (that is what
+   proves ownership) and the old address gets a notification that a change was
+   requested. The address is only written after the code is confirmed.
+6. ✅ **Username changes** are validated with the signup rules and rate-limited to one
+   every `DIAS_ESPERA_CAMBIO_USERNAME` (30) days via the new `username_cambiado_en`
+   column; the button is disabled and the remaining days are shown. Nothing else stores
+   usernames (friends, groups, messages and match history all key on `Usuarios.id`), so
+   a rename is safe; the client reloads afterwards because the open socket still carries
+   the old name in its session snapshot.
+7. ✅ **Account deletion anonymizes rather than deletes the row.** `anonimizar_usuario()`
+   drops email, country, birthdate and `google_id`, renames the row, sets an
+   unusable password, deletes friendships, direct and group messages, and leaves every
+   group via the existing `salir_del_grupo()` (so ownership transfers to the oldest
+   member, or the group disappears if empty). The `Usuarios` row survives because
+   `Partidas`/`Partidas4` reference its id — deleting it would corrupt the rivals'
+   history and ELO. Deleting also requires typing your own username.
+   *(Superseded in part by #23: the anonymous name is now `#CODE`, the row is flagged
+   with `eliminada_en`, and the original username is released.)*
+
+**Endpoints added** (all session-scoped; the target user is never taken from the client):
+`POST /auth/cuenta/codigo`, `/auth/cuenta/username`, `/auth/cuenta/email/solicitar`,
+`/auth/cuenta/email/confirmar`, `/auth/cuenta/password`, `/auth/cuenta/eliminar`.
+They answer `{exito, codigo, mensaje, …}`, where `codigo` is a dictionary key so the
+client renders it in the chosen language (`mensaje` is the Spanish fallback).
+
+**Acceptance:** ✅ verified end-to-end in the browser (guest and logged-in windows,
+language switch, rename + cooldown, password change, delete) and with a scripted suite
+covering the email round-trip, the Google/code credential (including single-use), the
+cooldown, the deletion side effects on the social tables, 401s without a session, and
+the cache headers.
+
+**Not done / deliberate:** no settings for sound (there is none), theme, or bot speed —
+bot speed belongs to #15.
+
+---
+
+## 23. Permanent player code, name reuse after deletion, and Google sign-in intent — ✅ DONE (2026-07-25)
+
+**Why:** reported after #22 shipped — *"I created an account with Google, deleted it,
+pressed log in and I was automatically logged in (without registration)"*, plus two
+requests: deleting an account should free the username, and players should have a
+unique, non-reusable identifier so that history can tell two players apart when they
+have used the same name.
+
+**What was done:**
+
+1. ✅ **Public player code.** New `Usuarios.codigo` column: 6 characters from
+   `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no `0/O`, no `1/I/L` — it is meant to be read
+   aloud and typed), ~10⁹ combinations, unique partial index. Assigned at signup and at
+   Google account creation, and back-filled for every pre-existing row by
+   `_migrar_columnas()`. **It never changes and is never recycled:** a rename keeps it,
+   and a deleted account keeps its row *and* its code, so the unique index alone
+   guarantees no reuse.
+   - Shown in the ⚙ settings window under the username (click to copy), and next to
+     every name in the global leaderboard.
+   - `/api/friends/request` and `/api/groups/<id>/invite` accept `#A7K2QX` as well as a
+     username, via the shared `social._resolver_objetivo()` (case-insensitive, tolerant
+     of separators through `base_datos.normalizar_codigo`).
+2. ✅ **Deleting an account now frees the username.** `anonimizar_usuario()` renames the
+   row to `#CODE` — impossible to register, since the signup regex only allows
+   `[A-Za-z0-9_]` — instead of `EliminadoNN`, which squatted a perfectly valid name.
+   Someone else can immediately take the old name; they are a different person and the
+   codes prove it.
+3. ✅ **Deleted rows are flagged, not disguised.** New `eliminada_en` column. A flagged
+   row is excluded from the global leaderboard, from `obtener_usuario`,
+   `obtener_id_usuario`, `verificar_login`, the Google lookups and the code search — so
+   it cannot be logged into, found, befriended or invited. `obtener_jugador_publico(id)`
+   returns `{id, codigo, eliminada, username=None}` for any surface that has to show a
+   past player (a match-history screen would use this; there isn't one yet, see #19).
+   A one-time migration converts old `EliminadoNN` rows (recognised by the name *plus*
+   no email, no `google_id` and `tiene_password = 0`) to the new scheme.
+4. ✅ **"Log in with Google" no longer creates accounts.** `/auth/google/login` takes
+   `?intent=login|signup` (stored in the Flask session, not the redirect URL, so it
+   cannot be forced from outside) and `registrar_o_loguear_google(..., crear=)` returns
+   `None` instead of inserting when the intent is `login`. The callback then redirects
+   to `/?auth_error=google_sin_cuenta`; the client alerts and opens the signup modal.
+   Anything without an explicit intent is treated as `login`. This is the reported bug:
+   the account looked like it had "come back" because the login button silently signed
+   the user up again, and — the old name having been freed — under the same name.
+5. ✅ **Stale session cookies are cleared.** `/auth/sesion` now pops `username` from the
+   session when the account behind it no longer exists, instead of leaving the cookie
+   pointing at nothing.
+
+**Acceptance:** ✅ two scripted suites (`test_codigo.py`, `test_google_intent.py`, 44
+checks) covering the migration and its idempotency, code uniqueness/alphabet, code
+survival across a rename, the full deletion side effects, name reuse by a different
+player, every lookup path rejecting deleted rows, and the four Google intent paths
+(including delete → log in → *no account*, and delete → sign up → *new code*). ✅
+Verified in the browser: the code in the settings window in ES/EN, the leaderboard, and
+adding a friend by lower-case code while a deleted account's code is rejected. ✅ The
+#21 and #22 suites still pass.
+
+**Not done / deliberate:** the code is not shown in the friends list or group member
+lists (usernames are unique among live accounts, so there is nothing to disambiguate
+there); there is no match-history screen yet to flag past players in — `#19` is where
+that lands, and `obtener_jugador_publico()` is the hook it should use.

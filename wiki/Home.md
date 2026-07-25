@@ -24,6 +24,10 @@
 | [Implementing 4-Player Mus](Implementing-Mus-4-Players.md) | Full build guide for the 2v2 online variant (mechanics → UI → connections) |
 | [Implementing Friends, Messaging & Groups](Implementing-Friends-Messaging-Groups.md) | Full build guide for the social layer (friends, chat, groups, group leaderboards) |
 
+**Admin panel:** `/admin` (same process and port as the game — nothing extra to deploy).
+Set `ADMIN_USERNAME` once to create the first administrator. See
+[Roadmap #13](Roadmap.md#13-online-admin-panel--done-2026-07-25).
+
 ## Quick facts
 
 - Server entry point: [server.py](../server.py) (Flask + Flask-SocketIO + eventlet, port **5001**).
@@ -39,6 +43,7 @@ Things to do in the future:
 - when invited to a game by a friend and accepted, friend screen should be removed
 - Groups should be accepted
 - name for 4player mus should be the username
-
-
-
+- Redesign the main menu so that it is beautiful, more minimalistic, but it preserves all its functions. For example: keep settings and full-screen buttons where they are. If the user is logged-in, the friends button should be pinned next to settings button (not floating in the center as it is now). There should be a single button 'play', a button 'tutorial', a button 'deck menu' (saying 'feature not available yet' when clicking), and then leaderboard, the ko-fi button and 'about call mus'. The button play deploys a window with all the options: choose 1v1 or 2v2, play with bots, bots-player mixed, players, public game, the number of games, play with signs (not available yet, but when available only for 2vs2), create game, join a created one or an ongoing one. I want you to redesign this in a way that it is ABSOLUTELY INTUITIVE to use, and looks beautiful. Obviously you have to flag as unavailable every feature that is not yet available. It must be beautiful, but it cannot look like the average IA generated webpage, it must have some unique beautiful design. Ask me any necessary questions.
+- Bot: First random bot, then bot using the 2mus architecture, then train a 4mus bot. Apply PCA to find the most relevant variables to play mus. Generate a well structured log.
+- 
+[[Versions]]
