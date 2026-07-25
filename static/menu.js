@@ -75,6 +75,8 @@
         sum_vs_bot: 'contra la IA',
         sum_vs_human: 'contra otra persona',
         sum_vs_humans: 'entre cuatro personas',
+        sum_vs_bots_4: 'con la mesa llena de bots',
+        sum_vs_mixto_4: 'con personas y bots',
         sum_best_of: 'al mejor de <b>{n}</b>',
         sum_publica: 'pública',
         sum_privada: 'privada',
@@ -91,9 +93,6 @@
 
         // Avisos de "todavía no"
         pronto_barajas: 'El menú de barajas aún no está disponible: llegará con las barajas personalizadas.',
-        pronto_bots_4: 'Todavía no hay bots para el Mus a 4. Por ahora la mesa de 2 contra 2 se juega entre personas.',
-        pronto_mixto_4: 'Las mesas mixtas de personas y bots todavía no están disponibles.',
-        pronto_senas: 'Las señas todavía no están implementadas. Cuando lleguen, serán sólo para el 2 contra 2.',
         pronto_generico: 'Esta función todavía no está disponible.',
 
         // Clasificación
@@ -160,6 +159,8 @@
         sum_vs_bot: 'against the AI',
         sum_vs_human: 'against another person',
         sum_vs_humans: 'between four people',
+        sum_vs_bots_4: 'with a table full of bots',
+        sum_vs_mixto_4: 'with people and bots',
         sum_best_of: 'best of <b>{n}</b>',
         sum_publica: 'public',
         sum_privada: 'private',
@@ -173,9 +174,6 @@
         msg_reconectando: 'Reconnecting you to your game automatically…',
 
         pronto_barajas: 'The deck menu is not available yet: it will arrive with the custom decks.',
-        pronto_bots_4: 'There are no bots for 4-player Mus yet. For now the 2 vs 2 table is played between people.',
-        pronto_mixto_4: 'Mixed tables of people and bots are not available yet.',
-        pronto_senas: 'Signs are not implemented yet. When they arrive they will be for 2 vs 2 only.',
         pronto_generico: 'This feature is not available yet.',
 
         lb_title: 'Leaderboard',
@@ -212,9 +210,6 @@
     // Cualquier elemento marcado con data-soon explica por qué no se puede usar.
     const MOTIVOS = {
         'btn-decks': 'pronto_barajas',
-        'set-senas': 'pronto_senas',
-        bots: 'pronto_bots_4',
-        mixto: 'pronto_mixto_4',
     };
     document.addEventListener('click', (e) => {
         const soon = e.target.closest('[data-soon]');
@@ -232,7 +227,12 @@
 
     let modo = 2;              // 2 = 1v1, 4 = 2v2
     let rival2 = 'humano';     // en 1v1: 'humano' | 'bot'
+    let rival4 = 'humano';     // en 2v2: 'humano' | 'bots' | 'mixto'
     let esperandoSala = false;  // ya hay sala creada, se ve el código
+
+    // app4.js necesita saber qué eligió el jugador para montar el payload de
+    // `crear_sala_4` (qué asientos van con bot).
+    window.modoRivales4 = () => rival4;
 
     function estaAbierta() {
         return modalPlay && !modalPlay.classList.contains('hidden');
@@ -251,12 +251,19 @@
     function pintarPlay() {
         const es4 = modo === 4;
         const contraBot = !es4 && rival2 === 'bot';
+        // Mesa entera de bots: empieza al momento, así que no hay nada que
+        // anunciar en la lista pública (igual que el 1v1 contra la IA).
+        const mesaDeBots = es4 && rival4 === 'bots';
+        const conBots = es4 && rival4 !== 'humano';
 
         document.querySelectorAll('.cm-mode').forEach(b => {
             b.classList.toggle('is-on', +b.dataset.modo === modo);
         });
         document.querySelectorAll('#play-rivals-2 .cm-opt').forEach(b => {
             b.classList.toggle('is-on', b.dataset.rival === rival2);
+        });
+        document.querySelectorAll('#play-rivals-4 .cm-opt').forEach(b => {
+            b.classList.toggle('is-on', b.dataset.rival === rival4);
         });
 
         // Bloques por modo
@@ -265,9 +272,10 @@
         alternar('set-mejor-2', !es4);
         alternar('set-mejor-4', es4);
         alternar('set-publico-2', !es4 && !contraBot);
-        alternar('set-publico-4', es4);
+        alternar('set-publico-4', es4 && !mesaDeBots);
         alternar('set-senas', es4);          // las señas son cosa del 2v2
         alternar('set-asiento', es4);
+        alternar('set-bots-4', conBots);
         alternar('join-2', !es4);
         alternar('join-4', es4);
         alternar('live-2', !es4);
@@ -279,6 +287,7 @@
         alternar('btn-crear-sala-4', es4);
 
         if (es4 && typeof renderSeatPicker4 === 'function') renderSeatPicker4();
+        if (conBots && typeof renderBotPicker4 === 'function') renderBotPicker4(rival4);
         pintarResumen();
         pedirPublicas();
     }
@@ -297,14 +306,23 @@
         const campo = $(es4 ? 'in-mejor-de-4' : 'in-mejor-de');
         const publico = $(es4 ? 'in-publico-4' : 'in-publico');
 
+        let rivales;
+        if (contraBot) rivales = t('sum_vs_bot');
+        else if (es4 && rival4 === 'bots') rivales = t('sum_vs_bots_4');
+        else if (es4 && rival4 === 'mixto') rivales = t('sum_vs_mixto_4');
+        else rivales = t(es4 ? 'sum_vs_humans' : 'sum_vs_human');
+
         const partes = [
             t(es4 ? 'play_2v2' : 'play_1v1'),
-            contraBot ? t('sum_vs_bot') : t(es4 ? 'sum_vs_humans' : 'sum_vs_human'),
+            rivales,
             t_dinamico('sum_best_of', { n: (campo && campo.value) || 3 }),
         ];
-        if (!contraBot && publico) {
+        if (!contraBot && !(es4 && rival4 === 'bots') && publico) {
             partes.push(t(publico.checked ? 'sum_publica' : 'sum_privada'));
         }
+        // Las señas cambian tanto la mesa que merecen salir en el resumen.
+        const senas = $('in-senas');
+        if (es4 && senas && senas.checked) partes.push(t('play_senas_on'));
         out.innerHTML = partes.join(' · ');
     }
 
@@ -371,6 +389,13 @@
         });
     });
 
+    document.querySelectorAll('#play-rivals-4 .cm-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            rival4 = btn.dataset.rival;
+            pintarPlay();
+        });
+    });
+
     // Los "+/−" del contador de partidas: siempre impares, entre 1 y 21.
     document.querySelectorAll('.cm-step-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -387,7 +412,7 @@
         const campo = $(id);
         if (campo) campo.addEventListener('input', pintarResumen);
     });
-    ['in-publico', 'in-publico-4'].forEach(id => {
+    ['in-publico', 'in-publico-4', 'in-senas'].forEach(id => {
         const campo = $(id);
         if (campo) campo.addEventListener('change', pintarResumen);
     });
@@ -449,6 +474,9 @@
             pintarResumen();
             marcarEspera(esperandoSala);   // aplicarTraduccion() ha repuesto el subtítulo
             if (modo === 4 && typeof renderSeatPicker4 === 'function') renderSeatPicker4();
+            if (modo === 4 && rival4 !== 'humano' && typeof renderBotPicker4 === 'function') {
+                renderBotPicker4(rival4);
+            }
         });
     }
 

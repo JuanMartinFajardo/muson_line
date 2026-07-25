@@ -1,0 +1,459 @@
+/* senas.css — Señas del Mus a 4 jugadores (2v2).
+   Se carga DESPUÉS de style4.css/game.css y sólo pinta cosas que no existen sin
+   señas: la cara de cada rival, la iluminación del asiento enfocado, el botón de
+   señalar y la ventanita de denuncia.
+
+   La cara es un SVG minimalista con las piezas justas para las diez señas:
+   cejas, dos ojos con párpado, tres bocas (curva, línea y beso), lengua y unos
+   hombros apenas insinuados que sólo se levantan en la seña del 30.
+
+   Todo el movimiento son transform/opacity: nada de morphing de paths, para que
+   se mueva fino también en un móvil viejo. */
+
+:root {
+    --sena-dur: 0.9s;          /* duración de una seña */
+    --cara-tam: 92px;
+}
+
+/* ============================================================
+   1. El asiento enfocado
+   ============================================================ */
+
+/* La retícula de la mesa no lleva posicionamiento; la cara va encima del
+   asiento sin empujar nada, que en vertical no sobra ni un píxel. */
+#mesa-4 .seat-4 { position: relative; }
+
+/* Iluminación suave del que estás mirando. Va en ::before porque game.css fija
+   `background: none !important` en el propio asiento. */
+#mesa-4 .seat-4::before {
+    content: '';
+    position: absolute;
+    inset: -6px -4px;
+    border-radius: 10px;
+    background: radial-gradient(ellipse at center,
+                rgba(237, 233, 220, 0.11) 0%,
+                rgba(237, 233, 220, 0.04) 45%,
+                transparent 72%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+#mesa-4 .seat-4.enfocado::before { opacity: 1; }
+/* El que acabas de dejar de mirar sigue ahí un segundo, más apagado: es la
+   ventana que impide señalar justo cuando el rival aparta la vista. */
+#mesa-4 .seat-4.enfocado-saliente::before { opacity: 0.45; }
+
+/* Los demás asientos se retiran un poco para que el foco cante. */
+#game-screen-4.con-senas .seat-4 { transition: opacity 0.35s ease; }
+#game-screen-4.con-senas .seat-4.desenfocado { opacity: 0.55; }
+
+/* Al que te pillan haciendo una seña se le marca un momento. */
+@keyframes senaAcusado {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(194, 53, 46, 0); }
+    30%      { box-shadow: 0 0 0 2px rgba(194, 53, 46, 0.55); }
+}
+#mesa-4 .seat-4.acusado { animation: senaAcusado 1.6s ease-out 2; border-radius: 8px; }
+
+/* ============================================================
+   2. La cara
+   ============================================================ */
+.seat-cara {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: var(--cara-tam); height: var(--cara-tam);
+    transform: translate(-50%, -50%) scale(0.62);
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    z-index: 3;
+}
+/* Sólo hay una cara enfocada a la vez, así que se puede permitir crecer: los
+   gestos de boca (morderse el centro del labio o un lado) hay que poder
+   distinguirlos en un móvil. */
+.seat-4.enfocado .seat-cara { opacity: 1; transform: translate(-50%, -50%) scale(1.18); }
+.seat-4.enfocado-saliente .seat-cara { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9); }
+
+/* Mientras miras a alguien, sus cartas se apagan: están boca abajo y no dicen
+   nada, y así la cara —que es lo que hay que leer— se ve limpia encima. */
+#game-screen-4.con-senas .seat-4 .seat-cards { transition: opacity 0.3s ease; }
+#game-screen-4.con-senas .seat-4.enfocado .seat-cards { opacity: 0.28; }
+#game-screen-4.con-senas .seat-4.enfocado-saliente .seat-cards { opacity: 0.55; }
+/* La mía no: la tapa el dorso, no el foco. */
+#game-screen-4.con-senas #seat-bottom .seat-cards { opacity: 1 !important; }
+
+.cara { width: 100%; height: 100%; overflow: visible; }
+
+/* Trazo fino, sin relleno: la misma tinta que el resto de la mesa. */
+.cara .cara-piel {
+    fill: rgba(11, 12, 14, 0.82);
+    stroke: var(--cm-bone);
+    stroke-width: 1.4;
+}
+.cara .ceja, .cara .boca, .cara .parpado, .cara .cara-hombros path {
+    fill: none;
+    stroke: var(--cm-bone);
+    stroke-width: 1.7;
+    stroke-linecap: round;
+}
+.cara .ojo-bola { fill: none; stroke: var(--cm-bone); stroke-width: 1.3; }
+.cara .pupila { fill: var(--cm-bone); }
+.cara .lengua { fill: var(--cm-red); stroke: none; }
+.cara .boca-beso { fill: none; stroke: var(--cm-bone); stroke-width: 1.7; }
+
+/* Los hombros sólo se intuyen; la seña del 30 los sube y los enciende. */
+.cara .cara-hombros path { opacity: 0.3; stroke-width: 1.4; }
+
+/* Piezas que sólo salen durante una seña concreta. */
+.cara .parpado, .cara .boca-linea, .cara .boca-beso, .cara .lengua { opacity: 0; }
+
+/* La mirada: la pupila se desplaza y la cabeza se inclina un pelín hacia donde
+   mira. Los valores los pone senas4.js en --gx/--gy/--tilt. */
+.cara .pupila {
+    transform: translate(var(--gx, 0px), var(--gy, 0px));
+    transition: transform 0.28s ease;
+}
+.cara .cara-cabeza {
+    transform: rotate(var(--tilt, 0deg));
+    transform-origin: 32px 54px;
+    transition: transform 0.3s ease;
+}
+
+/* Cuando te está mirando a TI, la cara se ilumina: es la información que hay
+   que leer de un vistazo. */
+.cara.te-mira .cara-piel {
+    stroke: var(--cm-gold-hi);
+    filter: drop-shadow(0 0 5px rgba(201, 162, 39, 0.35));
+}
+.cara.te-mira .pupila { fill: var(--cm-gold-hi); }
+
+/* Orígenes de transformación de la boca y la lengua (coordenadas del viewBox). */
+.cara .boca-normal, .cara .boca-linea, .cara .boca-beso { transform-origin: 32px 42px; }
+.cara .lengua { transform-origin: 32px 42px; }
+.cara .ceja-i { transform-origin: 23px 20px; }
+.cara .ceja-d { transform-origin: 41px 20px; }
+
+/* ============================================================
+   3. Las diez señas
+   ============================================================ */
+
+/* — Dos reyes: morderse el centro del labio de abajo — */
+@keyframes senaLabioCentro {
+    0%, 100% { opacity: 0; transform: scaleX(1); }
+    18%, 76% { opacity: 1; transform: scaleX(0.72); }
+}
+@keyframes senaBocaFuera {
+    0%, 100% { opacity: 1; }
+    18%, 76% { opacity: 0; }
+}
+.cara.sena-dos_reyes .boca-linea  { animation: senaLabioCentro var(--sena-dur) ease-in-out; }
+.cara.sena-dos_reyes .boca-normal { animation: senaBocaFuera var(--sena-dur) ease-in-out; }
+
+/* — Tres reyes: el mordisco, pero a un lado — */
+/* El desplazamiento es lo ÚNICO que distingue esta seña de la de dos reyes
+   (morderse el centro), así que se exagera para que se lea en una cara pequeña. */
+@keyframes senaLabioLado {
+    0%, 100% { opacity: 0; transform: translateX(0) scaleX(1); }
+    18%, 76% { opacity: 1; transform: translateX(-7px) scaleX(0.45); }
+}
+.cara.sena-tres_reyes .boca-linea  { animation: senaLabioLado var(--sena-dur) ease-in-out; }
+.cara.sena-tres_reyes .boca-normal { animation: senaBocaFuera var(--sena-dur) ease-in-out; }
+
+/* — Dos ases: sacar la lengua — */
+@keyframes senaLengua {
+    0%, 100% { opacity: 0; transform: translate(0, -3px) scaleY(0.3); }
+    20%, 74% { opacity: 1; transform: translate(0, 1px) scaleY(1); }
+}
+.cara.sena-dos_ases .lengua { animation: senaLengua var(--sena-dur) ease-out; }
+
+/* — Tres ases: la lengua, de lado — */
+@keyframes senaLenguaLado {
+    0%, 100% { opacity: 0; transform: translate(0, -3px) scaleY(0.3); }
+    20%, 74% { opacity: 1; transform: translate(6px, 1px) scaleY(1) rotate(14deg); }
+}
+.cara.sena-tres_ases .lengua { animation: senaLenguaLado var(--sena-dur) ease-out; }
+
+/* — Medias (trío): torcer la boca a un lado — */
+/* Torcer la boca tiene que separarse claramente de la boca en reposo, que ya es
+   una curva suave: se aprieta, se desplaza y se inclina de verdad. */
+@keyframes senaBocaTorcida {
+    0%, 100% { transform: translate(0, 0) scaleX(1) rotate(0deg); }
+    22%, 74% { transform: translate(-6px, -1px) scaleX(0.45) rotate(-24deg); }
+}
+.cara.sena-medias .boca-normal { animation: senaBocaTorcida var(--sena-dur) ease-in-out; }
+
+/* — Duples (dos parejas): levantar las cejas — */
+@keyframes senaCejas {
+    0%, 100% { transform: translateY(0); }
+    24%, 72% { transform: translateY(-4.5px); }
+}
+@keyframes senaOjosAbiertos {
+    0%, 100% { transform: scale(1); }
+    24%, 72% { transform: scale(1.12); }
+}
+.cara.sena-duples .ceja { animation: senaCejas var(--sena-dur) ease-in-out; }
+.cara.sena-duples .ojo-bola { animation: senaOjosAbiertos var(--sena-dur) ease-in-out; transform-origin: center; }
+
+/* — 31: un guiño (se cierra el ojo izquierdo) — */
+@keyframes senaParpadoCierra {
+    0%, 100% { opacity: 0; }
+    16%, 62% { opacity: 1; }
+}
+@keyframes senaOjoDesaparece {
+    0%, 100% { opacity: 1; }
+    16%, 62% { opacity: 0; }
+}
+.cara.sena-31 .ojo-i .parpado { animation: senaParpadoCierra var(--sena-dur) ease-in-out; }
+.cara.sena-31 .ojo-i .ojo-bola,
+.cara.sena-31 .ojo-i .pupila { animation: senaOjoDesaparece var(--sena-dur) ease-in-out; }
+
+/* — 30: encoger los hombros (por eso están dibujados) — */
+@keyframes senaHombros {
+    0%, 100% { transform: translateY(0); opacity: 0.3; }
+    28%, 70% { transform: translateY(-6px); opacity: 0.9; }
+}
+@keyframes senaCabezaHunde {
+    0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+    28%, 70% { transform: translateY(2.5px) rotate(var(--tilt, 0deg)); }
+}
+.cara.sena-30 .cara-hombros { animation: senaHombros var(--sena-dur) ease-in-out; }
+.cara.sena-30 .cara-cabeza  { animation: senaCabezaHunde var(--sena-dur) ease-in-out; }
+
+/* — Solomillo (tres reyes y un as): un beso — */
+@keyframes senaBeso {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    22%, 70% { opacity: 1; transform: scale(1); }
+}
+@keyframes senaBesoCabeza {
+    0%, 100% { transform: scale(1) rotate(var(--tilt, 0deg)); }
+    22%, 70% { transform: scale(1.07) rotate(var(--tilt, 0deg)); }
+}
+.cara.sena-solomillo .boca-beso   { animation: senaBeso var(--sena-dur) ease-out; }
+.cara.sena-solomillo .boca-normal { animation: senaBocaFuera var(--sena-dur) ease-in-out; }
+.cara.sena-solomillo .cara-cabeza { animation: senaBesoCabeza var(--sena-dur) ease-in-out; }
+
+/* — Ciego: cerrar los ojos — */
+@keyframes senaOjosCerrados {
+    0%, 100% { opacity: 0; }
+    14%, 78% { opacity: 1; }
+}
+.cara.sena-ciego .parpado { animation: senaOjosCerrados var(--sena-dur) ease-in-out; }
+.cara.sena-ciego .ojo-bola,
+.cara.sena-ciego .pupila { animation: senaOjoDesaparece var(--sena-dur) ease-in-out; }
+
+/* ============================================================
+   4. Mis cartas boca abajo
+   ============================================================ */
+/* En una mesa con señas tus cartas están del revés salvo mientras las miras.
+   El volteo es CSS puro: el foco cambia muchas veces por minuto y no puede
+   depender de que llegue un estado nuevo del servidor. */
+#seat-bottom .carta-4.volteable { position: relative; perspective: 500px; }
+#seat-bottom .carta-4.volteable img {
+    transition: opacity 0.18s ease, transform 0.28s ease;
+    backface-visibility: hidden;
+}
+#seat-bottom .carta-4.volteable .dorso-carta {
+    position: absolute; inset: 0;
+    opacity: 0; transform: rotateY(180deg);
+}
+#seat-bottom.mano-oculta .carta-4.volteable .cara-carta { opacity: 0; transform: rotateY(180deg); }
+#seat-bottom.mano-oculta .carta-4.volteable .dorso-carta { opacity: 1; transform: rotateY(0deg); }
+#seat-bottom.mano-oculta .carta-4 { cursor: default; }
+
+/* ============================================================
+   5. Botón de hacer una seña
+   ============================================================ */
+#btn-sena-4 {
+    position: fixed;
+    right: 12px; bottom: 14px;
+    z-index: 25;
+    display: none;
+    align-items: center; gap: 7px;
+    padding: 9px 14px;
+    background: var(--cm-ink-2);
+    border: 1px solid var(--cm-hair-2);
+    border-radius: 2px;
+    color: var(--cm-bone);
+    font-family: var(--cm-serif);
+    font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+    cursor: pointer;
+    overflow: hidden;
+}
+#btn-sena-4.visible { display: inline-flex; }
+#btn-sena-4:disabled { cursor: default; color: var(--cm-dim-2); border-color: var(--cm-hair); }
+#btn-sena-4 .sena-icono { font-size: 1em; }
+
+/* Barra de recarga: se vacía sola durante el tiempo de espera. */
+#btn-sena-4::after {
+    content: '';
+    position: absolute; left: 0; bottom: 0; height: 2px;
+    width: 0; background: var(--cm-gold);
+}
+@keyframes senaRecarga { from { width: 100%; } to { width: 0; } }
+#btn-sena-4.enfriando::after { animation: senaRecarga var(--cd, 3s) linear forwards; }
+
+/* Lo que acabas de señalar (tu propia cara no la ves). */
+#sena-hecha-4 {
+    position: fixed;
+    right: 12px; bottom: 58px;
+    z-index: 25;
+    padding: 6px 12px;
+    background: var(--cm-ink-2);
+    border: 1px solid rgba(201, 162, 39, 0.45);
+    border-radius: 2px;
+    color: var(--cm-gold-hi);
+    font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+#sena-hecha-4.visible { opacity: 1; }
+
+/* ============================================================
+   6. Denunciar una seña ("te he visto")
+   ============================================================ */
+#senas-denuncia {
+    position: fixed;
+    left: 50%; bottom: 0;
+    transform: translate(-50%, 100%);
+    width: min(340px, 94vw);
+    max-height: 76vh;
+    overflow-y: auto;
+    z-index: 60;
+    padding: 14px 14px 18px;
+    background: var(--cm-ink-2);
+    border: 1px solid var(--cm-hair-2);
+    border-radius: 6px 6px 0 0;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+    transition: transform 0.28s ease;
+}
+#senas-denuncia.abierta { transform: translate(-50%, 0); }
+
+#senas-denuncia .den-titulo {
+    margin: 0 0 10px;
+    font-family: var(--cm-serif);
+    font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cm-dim);
+    text-align: center;
+}
+#senas-denuncia .den-titulo b { color: var(--cm-bone); }
+
+.den-lista { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.den-op {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    background: var(--cm-ink-3);
+    border: 1px solid var(--cm-hair);
+    border-radius: 3px;
+    color: var(--cm-bone);
+    font-size: 0.66rem; letter-spacing: 0.07em; text-transform: uppercase;
+    text-align: left;
+    cursor: pointer;
+}
+.den-op:hover { border-color: var(--cm-gold); }
+/* La cara de muestra hace la seña en bucle: así se aprende cuál es cuál. */
+.den-op .seat-cara {
+    position: static;
+    width: 34px; height: 34px;
+    flex: 0 0 34px;
+    transform: none;
+    opacity: 1;
+}
+.den-op .cara { --sena-dur: 2.4s; }
+.den-op .cara.en-bucle * { animation-iteration-count: infinite !important; }
+
+#senas-denuncia .den-cerrar {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px;
+    background: none;
+    border: 1px solid var(--cm-hair);
+    border-radius: 3px;
+    color: var(--cm-dim);
+    font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer;
+}
+
+/* Fondo que cierra la ventana al tocar fuera. */
+#senas-velo {
+    position: fixed; inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+#senas-velo.abierto { opacity: 1; pointer-events: auto; }
+
+/* ============================================================
+   7. "Te he visto" — el aviso público
+   ============================================================ */
+@keyframes senaBurbuja {
+    0%   { opacity: 0; transform: translate(-50%, 6px); }
+    12%  { opacity: 1; transform: translate(-50%, 0); }
+    82%  { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -6px); }
+}
+.sena-burbuja {
+    position: absolute;
+    left: 50%; top: -6px;
+    transform: translate(-50%, 0);
+    z-index: 12;
+    padding: 5px 10px;
+    background: var(--cm-ink-2);
+    border: 1px solid rgba(194, 53, 46, 0.5);
+    border-radius: 3px;
+    color: var(--cm-bone);
+    font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: senaBurbuja 3.2s ease-out forwards;
+}
+.sena-burbuja b { color: var(--cm-red); }
+
+/* ============================================================
+   8. Pistas de control (sólo la primera vez que entras a una mesa con señas)
+   ============================================================ */
+#senas-ayuda {
+    position: fixed;
+    left: 50%; bottom: 66px;
+    transform: translateX(-50%);
+    z-index: 24;
+    padding: 7px 13px;
+    background: rgba(16, 18, 22, 0.94);
+    border: 1px solid var(--cm-hair);
+    border-radius: 3px;
+    color: var(--cm-dim);
+    font-size: 0.63rem; letter-spacing: 0.06em;
+    text-align: center;
+    max-width: 88vw;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+#senas-ayuda.visible { opacity: 1; }
+
+/* ============================================================
+   9. Móvil y accesibilidad
+   ============================================================ */
+@media (max-width: 640px) {
+    :root { --cara-tam: 74px; }
+    #btn-sena-4 { right: 8px; bottom: 10px; padding: 8px 12px; font-size: 0.64rem; }
+    #sena-hecha-4 { right: 8px; bottom: 50px; }
+    .den-lista { grid-template-columns: 1fr 1fr; }
+}
+@media (max-height: 620px) {
+    :root { --cara-tam: 66px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* La seña TIENE que seguir viéndose: es información de juego, no adorno.
+       Lo que se quita es el movimiento, no el gesto: con steps(1) la cara salta
+       a la pose y la mantiene el mismo tiempo, sin interpolar nada. */
+    .cara * { animation-timing-function: steps(1, start) !important; }
+    .seat-cara, .cara .pupila, .cara .cara-cabeza { transition: none; }
+    .sena-burbuja { animation: none; opacity: 1; }
+    #mesa-4 .seat-4.acusado { animation: none; box-shadow: 0 0 0 2px rgba(194, 53, 46, 0.55); }
+    #senas-denuncia { transition: none; }
+}

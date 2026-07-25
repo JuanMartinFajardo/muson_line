@@ -36,6 +36,79 @@ The bot ("Bot IA" in game) is implemented in [bot_ml.py](../bot_ml.py) as the **
 
 `update_meta_variables()` re-rolls at the end of every hand: `musero` (mus-cutting threshold), `bluffer` (≤0.35), `aleatorio` (decision noise, ≤0.4), `fish` (blunder chance — currently unused in decisions). These make the bot less robotic and are the natural hook for the Roadmap's "bot personality settings" (aggressive/conservative/musero).
 
+## 2 bis. The 4-player bot (`SmartBot4` v1, heuristic)
+
+Phase 0 of [Bot-AI-4p-Roadmap](Bot-AI-4p-Roadmap.md): 2v2 rooms are playable against
+bots **today**, with no ML. It lives in [bot_ml_4.py](../bot_ml_4.py) — `bot_ml.py` is
+untouched; only its precomputed tables are reused.
+
+### The load-bearing part: the interface contract
+
+```python
+MusBotBase.obtener_accion(vista) -> None | (accion, cantidad, meta)
+```
+
+`vista` is the **seat-local observation dict** produced by `PartidaMus4.vista(seat)` —
+never the engine itself. Its blocks follow the §4.2 encoder layout of
+[Bot-AI-4p-ML-Strategy](Bot-AI-4p-ML-Strategy.md), so the Deep CFR encoder of Phase 2
+consumes the same dict the bot sees at serving time (this is what kills train/serve
+skew at the root):
+
+| Block | Contents |
+| :--- | :--- |
+| `meta` | phase, turn, **`acciones_legales`**, pedrete availability |
+| `A_propio` | seat, mano-distance, cards, precomputed pares/juego features |
+| `B_publico` | lance, per-seat declarations and discards (seat-relative), mus rounds |
+| `C_apuestas` | pending raise, seen bet, pots and team-relative owners, last bettor, partner-can-still-answer, pot odds inputs |
+| `D_marcador` | team/rival points, points-to-40, match score |
+| `E_senas` | **reserved, all zeros until Phase 6** |
+
+`PartidaMus4.acciones_legales(seat)` enforces engine legality *and* the mus rules the
+engine does not police on its own (no betting Pares/Juego without the combination). A
+bot that only picks from that list cannot make an illegal move — which is what the
+Phase 0 acceptance soak checks.
+
+### The heuristic behind it (replaceable by design)
+
+- **Mus and discards:** the same EV tables as the 2p bot, unchanged.
+- **Betting:** team win probability for the lance. From the hand's percentile `p`
+  against one rival, the estimate is `1 - (1 - p^k)(1 - 1/(k+1))`, where `k` is the
+  number of rivals **still disputing the lance** (declarations are read from Block B,
+  so a rival who declared "no pares" stops counting) and `1/(k+1)` is the prior that
+  the unseen partner is the best of the unknown hands. A median hand yields ~0.5.
+- Open a bet above a per-lance threshold; **call by pot odds**
+  (`p ≥ (pot - deje) / 2·pot`); órdago when the endgame makes it moot
+  (`team points + pot ≥ 38`) or over a live bet with a locked hand.
+- **Personalities** (Roadmap #12) work from day one: `musero`, `bluffer`, `aleatorio`,
+  `fish` and `bias_apuesta`, which shifts every betting threshold. Fields left `None`
+  are re-rolled each hand, as in the 2p bot.
+
+### Measured (Phase 0 acceptance)
+
+`tools/soak_bots4.py` (bot brain vs engine) and `tools/soak_server_bots4.py` (the real
+server handlers with a stubbed socket layer):
+
+| Run | Result |
+| :--- | :--- |
+| 500 matches, aggressive vs conservative | 2802 hands, **0 illegal actions** |
+| 500 matches, musero vs chaotic | 2634 hands, **0 illegal actions** |
+| 200 best-of-3, all balanced | 2830 hands, 0 illegal; teams 101–99 (no seat/team bias) |
+| Server path, 1/2/3 bots per table | 50 best-of-3 matches each, no stalls, rooms close when the last human leaves |
+
+Personalities separate measurably on both axes: aggressive bets/raises/órdagos on
+**56%** of betting decisions vs **18%** for conservative; `musero` asks for mus **66%**
+of the time vs **52%** for aggressive.
+
+### Serving notes
+
+- A bot seat is a fake sid `BOT_<code>_<seat>` in `salas4`; the instance lives in
+  `room['bots'][seat]`. Bot turns are scheduled from the state broadcast, honoring the
+  admin `bot_delay`, one action per task. The guard is a `bot_pensando` flag rather
+  than the broadcast token: with a token, any unrelated re-broadcast (a player
+  double-clicking "next round") invalidated the pending task and starved the bots.
+- A room with no humans left is destroyed — bots never play on alone.
+- **Matches with bots are not recorded**: the 2v2 leaderboard stays human-only.
+
 ## 3. Training pipeline
 
 ### Current: Deep CFR (`train_cfr.py`)

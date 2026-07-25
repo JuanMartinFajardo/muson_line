@@ -43,7 +43,7 @@ Differences from the 2p rules already documented in [Game-Rules](Game-Rules.md):
 - **Declarations:** for **Pares** and **Juego**, all four players declare (have / don't have). A lance is only bet if **both teams** have at least one qualifying player; otherwise it's skipped or auto-won by the qualifying team (bonuses still counted at showdown for each qualifying hand).
 - **Betting is team-vs-team** (see §3.4 for the concrete v1 model). Actions: pasar, envidar, subir, ver, no ver, órdago — same vocabulary as 2p.
 - **Showdown / recuento:** for each lance, compare the **best hand of team A** against the **best hand of team B**; the winning team scores. **Bonuses (Pares/Juego) count for _every_ qualifying hand on the winning team** (e.g. if both partners have pairs, both pairs' premios add up). Ties resolved by proximity to mano (the hand belonging to the player closest to mano in turn order wins the tie).
-- **No señas (partner signals).** v1 deliberately excludes señas; **partners never see each other's cards.**
+- **Señas (partner signals)** were excluded from v1 and **shipped later as an optional table setting** — see [Señas (2v2)](Senas-2v2.md). Partners still **never see each other's cards**: a sign transmits a *gesture*, and only to whoever happens to be looking at that moment.
 
 ---
 

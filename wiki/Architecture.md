@@ -30,7 +30,8 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [mus_discard_chooser.py](../mus_discard_chooser.py) | Optimal-discard algorithm (bucketed EV maximization over the 16 possible discards) |
 | [redes_mus.py](../redes_mus.py) | PyTorch network definitions (`RegretNetwork`, `StrategyNetwork`, `ReplayBuffer`) and `estado_a_vector` state encoder |
 | [social.py](../social.py) | Friends, DMs, groups and group leaderboards (`init_social`); also owns the single Socket.IO `connect` handler (presence + ban check) |
-| [server_mus4.py](../server_mus4.py) | 4-player (2v2) room registry and handlers (`init_mus4`), engine `mus_mecanicas_4.py` |
+| [server_mus4.py](../server_mus4.py) | 4-player (2v2) room registry and handlers (`init_mus4`), engine `mus_mecanicas_4.py`; also owns the señas focus registry |
+| [mus_senas.py](../mus_senas.py) | Pure: which sign a hand makes, with an admin-editable priority order ([Señas](Senas-2v2.md)) |
 | [admin.py](../admin.py) | Admin panel (`init_admin`): accounts, live rooms, downloads, `Config` variables, audit, plus the player-facing support and announcement endpoints |
 
 ### Training / offline (not needed to run the server)
@@ -55,6 +56,8 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [static/social.js](../static/social.js) | Friends, chats, groups and game invites |
 | [static/soporte.js](../static/soporte.js) | Support inbox inside Settings + admin announcements (pinned banner and popups) |
 | [admin.html](../admin.html) | Server-rendered admin panel (`/admin`), self-contained CSS/JS, Spanish only |
+| [static/senas4.js](../static/senas4.js) | Señas (2v2): focus state machine, controls, SVG faces, sign and report UI (`window.Senas4`) |
+| [static/senas.css](../static/senas.css) | Señas: the face, the lit seat and the ten sign animations |
 | [static/style.css](../static/style.css) | Nord-palette styling |
 | `static/img/` | Card images (`card_<suit>_<value>.webp`), logo, favicon |
 

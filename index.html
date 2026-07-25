@@ -17,6 +17,9 @@
     <link rel="stylesheet" href="/static/menu.css?=v2">
     <!-- El tapete (1v1 y 2v2) con el mismo lenguaje visual que el menú -->
     <link rel="stylesheet" href="/static/game.css?=v3">
+    <!-- Señas del 2v2: caras, foco e iluminación. Después de game.css, que es
+         quien fija el aspecto de los asientos. -->
+    <link rel="stylesheet" href="/static/senas.css?=v1">
     <!-- Librería de WebSockets (Actualizada a la v4.7.5) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="apple-touch-icon" sizes="180x180" href="static/favicon_io/apple-touch-icon.png">
@@ -751,15 +754,13 @@
                             <b data-i18n="play_4_humanos">Cuatro personas</b>
                             <small data-i18n="play_4_humanos_sub">Tu pareja y la pareja rival</small>
                         </button>
-                        <button class="cm-opt is-soon" data-rival="bots" data-soon="1">
+                        <button class="cm-opt" data-rival="bots">
                             <b data-i18n="play_4_bots">Con bots</b>
                             <small data-i18n="play_4_bots_sub">Rellenar los asientos con la IA</small>
-                            <em class="cm-tag" data-i18n="tag_soon">Pronto</em>
                         </button>
-                        <button class="cm-opt is-soon" data-rival="mixto" data-soon="1">
+                        <button class="cm-opt" data-rival="mixto">
                             <b data-i18n="play_4_mixto">Mesa mixta</b>
                             <small data-i18n="play_4_mixto_sub">Personas y bots en la misma mesa</small>
-                            <em class="cm-tag" data-i18n="tag_soon">Pronto</em>
                         </button>
                     </div>
                 </section>
@@ -807,20 +808,37 @@
                     </label>
 
                     <!-- Señas: propias del 2v2 y todavía sin implementar -->
-                    <div class="cm-switch is-soon hidden" id="set-senas" data-soon="1">
+                    <label class="cm-switch hidden" id="set-senas">
+                        <input type="checkbox" id="in-senas">
                         <span class="cm-switch-box" aria-hidden="true"></span>
                         <span class="cm-switch-txt">
                             <b data-i18n="play_senas">Con señas</b>
                             <small data-i18n="play_senas_sub">Avisar a tu pareja de lo que llevas</small>
                         </span>
-                        <em class="cm-tag" data-i18n="tag_soon">Pronto</em>
-                    </div>
+                    </label>
 
                     <!-- Asiento (2v2): las parejas se sientan enfrente -->
                     <div class="cm-seats hidden" id="set-asiento">
                         <span class="cm-set-label" data-i18n="elige_asiento">Elige un asiento</span>
                         <div id="seat-picker-4" class="cm-seat-grid"></div>
                         <p class="cm-note" data-i18n="play_seat_note">Los asientos 0 y 2 son el equipo A; el 1 y el 3, el equipo B. Tu pareja se sienta enfrente de ti.</p>
+                    </div>
+
+                    <!-- Bots (2v2): quién ocupa cada asiento y cómo juegan -->
+                    <div class="cm-seats hidden" id="set-bots-4">
+                        <span class="cm-set-label" data-i18n="bots_quien">Quién ocupa cada asiento</span>
+                        <div id="bot-picker-4" class="cm-seat-grid"></div>
+                        <p class="cm-note" id="bots-nota-4" data-i18n="bots_nota_mixto">Toca un asiento para poner un bot o dejarlo libre para otra persona.</p>
+                        <label class="cm-set" for="in-personalidad-4">
+                            <span class="cm-set-label" data-i18n="bots_personalidad">Cómo juegan los bots</span>
+                            <select id="in-personalidad-4" class="cm-input">
+                                <option value="equilibrado" data-i18n="pers_equilibrado">Equilibrado</option>
+                                <option value="agresivo" data-i18n="pers_agresivo">Agresivo</option>
+                                <option value="conservador" data-i18n="pers_conservador">Conservador</option>
+                                <option value="musero" data-i18n="pers_musero">Musero</option>
+                                <option value="caotico" data-i18n="pers_caotico">Caótico</option>
+                            </select>
+                        </label>
                     </div>
                 </section>
 
@@ -895,6 +913,7 @@
                 </div>
                 <div id="asientos-espera-4" class="cm-seat-grid"></div>
                 <p id="espera-msg-4" class="cm-wait-msg anim-parpadeo" data-i18n="esperando_jugadores_4">Esperando jugadores…</p>
+                <button id="btn-rellenar-bots-4" class="cm-secondary" data-i18n="btn_rellenar_bots">🤖 Rellenar con bots y empezar</button>
                 <button id="btn-cancelar-4" class="cm-quiet" data-i18n="btn_volver_menu">Volver al Menú</button>
             </div>
         </div>
@@ -978,6 +997,9 @@
     <!-- Mus 4 jugadores (Roadmap #6): app4 (lógica) + table4 (render). Cargan tras app.js para reusar socket/dict/t. -->
     <script src="/static/table4.js?=v2"></script>
     <script src="/static/app4.js?=v3"></script>
+    <!-- Señas del 2v2: foco, caras y denuncias. Tras app4.js, que es quien le
+         pasa cada estado de la mesa (Senas4.sincronizar). -->
+    <script src="/static/senas4.js?=v1"></script>
     <!-- Menú principal y ventana de Jugar. Va al final: usa dict/t/socket de
          app.js y reengancha los paneles 2v2 que app4.js acaba de localizar. -->
     <script src="/static/menu.js?=v1"></script>

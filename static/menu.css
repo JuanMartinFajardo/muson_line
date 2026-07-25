@@ -558,6 +558,14 @@
 #modal-play .seat-espera .seat-team-a { color: var(--equipo-a); }
 #modal-play .seat-espera .seat-team-b { color: var(--equipo-b); }
 
+/* Asientos con bot: se distinguen de un vistazo de los de las personas. */
+#modal-play .seat-pick-btn.es-bot,
+#modal-play .seat-espera.es-bot { background: rgba(136, 192, 208, 0.09); }
+#modal-play .seat-pick-btn.es-bot small,
+#modal-play .seat-espera.es-bot small { color: var(--cm-bone); }
+#modal-play .seat-pick-btn:disabled { cursor: default; }
+#modal-play .seat-pick-btn:disabled:not(.selected):not(.es-bot) { opacity: 0.55; }
+
 .cm-note {
     margin: 11px 0 0;
     font-size: 0.71rem; line-height: 1.55;

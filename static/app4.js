@@ -33,6 +33,21 @@ Object.assign(dict.es, {
     reemplazo_encontrado_4: '{nombre} se une a la partida.',
     sin_reemplazo_4: 'Nadie se ha unido a tiempo. Volviendo al menú principal.',
     leaderboard_nota_4p: 'Nota: el ELO y las victorias de arriba son de las partidas 1 contra 1. En el Mus a 4 jugadores (2v2) se guarda aparte el marcador final de cada partida (p. ej. 2-1), sumando a cada jugador los juegos ganados con su equipo.',
+    // Bots (Fase 0 del plan de la IA a 4)
+    bots_quien: 'Quién ocupa cada asiento',
+    bots_personalidad: 'Cómo juegan los bots',
+    bots_nota_mixto: 'Toca un asiento para poner un bot o dejarlo libre para otra persona.',
+    bots_nota_todos: 'Los otros tres asientos los ocupan bots: la partida empieza al momento.',
+    seat_tu: 'Tú',
+    seat_bot: 'Bot',
+    seat_persona: 'Persona',
+    btn_rellenar_bots: '🤖 Rellenar con bots y empezar',
+    pers_equilibrado: 'Equilibrado',
+    pers_agresivo: 'Agresivo',
+    pers_conservador: 'Conservador',
+    pers_musero: 'Musero',
+    pers_caotico: 'Caótico',
+    bots_no_puntuan: 'Las partidas con bots no cuentan para la clasificación.',
 });
 Object.assign(dict.en, {
     btn_crear_4: '👥 4-Player Mus',
@@ -61,6 +76,21 @@ Object.assign(dict.en, {
     reemplazo_encontrado_4: '{nombre} joins the game.',
     sin_reemplazo_4: 'Nobody joined in time. Going back to the main menu.',
     leaderboard_nota_4p: 'Note: the ELO and wins above are from 1-vs-1 games. In 4-player Mus (2v2) each match\'s final score (e.g. 2-1) is stored separately, adding to every player the games their team won.',
+    // Bots (Phase 0 of the 4-player AI plan)
+    bots_quien: 'Who sits in each seat',
+    bots_personalidad: 'How the bots play',
+    bots_nota_mixto: 'Tap a seat to put a bot there, or leave it open for another person.',
+    bots_nota_todos: 'Bots take the other three seats: the game starts right away.',
+    seat_tu: 'You',
+    seat_bot: 'Bot',
+    seat_persona: 'Person',
+    btn_rellenar_bots: '🤖 Fill with bots and start',
+    pers_equilibrado: 'Balanced',
+    pers_agresivo: 'Aggressive',
+    pers_conservador: 'Conservative',
+    pers_musero: 'Musero',
+    pers_caotico: 'Chaotic',
+    bots_no_puntuan: 'Games with bots do not count towards the leaderboard.',
 });
 aplicarTraduccion();
 
@@ -83,6 +113,16 @@ const panelSetup4 = document.getElementById('play-setup');
 const panelEspera4 = document.getElementById('panel-4-espera');
 const msg4 = document.getElementById('play-msg');
 
+/** Nombre visible de un bot: 🤖 + su personalidad, en el idioma activo.
+ *  `corto` es el de la mesa, donde el hueco del nombre es estrecho (en el móvil
+ *  «🤖 Bot · Agresivo» desbordaba el asiento); el largo, el de la sala de
+ *  espera, que se pinta en lista y tiene sitio de sobra. */
+function etiquetaBot4(personalidad, corto) {
+    const clave = 'pers_' + (personalidad || 'equilibrado');
+    const nombre = dict[langActual] && dict[langActual][clave] ? t(clave) : t('seat_bot');
+    return corto ? `🤖 ${nombre}` : `🤖 ${t('seat_bot')} · ${nombre}`;
+}
+
 function nombre4() {
     // Con sesión iniciada, auth.js deja el nombre de usuario en #nombre-jugador.
     let n = (document.getElementById('nombre-jugador') || {}).value;
@@ -103,7 +143,51 @@ function renderSeatPicker4() {
         const btn = document.createElement('button');
         btn.className = 'seat-pick-btn equipo-' + eq + (s === asientoElegido4 ? ' selected' : '');
         btn.innerHTML = `${t_dinamico('seat_pick_n', { n: s })}<small>${t('equipo_' + eq.toLowerCase())}</small>`;
-        btn.onclick = () => { asientoElegido4 = s; renderSeatPicker4(); };
+        btn.onclick = () => {
+            asientoElegido4 = s;
+            botsElegidos4.delete(s);       // en tu propio asiento no va un bot
+            renderSeatPicker4();
+            renderBotPicker4();
+        };
+        cont.appendChild(btn);
+    }
+}
+
+// ==========================================
+// 3 bis. Asientos con bot (Fase 0 del plan de la IA a 4)
+// ------------------------------------------------------------------
+// 'bots'  → los otros tres asientos son bots y la partida arranca sola.
+// 'mixto' → eliges cuáles; los que dejes libres esperan a que llegue gente.
+// ==========================================
+let botsElegidos4 = new Set();
+
+function renderBotPicker4(modoRivales) {
+    const cont = document.getElementById('bot-picker-4');
+    if (!cont) return;
+    const modo = modoRivales || (typeof modoRivales4 === 'function' ? modoRivales4() : 'mixto');
+    const todos = (modo === 'bots');
+
+    if (todos) {
+        // Sin elección posible: todo lo que no sea tu asiento va con bot.
+        botsElegidos4 = new Set([0, 1, 2, 3].filter(s => s !== asientoElegido4));
+    }
+    const nota = document.getElementById('bots-nota-4');
+    if (nota) nota.innerText = t(todos ? 'bots_nota_todos' : 'bots_nota_mixto');
+
+    cont.innerHTML = '';
+    for (let s = 0; s < 4; s++) {
+        const eq = (s === 0 || s === 2) ? 'A' : 'B';
+        const esYo = (s === asientoElegido4);
+        const esBot = botsElegidos4.has(s);
+        const btn = document.createElement('button');
+        btn.className = 'seat-pick-btn equipo-' + eq + (esBot ? ' es-bot' : '') + (esYo ? ' selected' : '');
+        btn.disabled = esYo || todos;
+        const quien = esYo ? t('seat_tu') : (esBot ? '🤖 ' + t('seat_bot') : t('seat_persona'));
+        btn.innerHTML = `${t_dinamico('seat_pick_n', { n: s })}<small>${quien}</small>`;
+        btn.onclick = () => {
+            if (esBot) botsElegidos4.delete(s); else botsElegidos4.add(s);
+            renderBotPicker4(modo);
+        };
         cont.appendChild(btn);
     }
 }
@@ -115,13 +199,33 @@ document.getElementById('btn-crear-sala-4').addEventListener('click', () => {
     const nombre = nombre4();
     if (!nombre) { msg4.innerText = t('msg_inserta_nombre'); return; }
     localStorage.setItem('callmus_nombre', nombre);
+    const modoRivales = (typeof modoRivales4 === 'function') ? modoRivales4() : 'humano';
+    const conBots = modoRivales !== 'humano';
+    if (conBots) renderBotPicker4(modoRivales);   // fija los asientos de 'bots'
+    const bots = conBots ? [...botsElegidos4].filter(s => s !== asientoElegido4) : [];
+
     socket.emit('crear_sala_4', {
         nombre,
         al_mejor_de: parseInt(document.getElementById('in-mejor-de-4').value) || 3,
-        publico: document.getElementById('in-publico-4').checked,
+        // Una mesa llena de bots empieza sola: no hay a quién anunciarla.
+        publico: (modoRivales !== 'bots') && document.getElementById('in-publico-4').checked,
         asiento: asientoElegido4,
+        bots,
+        personalidad: personalidadElegida4(),
+        // Señas: sólo existen en el 2v2 y se deciden al crear la mesa.
+        senas: !!(document.getElementById('in-senas') || {}).checked,
     });
     msg4.innerText = '';
+});
+
+function personalidadElegida4() {
+    const sel = document.getElementById('in-personalidad-4');
+    return (sel && sel.value) || 'equilibrado';
+}
+
+// Desde la sala de espera: si no llega nadie, se rellena con bots y a jugar.
+document.getElementById('btn-rellenar-bots-4').addEventListener('click', () => {
+    socket.emit('rellenar_bots_4', { personalidad: personalidadElegida4() });
 });
 
 document.getElementById('btn-unirse-4').addEventListener('click', () => {
@@ -198,15 +302,20 @@ socket.on('estado_espera_4', (d) => {
         cont.innerHTML = '';
         d.asientos.forEach(a => {
             const div = document.createElement('div');
-            div.className = 'seat-espera equipo-' + a.equipo + (a.ocupado ? ' ocupado' : '');
+            div.className = 'seat-espera equipo-' + a.equipo + (a.ocupado ? ' ocupado' : '') + (a.bot ? ' es-bot' : '');
             const teamCls = a.equipo === 'A' ? 'seat-team-a' : 'seat-team-b';
+            const quien = a.bot ? etiquetaBot4(a.personalidad)
+                                : (a.ocupado ? escHtml(a.nombre || '—') : t('seat_libre'));
             div.innerHTML = `<span class="${teamCls}">${t_dinamico('seat_pick_n', { n: a.asiento })}</span>
-                <small>${a.ocupado ? escHtml(a.nombre || '—') : t('seat_libre')} · ${t('equipo_' + a.equipo.toLowerCase())}</small>`;
+                <small>${quien} · ${t('equipo_' + a.equipo.toLowerCase())}</small>`;
             cont.appendChild(div);
         });
         const ocupados = d.asientos.filter(a => a.ocupado).length;
         const em = document.getElementById('espera-msg-4');
         if (em) em.innerText = t('esperando_jugadores_4').replace('…', ` (${ocupados}/4)…`);
+        // Sin asientos libres no hay nada que rellenar.
+        const btnBots = document.getElementById('btn-rellenar-bots-4');
+        if (btnBots) btnBots.classList.toggle('hidden', ocupados >= 4);
     }
 });
 
@@ -264,6 +373,9 @@ socket.on('actualizar_mesa_4', (datos) => {
 
     actualizarMensajeYBotones4(datos);
     actualizarTimer4(datos);
+    // Las señas van DESPUÉS de pintar: renderMesa4 rehace las clases de cada
+    // asiento y borraría el resaltado del foco.
+    if (window.Senas4) Senas4.sincronizar(datos);
 });
 
 function actualizarMensajeYBotones4(d) {

@@ -63,6 +63,7 @@ class PartidaMus4:
         self.subida_pendiente = 0
         self.quien_sube = None             # equipo 'A'/'B' con la apuesta viva
         self.equipo_apostador = None       # equipo con apuesta viva (o None)
+        self.ultimo_apostador = None       # ASIENTO que hizo la última apuesta viva
         self.respondedores = []            # asientos del equipo rival que aún pueden responder
         self.pases_consecutivos = 0
         self.ordago_aceptado_en = None
@@ -306,6 +307,7 @@ class PartidaMus4:
         self.subida_pendiente = 0
         self.quien_sube = None
         self.equipo_apostador = None
+        self.ultimo_apostador = None
         self.respondedores = []
         self.pases_consecutivos = 0
 
@@ -402,6 +404,7 @@ class PartidaMus4:
 
             self.quien_sube = eq
             self.equipo_apostador = eq
+            self.ultimo_apostador = seat
             self._abrir_respuesta(seat)
 
         elif accion == 'ver':
@@ -445,7 +448,222 @@ class PartidaMus4:
             self.subida_pendiente = 'ÓRDAGO'
             self.quien_sube = eq
             self.equipo_apostador = eq
+            self.ultimo_apostador = seat
             self._abrir_respuesta(seat)
+
+    # ==========================================
+    # Contrato de observación por asiento (Roadmap 4p, Fase 0.3)
+    # ------------------------------------------------------------------
+    # `vista(seat)` es lo ÚNICO que ve un bot: un diccionario de observación
+    # local al asiento, nunca el motor entero. Los bloques A–E siguen el
+    # layout de wiki/Bot-AI-4p-ML-Strategy.md §4.2, así que el encoder de
+    # Deep CFR (Fase 1) podrá consumir este mismo dict sin que cambie ni el
+    # servidor ni la firma de los bots. Todo lo de aquí es de solo lectura.
+    # ==========================================
+    def puede_pedrete(self, seat):
+        if self.fase not in ('mus', 'descarte'):
+            return False
+        return sorted([c['valor'] for c in self.estado[seat]['cartas']]) == [4, 5, 6, 7]
+
+    def acciones_legales(self, seat):
+        """Acciones que `seat` puede ejecutar AHORA mismo, ya filtradas.
+
+        Incluye tanto la legalidad del motor (turno, fase, topes de 40) como
+        las reglas del mus que el motor no vigila por sí solo (no se apuesta a
+        Pares/Juego sin la jugada). Un bot que solo elija de esta lista no
+        puede hacer una jugada ilegal, que es la garantía que pide la Fase 0.
+        """
+        if self.match_finalizado:
+            return []
+        # Mientras se muestra un mensaje de transición el servidor auto-avanza:
+        # nadie tiene que (ni puede) hacer nada.
+        if self.mensaje_transicion:
+            return []
+
+        acciones = []
+        if self.puede_pedrete(seat):
+            acciones.append('pedrete')
+
+        if self.fase == 'recuento':
+            if seat not in self.jugadores_listos:
+                acciones.append('listo_siguiente_ronda')
+            return acciones
+
+        if self.fase == 'descarte':
+            if not self.estado[seat]['descartes_listos']:
+                acciones.append('descartar')
+            return acciones
+
+        if seat != self.turno_de:
+            return acciones
+
+        if self.fase == 'espera_reparto':
+            acciones.append('repartir')
+            return acciones
+
+        if self.fase == 'mus':
+            if self.estado[seat]['quiere_mus'] is None:
+                acciones.extend(['mus', 'no_mus'])
+            return acciones
+
+        if self.fase != 'apuestas' or self.indice_fase >= len(self.FASES_APUESTA):
+            return acciones
+
+        nombre_fase = self.FASES_APUESTA[self.indice_fase]
+        cartas = self.estado[seat]['cartas']
+        respondiendo = (self.subida_pendiente != 0)
+
+        # Sin la jugada no se apuesta: solo se puede pasar (o rehusar).
+        if nombre_fase == 'Pares' and not tiene_pares(cartas):
+            return acciones + (['nover'] if respondiendo else ['pasar'])
+        if nombre_fase == 'Juego' and not tiene_juego(cartas) and not self.juego_es_punto:
+            return acciones + (['nover'] if respondiendo else ['pasar'])
+
+        eq = self.equipo_de[seat]
+        eq_rival = 'B' if eq == 'A' else 'A'
+        pts_max = max(self.puntos[eq], self.puntos[eq_rival])
+        deje = self.apuesta_vista if self.apuesta_vista > 0 else 1
+        obligado_a_ver = (self.puntos[eq_rival] + deje >= 40)
+
+        if not respondiendo:
+            acciones.append('pasar')
+            # Si no cabe un envite normal, lo único que queda por encima es el órdago.
+            if 40 - pts_max - self.apuesta_vista > 0:
+                acciones.append('envidar')
+            acciones.append('ordago')
+            return acciones
+
+        if self.subida_pendiente == 'ÓRDAGO':
+            acciones.append('ver')
+            if not obligado_a_ver:
+                acciones.append('nover')
+            return acciones
+
+        acciones.append('ver')
+        if not obligado_a_ver:
+            acciones.append('nover')
+        if 40 - pts_max - (self.apuesta_vista + self.subida_pendiente) > 0:
+            acciones.append('subir')
+        acciones.append('ordago')
+        return acciones
+
+    def vista(self, seat):
+        """Observación local del asiento `seat` (bloques A–E de §4.2)."""
+        eq = self.equipo_de[seat]
+        eq_rival = 'B' if eq == 'A' else 'A'
+        companero = (seat + 2) % 4
+        cartas = self.estado[seat]['cartas']
+        pares_info = get_pares_info(cartas) if cartas else {'tipo': 0, 'premio': 0}
+        suma_juego = get_suma_juego(cartas) if cartas else 0
+        nombre_fase = (self.FASES_APUESTA[self.indice_fase]
+                       if self.fase == 'apuestas' and self.indice_fase < len(self.FASES_APUESTA)
+                       else None)
+        lance = 'Punto' if (nombre_fase == 'Juego' and self.juego_es_punto) else nombre_fase
+
+        def relativo(equipo_ganador):
+            """Propiedad de un lance en clave de equipo: 1 mío, 0 rival, 0.5 abierto."""
+            if equipo_ganador is None:
+                return 0.5
+            return 1.0 if equipo_ganador == eq else 0.0
+
+        # Bloque B — los otros tres asientos, en orden relativo al mío
+        # (rel 1 = rival de la derecha, 2 = compañero, 3 = rival de la izquierda).
+        otros = []
+        for rel in (1, 2, 3):
+            s = (seat + rel) % 4
+            otros.append({
+                'rel': rel,
+                'asiento': s,
+                'es_companero': (s == companero),
+                'pares_dec': self.estado[s]['tiene_pares_dec'],
+                'juego_dec': self.estado[s]['tiene_juego_dec'],
+                'descartes': self.estado[s]['descartes_hechos'],
+                'quiere_mus': self.estado[s]['quiere_mus'],
+            })
+
+        deje = self.apuesta_vista if self.apuesta_vista > 0 else 1
+        subida = self.subida_pendiente
+        es_ordago = (subida == 'ÓRDAGO')
+
+        return {
+            # --- Mecánica: lo que hace falta para actuar, no para aprender ---
+            'meta': {
+                'modo': '4p',
+                'match_id': self.match_id,
+                'ronda_n': self.ronda_n,
+                'fase': self.fase,
+                'turno_de': self.turno_de,
+                'es_mi_turno': (seat == self.turno_de),
+                'mensaje_transicion': self.mensaje_transicion,
+                'acciones_legales': self.acciones_legales(seat),
+                'puede_pedrete': self.puede_pedrete(seat),
+                'match_finalizado': self.match_finalizado,
+                'ya_listo': (seat in self.jugadores_listos),
+            },
+            # --- Bloque A — yo ---
+            'A_propio': {
+                'asiento': seat,
+                'equipo': eq,
+                'es_mano': (seat == self.mano),
+                'dist_mano': self._dist_mano(seat),
+                'cartas': list(cartas),
+                'valores': [c['valor'] for c in cartas],
+                'valores_mus': get_valores_mus(cartas) if cartas else [],
+                'tiene_pares': bool(cartas) and tiene_pares(cartas),
+                'pares_tipo': pares_info['tipo'],
+                'pares_premio': pares_info['premio'],
+                'tiene_juego': suma_juego >= 31,
+                'suma_juego': suma_juego,
+                'juego_valor': (3 if suma_juego == 31 else 2) if suma_juego >= 31 else 0,
+                'descartes_hechos': self.estado[seat]['descartes_hechos'],
+                'descartes_listos': self.estado[seat]['descartes_listos'],
+                'quiere_mus': self.estado[seat]['quiere_mus'],
+            },
+            # --- Bloque B — público ---
+            'B_publico': {
+                'lance': lance,
+                'indice_fase': self.indice_fase,
+                'rondas_mus': self.rondas_mus,
+                'juego_es_punto': self.juego_es_punto,
+                'quien_corto_mus': self.quien_corta_mus,
+                'otros': otros,
+            },
+            # --- Bloque C — apuestas ---
+            'C_apuestas': {
+                'subida_pendiente': subida,
+                'es_ordago': es_ordago,
+                'apuesta_vista': self.apuesta_vista,
+                'botes': dict(self.botes),
+                'bote_lance': self.botes.get(nombre_fase, 0) if nombre_fase else 0,
+                'owners': {f: relativo(g) for f, g in self.ganadores_fase.items()},
+                'apuesta_de_mi_equipo': (None if self.equipo_apostador is None
+                                         else self.equipo_apostador == eq),
+                'ultimo_apostador_rel': (None if self.ultimo_apostador is None
+                                         else (self.ultimo_apostador - seat) % 4),
+                'companero_puede_responder': (companero in self.respondedores),
+                'deje': deje,
+                'coste_ver': (self.apuesta_vista if es_ordago
+                              else self.apuesta_vista + self.subida_pendiente),
+                'obligado_a_ver': (self.puntos[eq_rival] + deje >= 40),
+                'pases_consecutivos': self.pases_consecutivos,
+            },
+            # --- Bloque D — marcador ---
+            'D_marcador': {
+                'puntos_equipo': self.puntos[eq],
+                'puntos_rival': self.puntos[eq_rival],
+                'a_40_propio': 40 - self.puntos[eq],
+                'a_40_rival': 40 - self.puntos[eq_rival],
+                'partidas_propias': self.partidas_ganadas[eq],
+                'partidas_rival': self.partidas_ganadas[eq_rival],
+                'al_mejor_de': self.al_mejor_de,
+            },
+            # --- Bloque E — señas (reservado, todo a cero hasta la Fase 6) ---
+            'E_senas': {
+                'pareja_pares': 0, 'pareja_juego': 0, 'pareja_31': 0,
+                'pareja_reyes': 0, 'pareja_ases': 0, 'confianza': 0.0,
+                'cazado_rival_1': 0, 'cazado_rival_3': 0,
+            },
+        }
 
     # ==========================================
     # Recuento

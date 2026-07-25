@@ -44,13 +44,20 @@ function renderCartasAsiento4(el, seatInfo, next, esYo, animarDeal, animarFlip) 
 
     if (esYo) {
         const cartas = next.mis_cartas || [];
+        // Con señas tus cartas están del revés salvo mientras las miras: cada
+        // una lleva también su dorso y el volteo lo hace senas.css con una
+        // clase, sin esperar a un estado nuevo del servidor.
+        const conSenas = !!next.senas;
         cartas.forEach((carta, index) => {
             const div = document.createElement('div');
-            div.className = 'carta-4';
+            div.className = 'carta-4' + (conSenas ? ' volteable' : '');
             if (animarDeal) div.classList.add('deal-anim');
-            div.innerHTML = `<img src="${carta.img}" alt="${carta.texto || ''}" draggable="false" oncontextmenu="return false;">`;
+            div.innerHTML = `<img class="cara-carta" src="${carta.img}" alt="${carta.texto || ''}" draggable="false" oncontextmenu="return false;">`
+                + (conSenas ? `<img class="dorso-carta" src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;">` : '');
             if (cartasSeleccionadas4.includes(index)) div.classList.add('seleccionada');
             div.onclick = () => {
+                // Si no las estás mirando no las puedes elegir.
+                if (cont.closest('#seat-bottom') && cont.closest('#seat-bottom').classList.contains('mano-oculta')) return;
                 if (next.fase === 'descarte' && !next.mis_descartes_listos) {
                     const pos = cartasSeleccionadas4.indexOf(index);
                     if (pos === -1) { cartasSeleccionadas4.push(index); div.classList.add('seleccionada'); }
@@ -96,8 +103,11 @@ function renderSeat4(next, seatInfo, animarDeal, animarFlip) {
     // Quien es mano lleva un rótulo en oro (antes era un emoji de corona, que
     // desentonaba con el resto de la mesa).
     const manoBadge = seatInfo.es_mano ? `<span class="mano-badge" title="${t('eres_mano')}">${t('txt_mano')}</span>` : '';
-    // El nombre lo elige el jugador: se escapa antes de meterlo en el HTML.
-    el.querySelector('.seat-name').innerHTML = `${escHtml(seatInfo.nombre)}${manoBadge}${etiqueta}`;
+    // El nombre lo elige el jugador: se escapa antes de meterlo en el HTML. El de
+    // un bot lo pone el cliente (traducido), no el servidor.
+    const nombre = seatInfo.bot ? etiquetaBot4(seatInfo.personalidad, true) : escHtml(seatInfo.nombre);
+    el.querySelector('.seat-name').innerHTML = `${nombre}${manoBadge}${etiqueta}`;
+    el.classList.toggle('es-bot', !!seatInfo.bot);
     el.querySelector('.seat-chips').innerHTML = renderChips4(seatInfo, next.fase);
 
     renderCartasAsiento4(el, seatInfo, next, esYo, animarDeal, animarFlip);

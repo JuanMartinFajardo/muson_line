@@ -33,6 +33,7 @@ from flask import (render_template, request, session, jsonify,
                    send_file, Response)
 
 import base_datos
+import mus_senas
 
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_LOGS = os.path.join(RAIZ, 'logs')
@@ -61,6 +62,35 @@ CONFIG_CONOCIDA = {
     'mantenimiento_texto': {
         'defecto': '',
         'ayuda': 'Texto del cartel de mantenimiento.',
+    },
+    # --- Señas del 2v2 (mus_senas.py + server_mus4.py) ---
+    'senas_orden': {
+        'defecto': ','.join(mus_senas.ORDEN_POR_DEFECTO),
+        'ayuda': ('Prioridad de las señas, de la más alta a la más baja, separadas por comas. '
+                  'El botón de señalar hace siempre la primera que la mano permita. '
+                  'Nombres válidos: ' + ', '.join(mus_senas.ORDEN_POR_DEFECTO) + '. '
+                  'Las que falten se añaden al final; los nombres inventados se ignoran.'),
+    },
+    'senas_cooldown': {
+        'defecto': '3',
+        'ayuda': 'Segundos entre dos señas del mismo jugador (evita el machaqueo del botón).',
+    },
+    'senas_foco_cooldown': {
+        'defecto': '1',
+        'ayuda': 'Segundos mínimos mirando a un sitio antes de poder cambiar de foco.',
+    },
+    'senas_foco_solape': {
+        'defecto': '1',
+        'ayuda': 'Segundos que sigues viendo al jugador que acabas de dejar de mirar '
+                 '(impide señalar justo al apartar la vista el rival).',
+    },
+    'senas_foco_manual': {
+        'defecto': '2.5',
+        'ayuda': 'Segundos que aguanta un foco elegido a mano antes de volver al vagabundeo automático.',
+    },
+    'senas_bots': {
+        'defecto': '1',
+        'ayuda': '1 = los bots también hacen su seña (una por mano). 0 = los bots nunca señalan.',
     },
 }
 
@@ -434,6 +464,25 @@ def init_admin(app, socketio, ctx):
             except (TypeError, ValueError):
                 return jsonify({'exito': False, 'mensaje': 'valor_invalido'})
             if not (0 <= v <= 10):
+                return jsonify({'exito': False, 'mensaje': 'fuera_de_rango'})
+
+        # El orden de las señas se normaliza al guardarlo: así lo que queda en la
+        # base de datos es exactamente lo que va a usar el juego (sin erratas ni
+        # señas ausentes), y el administrador lo ve al recargar.
+        if clave == 'senas_orden' and valor:
+            nombres = [p.strip() for p in str(valor).replace('\n', ',').split(',') if p.strip()]
+            desconocidos = [n for n in nombres if not mus_senas.es_sena(n)]
+            if desconocidos:
+                return jsonify({'exito': False,
+                                'mensaje': 'senas_desconocidas: ' + ', '.join(desconocidos[:5])})
+            valor = ','.join(mus_senas.normalizar_orden(valor))
+
+        if clave in ('senas_cooldown', 'senas_foco_cooldown', 'senas_foco_solape', 'senas_foco_manual'):
+            try:
+                v = float(valor)
+            except (TypeError, ValueError):
+                return jsonify({'exito': False, 'mensaje': 'valor_invalido'})
+            if not (0 <= v <= 60):
                 return jsonify({'exito': False, 'mensaje': 'fuera_de_rango'})
 
         base_datos.config_set(clave, valor, session.get('username'))

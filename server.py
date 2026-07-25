@@ -1756,5 +1756,7 @@ print("🧹 Barredor de salas 2p activo (cada %ds)." % INTERVALO_BARRIDO)
 
 
 if __name__ == '__main__':
-    print("🚀 Servidor de Mus iniciado en http://localhost:5001")
-    socketio.run(app, host='0.0.0.0', port=5001, debug=True)
+    # PORT permite levantar una segunda instancia (pruebas) sin tocar la de siempre.
+    puerto = int(os.environ.get('PORT', '5001'))
+    print(f"🚀 Servidor de Mus iniciado en http://localhost:{puerto}")
+    socketio.run(app, host='0.0.0.0', port=puerto, debug=True)
