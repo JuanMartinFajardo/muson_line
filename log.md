@@ -4,6 +4,141 @@ Historial cronológico de cambios relevantes del proyecto. El más reciente arri
 
 ---
 
+## 2026-07-25 — Salas fantasma: corrección de los 6 vectores (Roadmap #21)
+
+Cerrados todos los agujeros por los que quedaban salas y jugadores "fantasma" en memoria
+(salas muertas anunciadas en el vestíbulo, `jugadores` con entradas huérfanas, partidas
+congeladas por una excepción a mitad de reparto). Todo el trabajo es en `server.py` salvo
+un caso en `social.py`. El modo de 4 jugadores no se ha tocado: ya tenía su propio
+barredor y ahora el de 2p lo respeta explícitamente.
+
+### Salas que no morían (bug 1)
+
+- **`emitir_lista_publicas` ya no anuncia salas sin nadie vivo dentro.** Nuevo helper
+  `_sid_vivo(sid)` (no `None`, no `BOT_`, y todavía presente en `jugadores`). Antes una
+  sala cuyo creador se había caído se publicaba con `creador_sid: None` y se quedaba en
+  el vestíbulo indefinidamente.
+- **`limpiar_sala_huerfana`** (el temporizador de 2 min) comprueba ahora que no quede
+  ningún asiento *vivo*, en vez de exigir que todos sean `None`, y destruye la sala con
+  `_destruir_sala_2p`.
+- **Barredor periódico nuevo `_barredor_2p`** (cada 5 min, espejo del de `server_mus4`),
+  extraído en `_pasada_barredor()` para poder probarlo. Entierra: salas en espera sin
+  nadie vivo (con 2 min de gracia vía `vacia_desde`, por si es un refresco), salas en
+  espera de más de 30 min, partidas sin actividad más de 2 h, y pausas o ventanas de
+  sustitución vencidas cuyo temporizador puntual se hubiera perdido.
+
+### Rastros huérfanos (bugs 2 y 3)
+
+- **`_destruir_sala_2p`** ya no limpia solo los asientos actuales: recorre `jugadores`
+  entero eliminando todo lo que apunte a esa sala (sids remapeados tras una reconexión,
+  el sid falso `BOT_<código>`) y llama a `close_room`.
+- **`abandonar_sala_limpiamente`** se extrajo a `_salir_de_sala_2p(sid)`: ahora hace
+  `leave_room`, libera el asiento y su token, borra la entrada de `jugadores` y, si se
+  invoca con una partida viva, deriva a `_abrir_hueco_2p` para que al rival se le
+  ofrezca esperar sustituto en lugar de quedarse mirando una mesa congelada.
+- El barredor elimina además las entradas de `jugadores` cuya sala no existe ni en
+  `salas` ni en `salas4` (comprobado: no toca a los jugadores de partidas 4p).
+
+### Carrera de asientos (bug 4)
+
+- En `unirse_sala`, `sids` se normaliza a **dos huecos fijos antes** de elegir, la
+  asignación es `sids[i] = sid` (nunca `append`) y se revalida la ocupación justo antes
+  de sentar. Dos `unirse_sala` solapados ya no pueden dejar una sala de tres asientos: el
+  segundo recibe `error_sala`.
+
+### Partidas congeladas (bug 5)
+
+- `enviar_estado_a_jugadores` es a prueba de `KeyError`: si un asiento tiene un sid que
+  el motor ya no conoce se omite con un aviso, el estado del rival se lee de un
+  `estado_rival` con valores por defecto, y `partidas_ganadas` y el log usan `.get()`.
+- La tarea de fondo del bot va envuelta en `try/except`: una excepción suya ya no puede
+  matar el greenlet dejando la mesa a medio actualizar.
+
+### Observabilidad (bug 6)
+
+- Las salas llevan `creada_en` y `ultima_actividad` (se sella en
+  `procesar_accion_interna`, al entrar, al reanudar y al sentar a un sustituto).
+- Nuevo `GET /api/debug/salas?token=…`: estado, edad, inactividad, asientos con su
+  vitalidad, fase y ronda de cada sala, más el recuento de huérfanos. **Devuelve 404 si
+  no hay `DEBUG_TOKEN` en el entorno** (añadido a `.env.example`). Será la fuente de
+  datos del panel de administración (#13).
+
+### Amigos (`social.py`)
+
+- `invitar_amigo` creaba la sala de la invitación aunque el anfitrión ya estuviera
+  sentado en otra: `jugadores[sid]` se sobrescribía y la sala anterior quedaba de
+  fantasma. Ahora se le desaloja antes mediante el hook `salir_de_sala` del contexto.
+- La sala de invitación recibe `tokens`, `creada_en` y `ultima_actividad` como las
+  demás, así que el anfitrión puede reanudarla si refresca y el barredor la ve.
+
+### Verificación
+
+- **Soak test** con clientes Socket.IO reales sobre la matriz completa: crear/abandonar
+  por botón, caída brusca en espera, vs IA (abandono y caída), 1v1 (arranque, caída,
+  reanudación por token, abandono con oferta de sustituto) y dos `unirse_sala`
+  simultáneos. `salas` y `jugadores` quedan vacíos salvo partidas vivas y el vestíbulo
+  nunca lista una sala muerta.
+- **Prueba directa del barredor** con salas envejecidas a mano: las cinco reglas de
+  caducidad, la gracia de 2 min, la purga de huérfanos (incluido `BOT_`) y la garantía
+  de que no toca las salas 4p.
+- **Regresión 2p:** partida completa contra la IA jugada hasta el final del match sin
+  campos nulos ni claves perdidas en el payload de `actualizar_mesa`.
+
+---
+
+## 2026-07-24 — Mus a 4 jugadores (2v2, online, sin bots) (Roadmap #6)
+
+Nuevo modo de juego completo para 4 jugadores humanos en una sala (2 equipos, compañeros
+enfrentados: A = asientos {0,2}, B = {1,3}). Todo **aditivo y en paralelo** siguiendo
+`wiki/Implementing-Mus-4-Players.md`: no se tocaron `PartidaMus`, `bot_ml.py` ni el
+pipeline de entrenamiento; el juego de 2p queda intacto (verificado por regresión).
+
+### Backend
+
+- **`mus_core.py`** (nuevo): capa fina que *reexporta* las funciones puras de
+  `mus_mecanicas.py` (sin moverlas) y añade `mejor_hand_equipo` para reducir un equipo a
+  su mano representativa reutilizando los comparadores por pares del motor de 2p.
+- **`mus_mecanicas_4.py`** (nuevo): motor `PartidaMus4`, indexado por **asiento** (no por
+  sid) y con puntos/apuestas **por equipo**. Mus con acuerdo de los cuatro, descartes,
+  apuestas equipo-vs-equipo (responde un único asiento rival por turno, simplificación v1
+  documentada), salto/auto-adjudicación de Pares/Juego con declaraciones automáticas,
+  recuento con **bonus por cada mano cualificada** del equipo ganador y desempates por
+  cercanía a la mano, rotación de mano por ronda y logging JSONL con `modo:'4p'`.
+- **`base_datos.py`**: tabla `Partidas4` (ambos equipos + marcador final del match, p. ej.
+  2-1) y columnas 4p en `Usuarios` (`victorias_4p`, `derrotas_4p`, `juegos_4p`) vía
+  migración idempotente; `registrar_partida_4()` guarda la partida y suma a cada jugador
+  los juegos ganados por su equipo. No toca el ELO 1v1.
+- **`server_mus4.py`** (nuevo, patrón `init_mus4(socketio, jugadores, salas)` como
+  `social.py`): registro `salas4` separado, mapeo asiento↔sid, eventos `*_4`
+  (`crear_sala_4`, `unirse_sala_4`, `accion_juego_4`, `pedir_publicas_4`,
+  `abandonar_sala_4`, `reanudar_partida_4`), `enviar_estado_4` (reparto ciego por
+  asiento, nunca cartas del compañero salvo en recuento), **temporizador de turno
+  autoritativo** (auto-pasa/no-ve/no-mus por token monótono), **gracia de reconexión**
+  (pausa 90 s + reanudar por asiento gracias al motor seat-keyed) y barredor de salas
+  fantasma. El `disconnect` se invoca desde el handler único de `server.py`
+  (`server_mus4.disconnect_4()`), no se registra otro (Flask-SocketIO admite uno por
+  evento). `server.py`: solo `import server_mus4` + `init_mus4(...)` + una línea en
+  `disconnect`.
+
+### Frontend
+
+- **`static/style4.css`**, **`static/table4.js`** (render con diffing + animaciones de
+  reparto/giro de showdown/órdago/puntos flotantes, respeta `prefers-reduced-motion`) y
+  **`static/app4.js`** (controlador: eventos socket, sala de espera con selector de
+  asiento por equipo, botones, barra de cuenta atrás, reconexión por token en
+  `localStorage`). Reutiliza `socket`/`dict`/`t` de `app.js`; solo añade claves i18n
+  nuevas (es+en). `index.html`: botón **👥 Mus 4 jugadores**, modal de creación/espera,
+  pantalla `#game-screen-4` (4 asientos relativos al espectador: yo abajo, compañero
+  arriba, rivales a los lados) y nota en el Leaderboard explicando el registro 4p.
+
+**Verificación:** motor validado con 300 matches simulados; test de integración con 4
+clientes Socket.IO reales jugando un match completo (a 1 y a 3) con registro en
+`Partidas4`; pausa por desconexión + reanudación por token OK; regresión 2p (aviso de
+`rival_desconectado` tras caída) OK; render de mesa y recuento verificados en el
+navegador en ES y EN.
+
+---
+
 ## 2026-07-24 — Amigos, mensajería, grupos y clasificación de grupo (Roadmap #3)
 
 Capa social completa para usuarios registrados: añadir amigos, chatear (en vivo y

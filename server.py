@@ -67,7 +67,10 @@ if not (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET):
 app = Flask(__name__, static_folder='static', template_folder='.')
 app.config['SECRET_KEY'] = SECRET_KEY
 app.permanent_session_lifetime = timedelta(days=30)
-socketio = SocketIO(app, cors_allowed_origins="*")
+# ping_timeout/interval holgados: minimizar/cambiar de pestaña en el móvil suspende
+# los temporizadores del navegador; con umbrales altos un parón breve NO cuenta como
+# desconexión y ni siquiera hace falta reconectar. Compatible con eventlet.
+socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60, ping_interval=25)
 
 # --- Google OAuth (Authlib). Solo se registra si hay credenciales. ---
 oauth = None
@@ -97,9 +100,195 @@ def add_header(response):
 # jugadores = { 'sid': {'nombre': 'Juan', 'sala': 'A1B2'} }
 jugadores = {}  
 # salas = { 'A1B2': {'estado': 'esperando', 'sids': [sid1, sid2], 'motor': PartidaMus} }
-salas = {}      
+salas = {}
 
-show_global_log = False 
+show_global_log = False
+
+# Reconexión 2p / vs-IA: ventana de gracia (s) que aguanta una partida en pausa
+# tras una caída antes de darla por terminada. Igual valor que el 4p (server_mus4).
+GRACIA_RECONEXION_2P = 90
+
+# Sustituciones: cuando alguien abandona (o agota la gracia) y quien se queda
+# acepta esperar, la partida pasa a 'esperando_reemplazo' y se anuncia en la lista
+# pública como partida EN CURSO con hueco libre durante esta ventana.
+ESPERA_REEMPLAZO = 300   # 5 min
+
+# Barredor de salas fantasma (Roadmap #21). Los temporizadores puntuales
+# (limpiar_sala_huerfana, fin de gracia, fin de espera) cubren el caso normal;
+# esto es la red de seguridad para cuando uno de ellos se pierde (excepción en el
+# greenlet, carrera con un rejoin, servidor recargado en caliente…).
+VIDA_MAX_ESPERANDO = 1800    # 30 min en el vestíbulo sin llegar a arrancar
+VIDA_MAX_JUGANDO = 7200      # 2 h sin una sola acción de nadie
+INTERVALO_BARRIDO = 300      # el barredor pasa cada 5 min
+
+
+def _sid_vivo(sid):
+    """True si ese asiento lo ocupa una conexión real y todavía registrada."""
+    return bool(sid) and not sid.startswith('BOT_') and sid in jugadores
+
+
+def _tocar_sala(codigo):
+    """Marca actividad en la sala (lo lee el barredor para matar salas zombis)."""
+    sala = salas.get(codigo)
+    if sala is not None:
+        sala['ultima_actividad'] = time.time()
+
+
+def _remap_sid_2p(motor, old, new):
+    """Reasigna un sid viejo→nuevo dentro de una instancia PartidaMus SIN tocar la
+    clase del motor (que es intocable). El motor está indexado por sid en todas
+    partes (j1/j2, id_mano, id_postre, turno_de, claves de estado/nombres_ia,
+    listas, sids incrustados en recuento/dejes…), así que recorremos su __dict__ en
+    profundidad y sustituimos el escalar y las claves/valores de dicts y listas.
+    Los sids son cadenas largas y únicas, así que no hay riesgo de colisión."""
+    if old == new:
+        return
+
+    def _walk(obj):
+        if obj == old:
+            return new
+        if isinstance(obj, dict):
+            return {(_walk(k)): _walk(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_walk(v) for v in obj]
+        if isinstance(obj, tuple):
+            return tuple(_walk(v) for v in obj)
+        return obj
+
+    for attr, val in list(vars(motor).items()):
+        setattr(motor, attr, _walk(val))
+
+
+# ==========================================
+# Abandono voluntario y sustituciones (2p / vs-IA)
+# ==========================================
+def _sids_humanos_2p(sala):
+    """Asientos ocupados por personas reales (el bot tiene sid falso 'BOT_...')."""
+    return [s for s in sala.get('sids', []) if s and not s.startswith('BOT_')]
+
+
+def _destruir_sala_2p(codigo, motivo=None):
+    """Cierra una sala y limpia TODOS sus rastros, incluido el sid falso del bot
+    (que hasta ahora se quedaba huérfano en `jugadores`, ver Roadmap bugs #2)."""
+    sala = salas.pop(codigo, None)
+    if not sala:
+        return
+    if motivo:
+        socketio.emit('rival_desconectado', {'motivo': motivo}, room=codigo)
+    # Barremos `jugadores` entero, no solo los asientos actuales: un sid que quedó
+    # apuntando a esta sala tras un remap/abandono también es basura (Roadmap #3).
+    for s, info in list(jugadores.items()):
+        if info.get('sala') == codigo:
+            jugadores.pop(s, None)
+    try:
+        socketio.close_room(codigo)   # nadie queda suscrito a una sala muerta
+    except Exception:
+        pass
+    emitir_lista_publicas()
+
+
+def _seat_motor_2p(motor, seat):
+    """sid con el que el motor indexa ese asiento. j1/j2 se fijan al crear la
+    partida y NO cambian con `cambiar_roles` (eso solo permuta mano/postre), así
+    que el asiento 0 es siempre j1 y el 1 siempre j2."""
+    return motor.j1 if seat == 0 else motor.j2
+
+
+def _abrir_hueco_2p(codigo, seat, nombre, motivo):
+    """Deja libre un asiento de una partida en curso y ofrece a quien se queda la
+    opción de esperar sustituto. Si no queda nadie, la sala muere."""
+    sala = salas.get(codigo)
+    if not sala:
+        return
+    sala.setdefault('ultimo_sid', {})[seat] = _seat_motor_2p(sala['motor'], seat) if sala.get('motor') else None
+    sala['sids'][seat] = None
+    sala.get('tokens', {}).pop(seat, None)
+    sala.get('esperando_votos', set()).discard(seat)
+
+    if not _sids_humanos_2p(sala):
+        _destruir_sala_2p(codigo)
+        return
+
+    sala['estado'] = 'esperando_reemplazo'
+    sala['esperando_desde'] = time.time()
+    sala.setdefault('esperando_votos', set())
+    # Para poder rellenar el hueco hay que ser visible: una sala privada se
+    # publica mientras dure la espera (decidido con el usuario).
+    sala['publico'] = True
+    socketio.emit('jugador_abandono',
+                  {'nombre': nombre, 'motivo': motivo, 'espera': ESPERA_REEMPLAZO},
+                  room=codigo)
+    _programar_fin_espera_2p(codigo, sala['esperando_desde'])
+    emitir_lista_publicas()
+
+
+def _programar_fin_espera_2p(codigo, marca):
+    """Si nadie ocupa el hueco dentro de la ventana, la partida se da por acabada."""
+    def tarea():
+        socketio.sleep(ESPERA_REEMPLAZO)
+        sala = salas.get(codigo)
+        if sala and sala.get('estado') == 'esperando_reemplazo' and sala.get('esperando_desde') == marca:
+            print(f"🧹 Nadie ocupó el hueco de {codigo}: se termina la partida.")
+            _destruir_sala_2p(codigo, motivo='sin_reemplazo')
+    socketio.start_background_task(tarea)
+
+
+def _sentar_reemplazo_2p(codigo, sid, nombre, username):
+    """Sienta a un recién llegado en el asiento vacante de una partida en curso.
+
+    El marcador (puntos y partidas ganadas) se conserva, pero la ronda en juego se
+    descarta y se reparte de nuevo: el que se fue ya vio esas cartas, y así no hay
+    que heredar estados a medias (envites vivos, descartes ya hechos)."""
+    sala = salas.get(codigo)
+    if not sala or sala.get('estado') != 'esperando_reemplazo':
+        return False
+    sids = sala['sids']
+    libres = [i for i, s in enumerate(sids) if s is None]
+    # Solo se admite sustituto si el hueco es el ÚLTIMO: si el que esperaba también
+    # está caído no hay partida a la que incorporarse (volverá o la barrerá el timer).
+    if len(libres) != 1:
+        return False
+    seat = libres[0]
+
+    motor = sala['motor']
+    _remap_sid_2p(motor, _seat_motor_2p(motor, seat), sid)
+    motor.nombres_ia[sid] = username or nombre
+
+    sids[seat] = sid
+    sala.get('ultimo_sid', {}).pop(seat, None)
+    jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': username}
+    join_room(codigo)
+
+    token = secrets.token_hex(16)
+    sala.setdefault('tokens', {})[seat] = token
+
+    # Ronda nueva conservando el marcador (si la partida acababa de llegar a 40,
+    # arrancamos la siguiente partida del match).
+    if motor.estado[motor.j1]['puntos'] >= 40 or motor.estado[motor.j2]['puntos'] >= 40:
+        motor.reiniciar_partida()
+        motor.db_registrada = False
+    else:
+        motor.cambiar_roles()
+        motor.iniciar_ronda()
+        motor.fase = 'espera_reparto'
+        motor.turno_de = motor.id_postre
+    motor.jugadores_listos = []
+    motor.recuento_calculado = False
+    motor.pasos_recuento = []
+
+    sala['estado'] = 'jugando'
+    sala['ultima_actividad'] = time.time()
+    sala.pop('esperando_desde', None)
+    sala.pop('esperando_votos', None)
+    sala.pop('pausada_desde', None)
+
+    emit('sala_creada', {'codigo': codigo, 'token': token}, room=sid)
+    emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=sid)
+    socketio.emit('reemplazo_encontrado', {'nombre': username or nombre}, room=codigo)
+    enviar_estado_a_jugadores(codigo)
+    emitir_lista_publicas()
+    return True
+
 
 def generar_codigo():
     letras = string.ascii_uppercase + string.digits
@@ -375,11 +564,19 @@ def auth_logout():
 def emitir_lista_publicas():
     """Recopila las salas públicas que están esperando y las manda a todos los conectados"""
     lista = []
-    for cod, info in salas.items():
+    for cod, info in list(salas.items()):
         if info['estado'] == 'esperando' and info.get('publico', False):
+            # Una sala en espera solo se anuncia si dentro hay alguien VIVO: si el
+            # creador se cayó (o su sid murió sin pasar por `disconnect`), la sala
+            # deja de listarse aquí mismo y el barredor acaba de enterrarla.
+            # Antes se publicaba con `creador_sid: None` y quedaba como fantasma
+            # en el vestíbulo para siempre (Roadmap #21, bug 1).
+            vivos = [s for s in info.get('sids', []) if _sid_vivo(s)]
+            if not vivos:
+                continue
             # Leemos el nombre directamente de la sala
             nombre = info.get('creador_nombre', 'Desconocido')
-            creador_sid = info['sids'][0] if info['sids'] else None
+            creador_sid = vivos[0]
             creador_username = info.get('username')
 
             lista.append({
@@ -388,6 +585,29 @@ def emitir_lista_publicas():
                 'creador_sid': creador_sid,
                 'creador_username': creador_username,
                 'al_mejor_de': info.get('al_mejor_de', 3)
+            })
+
+        # Partidas EN CURSO con hueco libre: solo se anuncian si quien se quedó
+        # ha aceptado explícitamente esperar a un sustituto.
+        elif info['estado'] == 'esperando_reemplazo' and info.get('esperando_votos'):
+            motor = info.get('motor')
+            humanos = [s for s in _sids_humanos_2p(info) if _sid_vivo(s)]
+            if not humanos or not motor:
+                continue
+            vivo = humanos[0]                                   # el que espera
+            hueco = _seat_motor_2p(motor, info['sids'].index(None))  # el asiento vacante
+            quien_espera = jugadores.get(vivo, {})
+            lista.append({
+                'codigo': cod,
+                'creador': quien_espera.get('nombre', 'Desconocido'),
+                'creador_sid': vivo,
+                'creador_username': quien_espera.get('username'),
+                'al_mejor_de': info.get('al_mejor_de', 3),
+                'en_curso': True,
+                # Marcador visto desde el asiento que quedaría libre: [tú, él].
+                'marcador': [motor.estado[hueco]['puntos'], motor.estado[vivo]['puntos']],
+                'partidas': [motor.partidas_ganadas.get(hueco, 0), motor.partidas_ganadas.get(vivo, 0)],
+                'expira_en': max(0, int(ESPERA_REEMPLAZO - (time.time() - info.get('esperando_desde', 0)))),
             })
     socketio.emit('actualizar_publicas', lista)
 
@@ -415,12 +635,16 @@ def handle_crear_sala(datos):
         
     # AQUÍ ESTABA EL FALLO: Ahora sí guardamos tu username en tus datos de conexión
     jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': real_username}
-    join_room(codigo) 
-    
-    salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor, 'publico': es_publico, 'username': real_username, 'creador_nombre': nombre}
-    
+    join_room(codigo)
+
+    token = secrets.token_hex(16)   # identidad estable para reconectar (asiento 0)
+    salas[codigo] = {'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de_valor,
+                     'publico': es_publico, 'username': real_username, 'creador_nombre': nombre,
+                     'tokens': {0: token},
+                     'creada_en': time.time(), 'ultima_actividad': time.time()}
+
     print(f"👉 {nombre} ha creado la sala {codigo} (Pública: {es_publico})")
-    emit('sala_creada', {'codigo': codigo}, room=sid)
+    emit('sala_creada', {'codigo': codigo, 'token': token}, room=sid)
     emitir_lista_publicas()
 
 
@@ -444,13 +668,17 @@ def handle_crear_partida_bot(datos):
     join_room(codigo) 
     
     # Creamos la sala directamente en estado 'jugando' e inyectamos la instancia del bot
+    token = secrets.token_hex(16)   # identidad estable del humano (asiento 0)
     salas[codigo] = {
-        'estado': 'jugando', 
-        'sids': [sid, bot_sid], 
-        'al_mejor_de': al_mejor_de_valor, 
-        'publico': False, 
+        'estado': 'jugando',
+        'sids': [sid, bot_sid],
+        'al_mejor_de': al_mejor_de_valor,
+        'publico': False,
         'username': real_username,
-        'bot': SmartBot(bot_sid) 
+        'tokens': {0: token},
+        'creada_en': time.time(),
+        'ultima_actividad': time.time(),
+        'bot': SmartBot(bot_sid)
     }
     
     partida = PartidaMus(sid, bot_sid)
@@ -463,7 +691,7 @@ def handle_crear_partida_bot(datos):
     salas[codigo]['motor'] = partida
     
     print(f"🤖 {nombre} ha creado la sala {codigo} contra la IA")
-    emit('sala_creada', {'codigo': codigo}, room=sid)
+    emit('sala_creada', {'codigo': codigo, 'token': token}, room=sid)
     emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
     enviar_estado_a_jugadores(codigo)
 
@@ -476,7 +704,22 @@ def handle_unirse_sala(datos):
     # Quitamos espacios accidentales al inicio o final
     nombre = datos.get('nombre', 'Jugador').strip()
     codigo = datos.get('codigo', '').upper()
-    
+
+    # --- Partida EN CURSO con hueco: el recién llegado entra de sustituto ---
+    if codigo in salas and salas[codigo]['estado'] == 'esperando_reemplazo':
+        sala = salas[codigo]
+        mi_username = session.get('username')
+        if mi_username:
+            for s in sala['sids']:
+                if s and jugadores.get(s, {}).get('username') == mi_username:
+                    emit('error_sala', {'mensaje': 'Ya estás en esta partida con esta cuenta.'}, room=sid)
+                    return
+        if sid in sala['sids']:
+            return   # anti-doble-clic
+        if not _sentar_reemplazo_2p(codigo, sid, nombre, mi_username):
+            emit('error_sala', {'mensaje': 'Esa partida ya no admite jugadores.'}, room=sid)
+        return
+
     if codigo in salas and salas[codigo]['estado'] == 'esperando':
         mi_username = session.get('username')
         creador_username = salas[codigo].get('username')
@@ -500,41 +743,47 @@ def handle_unirse_sala(datos):
             es_creador = True
 
         asiento_asignado = -1
-        
+
         # --- 3. ASIENTOS INTELIGENTES ---
+        # Normalizamos la lista a 2 huecos ANTES de elegir: así la asignación es
+        # siempre `sids[i] = sid` sobre una lista de tamaño fijo, nunca un append.
+        # Dos `unirse_sala` que se solapasen ya no pueden dejar tres asientos
+        # (Roadmap #21, bug 4); el segundo se encuentra el hueco ocupado y rebota.
+        while len(sids) < 2:
+            sids.append(None)
+        del sids[2:]
+
         if es_creador:
             # El creador legítimo recupera su trono (Asiento 0)
             if sids[0] is None:
-                sids[0] = sid
                 asiento_asignado = 0
-            elif len(sids) == 1:
-                sids.append(sid)
-                asiento_asignado = 1
-            elif len(sids) == 2 and sids[1] is None:
-                sids[1] = sid
+            elif sids[1] is None:
                 asiento_asignado = 1
         else:
             # Invitado buscando silla
-            if len(sids) == 1:
-                sids.append(sid)
+            if sids[1] is None:
                 asiento_asignado = 1
-            elif len(sids) == 2 and sids[1] is None:
-                sids[1] = sid
-                asiento_asignado = 1
-            elif len(sids) == 2 and sids[0] is None:
-                # LA MAGIA: Si la sesión falló, pero el asiento del creador está libre, 
+            elif sids[0] is None:
+                # LA MAGIA: Si la sesión falló, pero el asiento del creador está libre,
                 # sentamos a esta persona ahí para poder arrancar el juego de una vez.
-                sids[0] = sid
                 asiento_asignado = 0
                 print(f"⚠️ {nombre} ocupó el Asiento 0 (vacío) por precaución en {codigo}.")
-                
-        if asiento_asignado == -1:
+
+        # Revalidación justa antes de sentar (por si un greenlet se coló en medio).
+        if asiento_asignado == -1 or sids[asiento_asignado] is not None:
             emit('error_sala', {'mensaje': 'La sala ya está llena.'}, room=sid)
             return
+        sids[asiento_asignado] = sid
             
         # Añadimos los datos al jugador
         jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': mi_username}
         join_room(codigo)
+        _tocar_sala(codigo)
+
+        # Identidad estable para reconectar (por si se cae en plena partida).
+        token = secrets.token_hex(16)
+        salas[codigo].setdefault('tokens', {})[asiento_asignado] = token
+        emit('sala_creada', {'codigo': codigo, 'token': token}, room=sid)
 
         # --- 4. COMPROBAMOS SI ARRANCAMOS LA PARTIDA ---
         if len(sids) == 2 and sids[0] is not None and sids[1] is not None:
@@ -556,7 +805,7 @@ def handle_unirse_sala(datos):
             enviar_estado_a_jugadores(codigo)
             emitir_lista_publicas()
         else:
-            emit('sala_creada', {'codigo': codigo}, room=sid)
+            # sala_creada (con token) ya se emitió arriba al asignar el asiento.
             emitir_lista_publicas()
             
     else:
@@ -574,7 +823,9 @@ def handle_accion_juego(datos):
 
 def procesar_accion_interna(sid_jugador, codigo, datos):
     if codigo not in salas or salas[codigo]['estado'] != 'jugando': return
-    
+
+    _tocar_sala(codigo)   # sello de actividad que usa el barredor (Roadmap #21, bug 6)
+
     # Extraemos el motor específico de la sala donde está este jugador
     partida_actual = salas[codigo]['motor']
     accion = datos.get('accion')
@@ -638,27 +889,41 @@ def enviar_estado_a_jugadores(codigo_sala):
     global show_global_log
     sala = salas.get(codigo_sala)
     if not sala: return
-    partida_actual = sala['motor']
-        
-    for sid in sala['sids']:
-        if sid.startswith('BOT_'): continue
-        estado_del_jugador = partida_actual.estado[sid]
+    partida_actual = sala.get('motor')
+    if not partida_actual: return
+
+    for sid in list(sala['sids']):
+        if sid is None or sid.startswith('BOT_'): continue   # asiento en pausa / bot
+        # El asiento puede tener un sid que el motor ya no conoce (remap a medias
+        # tras una reconexión). Antes eso reventaba con KeyError y dejaba la sala
+        # a medio actualizar = partida "congelada" (Roadmap #21, bug 5).
+        estado_del_jugador = partida_actual.estado.get(sid)
+        if estado_del_jugador is None:
+            print(f"⚠️ [SALA {codigo_sala}] sid {sid} sin estado en el motor: se omite.")
+            continue
         es_mi_turno = (sid == partida_actual.turno_de)
         soy_mano = (sid == partida_actual.id_mano)
         rival_sid = partida_actual.id_postre if sid == partida_actual.id_mano else partida_actual.id_mano
         
+        # Nombre del jugador en turno, resistente a que su entrada en `jugadores`
+        # ya no exista (p.ej. reconexión con el rival aún caído): usamos nombres_ia.
+        def _nombre_turno():
+            tsid = partida_actual.turno_de
+            if not tsid:
+                return "..."
+            return (partida_actual.nombres_ia.get(tsid)
+                    or jugadores.get(tsid, {}).get('nombre') or "...")
+
         if partida_actual.fase == 'descarte':
             mensaje = {'code': 'fase_descarte'}
         elif partida_actual.fase == 'apuestas':
             if partida_actual.indice_fase < len(partida_actual.fases_apuesta):
                 n_fase = partida_actual.fases_apuesta[partida_actual.indice_fase]
-                nombre_turno = jugadores[partida_actual.turno_de]['nombre']
-                mensaje = {'code': 'fase_apuestas', 'fase': n_fase, 'jugador': nombre_turno}
+                mensaje = {'code': 'fase_apuestas', 'fase': n_fase, 'jugador': _nombre_turno()}
             else:
                 mensaje = {'code': 'fase_recuento'}
         else:
-            nombre_turno = jugadores[partida_actual.turno_de]['nombre'] if partida_actual.turno_de else "..."
-            mensaje = {'code': 'fase_general', 'fase': partida_actual.fase, 'jugador': nombre_turno}
+            mensaje = {'code': 'fase_general', 'fase': partida_actual.fase, 'jugador': _nombre_turno()}
         
         info_apuestas = {
             'fase_actual': '',
@@ -685,7 +950,10 @@ def enviar_estado_a_jugadores(codigo_sala):
             info_apuestas['fase_actual'] = partida_actual.fases_apuesta[partida_actual.indice_fase]
         
         datos_recuento = None
-        cartas_rival = partida_actual.estado[rival_sid]['cartas']
+        # Mismo blindaje para el rival: si su asiento está en pausa/remapeado, lo
+        # tratamos como "sin datos" en vez de romper el reparto de estado.
+        estado_rival = partida_actual.estado.get(rival_sid) or {}
+        cartas_rival = estado_rival.get('cartas', [])
 
         puede_pedrete_ahora = False
         if partida_actual.fase == 'mus':
@@ -719,29 +987,31 @@ def enviar_estado_a_jugadores(codigo_sala):
                 datos_recuento.append(paso_limpio)
                 
         if show_global_log:
-            print(f"📤 [SALA {codigo_sala}] Estado a {jugadores[sid]['nombre']}: Fase {partida_actual.fase}")
+            _quien = jugadores.get(sid, {}).get('nombre', sid)
+            print(f"📤 [SALA {codigo_sala}] Estado a {_quien}: Fase {partida_actual.fase}")
 
         # === EL ARREGLO ESTÁ AQUÍ ===
         payload = {
             'para_sid': sid,  # Añadimos a quién va dirigido
+            'reconexion_token': sala.get('tokens', {}).get(sala['sids'].index(sid)),
             'nombre_rival': partida_actual.nombres_ia.get(rival_sid, jugadores.get(rival_sid, {}).get('nombre', 'Rival')),
             'fase': partida_actual.fase,
             'puede_pedrete': puede_pedrete_ahora,
             'es_mi_turno': es_mi_turno,
             'soy_mano': soy_mano,
             'descartes_listos': estado_del_jugador.get('descartes_listos', False),
-            'descartes_rival': partida_actual.estado[rival_sid].get('descartes_hechos', 0),
+            'descartes_rival': estado_rival.get('descartes_hechos', 0),
             'apuestas': info_apuestas,
             'mensaje': mensaje,
             'mis_cartas': estado_del_jugador['cartas'],
             'mis_puntos': estado_del_jugador['puntos'],
-            'puntos_rival': partida_actual.estado[rival_sid]['puntos'],
+            'puntos_rival': estado_rival.get('puntos', 0),
             'mensaje_transicion': partida_actual.mensaje_transicion,
             'recuento': datos_recuento,
             'cartas_rival': cartas_rival,
-            'rival_puntos_finales': partida_actual.estado[rival_sid]['puntos'],
-            'mis_partidas': partida_actual.partidas_ganadas[sid],
-            'partidas_rival': partida_actual.partidas_ganadas[rival_sid],
+            'rival_puntos_finales': estado_rival.get('puntos', 0),
+            'mis_partidas': partida_actual.partidas_ganadas.get(sid, 0),
+            'partidas_rival': partida_actual.partidas_ganadas.get(rival_sid, 0),
             'al_mejor_de': partida_actual.al_mejor_de,
             'match_finalizado': partida_actual.match_finalizado
         }
@@ -758,23 +1028,218 @@ def enviar_estado_a_jugadores(codigo_sala):
             bot_sid = bot_instance.sid
             
             def bot_action_task():
-                socketio.sleep(1.5) 
-                if codigo_sala in salas and salas[codigo_sala]['estado'] == 'jugando':
-                    acc = bot_instance.obtener_accion(salas[codigo_sala]['motor'])
-                    if acc:
-                        print(f"🤖 Bot ejecuta en sala {codigo_sala}: {acc}")
-                        procesar_accion_interna(bot_sid, codigo_sala, acc)
-            
+                socketio.sleep(1.5)
+                # Una excepción aquí mataba el greenlet dejando la mesa a medias
+                # (partida "congelada" = fantasma percibido, Roadmap #21 bug 5).
+                try:
+                    if codigo_sala in salas and salas[codigo_sala]['estado'] == 'jugando':
+                        acc = bot_instance.obtener_accion(salas[codigo_sala]['motor'])
+                        if acc:
+                            print(f"🤖 Bot ejecuta en sala {codigo_sala}: {acc}")
+                            procesar_accion_interna(bot_sid, codigo_sala, acc)
+                except Exception as e:
+                    print(f"❌ Error en el turno del bot ({codigo_sala}): {e}")
+
             socketio.start_background_task(bot_action_task)
 
 @socketio.on('abandonar_sala_limpiamente')
 def handle_abandonar_limpiamente():
+    """Salida desde el vestíbulo (botón «Volver al menú»).
+
+    Antes solo borraba la sala: el jugador seguía suscrito a la room de Socket.IO y
+    su entrada en `jugadores` podía quedar apuntando a una sala ya inexistente
+    (Roadmap #21, bug 3). Ahora se sale de la room, se limpia el registro y, si
+    quedaba alguien esperando dentro, se le avisa en vez de dejarlo colgado."""
+    _salir_de_sala_2p(request.sid)
+
+
+def _salir_de_sala_2p(sid):
+    """Saca a `sid` de la sala 2p en la que esté, dejándolo todo consistente.
+
+    Lo usan la salida por botón y `social.invitar_amigo` (que antes creaba una sala
+    nueva encima, dejando la anterior colgada como fantasma)."""
+    if sid not in jugadores:
+        return
+    codigo = jugadores[sid]['sala']
+    sala = salas.get(codigo)
+
+    if not sala:
+        # La sala ya no existe: basta con limpiar el rastro del jugador.
+        jugadores.pop(sid, None)
+        try:
+            leave_room(codigo)
+        except Exception:
+            pass
+        return
+
+    try:
+        leave_room(codigo)
+    except Exception:
+        pass
+
+    nombre = jugadores[sid].get('nombre', 'Jugador')
+    motor = sala.get('motor')
+    seat = sala['sids'].index(sid) if sid in sala.get('sids', []) else None
+
+    # Si por lo que sea se llega aquí con una partida viva (el vestíbulo no debería,
+    # pero un cliente antiguo o un doble evento sí), no matamos la sala en silencio:
+    # se libera el asiento como en `abandonar_partida` y el rival decide.
+    if (seat is not None and sala['estado'] != 'esperando' and motor
+            and 'bot' not in sala and not getattr(motor, 'match_finalizado', False)):
+        jugadores.pop(sid, None)
+        _abrir_hueco_2p(codigo, seat, nombre, motivo='abandono')
+        return
+
+    if seat is not None:
+        sala['sids'][seat] = None
+        sala.get('tokens', {}).pop(seat, None)
+    jugadores.pop(sid, None)
+
+    # ¿Queda alguien humano dentro? Si sí, la sala sobrevive (y se reanuncia);
+    # si no, muere del todo, incluido el sid falso del bot.
+    if _sids_humanos_2p(sala):
+        emitir_lista_publicas()
+    else:
+        # Destruimos la sala para que 'disconnect' no avise al rival.
+        # _destruir_sala_2p limpia además el sid falso del bot.
+        _destruir_sala_2p(codigo)
+
+
+@socketio.on('abandonar_partida')
+def handle_abandonar_partida():
+    """Salida voluntaria desde la mesa (botón «Salir»), ya confirmada en el cliente.
+
+    - vs IA: la sala muere con el jugador (no hay a quién avisar).
+    - 1v1 online: se libera el asiento y al rival se le pregunta si espera o se va.
+    """
     sid = request.sid
-    if sid in jugadores:
-        codigo = jugadores[sid]['sala']
-        if codigo in salas:
-            del salas[codigo] # Destruimos la sala para que 'disconnect' no avise al rival
+    if sid not in jugadores:
+        return
+    codigo = jugadores[sid]['sala']
+    nombre = jugadores[sid].get('nombre', 'Jugador')
+    sala = salas.get(codigo)
+    if not sala:
+        jugadores.pop(sid, None)
+        return
+
+    leave_room(codigo)
+
+    # Sala aún en el vestíbulo, partida contra la IA o match ya terminado:
+    # no hay partida viva que ofrecer a nadie.
+    motor = sala.get('motor')
+    if (sala['estado'] == 'esperando' or 'bot' in sala
+            or not motor or getattr(motor, 'match_finalizado', False)):
+        _destruir_sala_2p(codigo, motivo='abandono' if sala['estado'] != 'esperando' else None)
+        return
+
+    jugadores.pop(sid, None)
+    seat = sala['sids'].index(sid) if sid in sala['sids'] else None
+    if seat is None:
+        return
+    _abrir_hueco_2p(codigo, seat, nombre, motivo='abandono')
+
+
+@socketio.on('esperar_reemplazo')
+def handle_esperar_reemplazo():
+    """El jugador que se queda acepta esperar: la partida se anuncia como en curso."""
+    sid = request.sid
+    if sid not in jugadores:
+        return
+    sala = salas.get(jugadores[sid]['sala'])
+    if not sala or sala.get('estado') != 'esperando_reemplazo':
+        return
+    if sid in sala['sids']:
+        sala.setdefault('esperando_votos', set()).add(sala['sids'].index(sid))
+    restante = max(0, int(ESPERA_REEMPLAZO - (time.time() - sala.get('esperando_desde', time.time()))))
+    emit('esperando_reemplazo', {'segundos': restante}, room=sid)
+    emitir_lista_publicas()
+
+
+def _programar_fin_gracia_2p(codigo):
+    """Agotada la gracia de reconexión, el asiento se declara vacante: quien sigue
+    dentro decide si espera un sustituto o se va (no matamos la sala sin más)."""
+    def tarea():
+        socketio.sleep(GRACIA_RECONEXION_2P)
+        sala = salas.get(codigo)
+        if not sala or sala.get('estado') != 'pausada':
+            return
+        print(f"🧹 Gracia agotada en {codigo}: se abre el asiento a un sustituto.")
+        seat = next((i for i, s in enumerate(sala['sids']) if s is None), None)
+        motor = sala.get('motor')
+        if seat is None or 'bot' in sala or not motor or getattr(motor, 'match_finalizado', False):
+            _destruir_sala_2p(codigo, motivo='timeout')
+            return
+        nombre = motor.nombres_ia.get(sala.get('ultimo_sid', {}).get(seat), 'Tu rival')
+        _abrir_hueco_2p(codigo, seat, nombre, motivo='timeout')
+    socketio.start_background_task(tarea)
+
+
+@socketio.on('reanudar_partida')
+def handle_reanudar_partida(datos):
+    """Reconexión 2p / vs-IA: reengancha por IDENTIDAD (token o username) el asiento,
+    reasigna el sid dentro del motor y reanuda. Funciona aunque el asiento siga
+    ocupado por un sid muerto (refresco que se adelanta a la detección de la caída)."""
+    sid = request.sid
+    codigo = (datos.get('codigo') or '').upper()
+    token = datos.get('token')
+    username = session.get('username')
+
+    sala = salas.get(codigo)
+    if not sala or sala.get('estado') not in ('jugando', 'pausada', 'esperando_reemplazo') or 'motor' not in sala:
+        emit('error_sala', {'mensaje': 'No hay ninguna partida que reanudar.'}, room=sid)
+        return
+
+    sids = sala['sids']
+    tokens = sala.get('tokens', {})
+
+    # Identidad → asiento, esté vacío u ocupado por un sid viejo.
+    seat = None
+    for s in range(len(sids)):
+        if token and tokens.get(s) == token:
+            seat = s
+            break
+    if seat is None and username and sala.get('username') == username:
+        seat = 0   # respaldo para el creador logueado que perdió el token del navegador
+    if seat is None:
+        emit('error_sala', {'mensaje': 'No se encontró tu asiento para reanudar.'}, room=sid)
+        return
+
+    # sid con el que el motor sigue indexado: el que ocupa el asiento, o —si el
+    # asiento ya se vació al detectar la caída— el que guardamos en 'ultimo_sid'.
+    old = sids[seat] if sids[seat] is not None else sala.get('ultimo_sid', {}).get(seat)
+    sids[seat] = sid
+    if old and old != sid:
+        _remap_sid_2p(sala['motor'], old, sid)
+        jugadores.pop(old, None)
+    sala.get('ultimo_sid', {}).pop(seat, None)
+
+    nombre = sala['motor'].nombres_ia.get(sid) or jugadores.get(sid, {}).get('nombre', 'Jugador')
+    jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': username}
+    join_room(codigo)
+    sala['ultima_actividad'] = time.time()
+
+    # Solo reanudamos de verdad si TODOS los asientos están ocupados; si el rival
+    # sigue caído, seguimos en pausa (el reconectado ve el tablero y el aviso).
+    estado_previo = sala.get('estado')
+    if all(s is not None for s in sids):
+        sala['estado'] = 'jugando'
+        sala.pop('pausada_desde', None)
+        # Volvió justo cuando ya se buscaba sustituto: se cancela la búsqueda.
+        sala.pop('esperando_desde', None)
+        sala.pop('esperando_votos', None)
+        if estado_previo == 'esperando_reemplazo':
+            socketio.emit('reemplazo_encontrado', {'nombre': nombre}, room=codigo)
             emitir_lista_publicas()
+
+    emit('reanudado', {'codigo': codigo}, room=sid)
+    if sala.get('estado') == 'pausada':
+        emit('oponente_desconectado', {'gracia': GRACIA_RECONEXION_2P}, room=sid)
+    elif sala.get('estado') == 'esperando_reemplazo':
+        restante = max(0, int(ESPERA_REEMPLAZO - (time.time() - sala.get('esperando_desde', time.time()))))
+        emit('esperando_reemplazo', {'segundos': restante}, room=sid)
+    else:
+        socketio.emit('oponente_reconectado', {}, room=codigo)
+    enviar_estado_a_jugadores(codigo)
 
 
 @socketio.on('disconnect')
@@ -785,6 +1250,13 @@ def handle_disconnect():
         social.presencia_disconnect()
     except Exception as e:
         print(f"⚠️ Error en presencia_disconnect: {e}")
+
+    # Mus 4 jugadores: limpieza/pausa de sus salas (solo un handler por evento).
+    try:
+        import server_mus4
+        server_mus4.disconnect_4()
+    except Exception as e:
+        print(f"⚠️ Error en disconnect_4: {e}")
 
     if sid in jugadores:
         codigo = jugadores[sid]['sala']
@@ -803,21 +1275,162 @@ def handle_disconnect():
                 def limpiar_sala_huerfana():
                     socketio.sleep(120)
                     if codigo in salas and salas[codigo]['estado'] == 'esperando':
-                        # Si todos los asientos son None, la sala está completamente muerta
-                        if all(s is None for s in salas[codigo]['sids']):
+                        # Sala muerta si no queda NINGÚN asiento con una conexión viva.
+                        # (Antes solo miraba `is None`: un asiento con un sid ya muerto
+                        # la dejaba inmortal — Roadmap #21, bug 1.)
+                        if not any(_sid_vivo(s) for s in salas[codigo]['sids']):
                             print(f"🧹 Limpiando sala abandonada: {codigo}")
-                            del salas[codigo]
-                            emitir_lista_publicas()
-                
+                            _destruir_sala_2p(codigo)
+
                 socketio.start_background_task(limpiar_sala_huerfana)
                 emitir_lista_publicas()
-                
-            else:
-                # Si estaban jugando, destruimos la sala
-                print(f"❌ {nombre} se desconectó en plena partida. Destruyendo sala {codigo}.")
-                emit('rival_desconectado', room=codigo)
-                del salas[codigo]
+
+            elif salas[codigo]['estado'] == 'esperando_reemplazo':
+                # Ya buscábamos sustituto y ahora se cae quien esperaba. Vaciamos su
+                # asiento pero conservamos token y voto: puede ser un simple refresco
+                # y `reanudar_partida` lo devuelve a su sitio. Mientras no haya nadie
+                # vivo la sala deja de anunciarse (emitir_lista_publicas la salta) y,
+                # si no vuelve, la barre el temporizador de la ventana de espera.
+                sala = salas[codigo]
+                if sid in sala.get('sids', []):
+                    seat = sala['sids'].index(sid)
+                    sala.setdefault('ultimo_sid', {})[seat] = sid
+                    sala['sids'][seat] = None
+                print(f"⏸️ {nombre} se cayó mientras {codigo} esperaba sustituto.")
                 emitir_lista_publicas()
+
+            else:
+                # Estaban jugando (o ya en pausa): en vez de destruir la sala, la
+                # PAUSAMOS con una ventana de gracia para permitir reconexión. El
+                # motor se congela solo (procesar_accion_interna y el bot exigen
+                # estado=='jugando'). Si nadie vuelve a tiempo, se termina.
+                sala = salas[codigo]
+                if sid in sala.get('sids', []):
+                    seat_caido = sala['sids'].index(sid)
+                    # Recordamos el sid con el que el motor sigue indexado en ese
+                    # asiento (al vaciarlo perderíamos la referencia para el remap).
+                    sala.setdefault('ultimo_sid', {})[seat_caido] = sid
+                    sala['sids'][seat_caido] = None
+                sala['estado'] = 'pausada'
+                sala['pausada_desde'] = time.time()
+                print(f"⏸️ {nombre} se cayó en la sala {codigo}. Pausada {GRACIA_RECONEXION_2P}s para reconectar.")
+                socketio.emit('oponente_desconectado', {'gracia': GRACIA_RECONEXION_2P}, room=codigo)
+                _programar_fin_gracia_2p(codigo)
+                emitir_lista_publicas()
+
+
+# ==========================================
+# BARREDOR DE SALAS FANTASMA + OBSERVABILIDAD (Roadmap #21, bug 6)
+# ==========================================
+def _codigos_vivos_4p():
+    """Códigos que pertenecen al registro de 4 jugadores (otro diccionario, mismo
+    `jugadores`): no deben contarse como huérfanos al barrer."""
+    try:
+        import server_mus4
+        return set(server_mus4.salas4.keys())
+    except Exception:
+        return set()
+
+
+def _barrer_huerfanos():
+    """Entradas de `jugadores` que apuntan a salas que ya no existen en ningún
+    registro. Devuelve cuántas se han eliminado."""
+    codigos_4p = _codigos_vivos_4p()
+    muertos = [s for s, info in jugadores.items()
+               if info.get('sala') not in salas and info.get('sala') not in codigos_4p]
+    for s in muertos:
+        jugadores.pop(s, None)
+    return len(muertos)
+
+
+def _pasada_barredor():
+    """Una pasada del barredor (extraída del bucle para poder probarla)."""
+    ahora = time.time()
+    for codigo, sala in list(salas.items()):
+        estado = sala.get('estado')
+        edad = ahora - sala.get('ultima_actividad', sala.get('creada_en', ahora))
+
+        if estado == 'esperando':
+            # Sin nadie vivo dentro, o demasiado tiempo sin arrancar. La marca
+            # `vacia_desde` respeta los 2 min de gracia por si el creador solo
+            # está refrescando (`unirse_sala` lo vuelve a sentar).
+            if not any(_sid_vivo(s) for s in sala.get('sids', [])):
+                vacia_desde = sala.setdefault('vacia_desde', ahora)
+                if ahora - vacia_desde > 120:
+                    print(f"🧹 Barredor: sala en espera sin nadie vivo {codigo}.")
+                    _destruir_sala_2p(codigo)
+                continue
+            sala.pop('vacia_desde', None)
+            if edad > VIDA_MAX_ESPERANDO:
+                print(f"🧹 Barredor: sala en espera caducada {codigo}.")
+                _destruir_sala_2p(codigo)
+
+        elif estado == 'jugando' and edad > VIDA_MAX_JUGANDO:
+            print(f"🧹 Barredor: partida inactiva {codigo}.")
+            _destruir_sala_2p(codigo, motivo='idle')
+
+        elif estado == 'pausada' and (ahora - sala.get('pausada_desde', ahora)) > GRACIA_RECONEXION_2P * 2:
+            print(f"🧹 Barredor: pausa vencida en {codigo}.")
+            _destruir_sala_2p(codigo, motivo='timeout')
+
+        elif estado == 'esperando_reemplazo' and (ahora - sala.get('esperando_desde', ahora)) > ESPERA_REEMPLAZO * 2:
+            print(f"🧹 Barredor: espera de sustituto vencida en {codigo}.")
+            _destruir_sala_2p(codigo, motivo='sin_reemplazo')
+
+    huerfanos = _barrer_huerfanos()
+    if huerfanos:
+        print(f"🧹 Barredor: {huerfanos} entradas huérfanas de `jugadores` eliminadas.")
+
+
+def _barredor_2p():
+    """Red de seguridad periódica: mata lo que los temporizadores puntuales hayan
+    dejado atrás. Espeja al `_barredor` de server_mus4."""
+    while True:
+        socketio.sleep(INTERVALO_BARRIDO)
+        try:
+            _pasada_barredor()
+        except Exception as e:
+            print(f"❌ Error en el barredor de salas: {e}")
+
+
+# Endpoint de diagnóstico. Sin `DEBUG_TOKEN` en el entorno no existe (404), para no
+# exponer el estado interno del servidor por accidente. Cuando llegue el panel de
+# administración (#13), esta vista es la fuente de datos de "salas activas".
+DEBUG_TOKEN = os.environ.get('DEBUG_TOKEN')
+
+
+@app.route('/api/debug/salas', methods=['GET'])
+def api_debug_salas():
+    if not DEBUG_TOKEN or request.args.get('token') != DEBUG_TOKEN:
+        return jsonify({'error': 'not found'}), 404
+
+    ahora = time.time()
+    codigos_4p = _codigos_vivos_4p()
+    detalle = []
+    for codigo, sala in list(salas.items()):
+        motor = sala.get('motor')
+        detalle.append({
+            'codigo': codigo,
+            'estado': sala.get('estado'),
+            'publico': sala.get('publico', False),
+            'vs_bot': 'bot' in sala,
+            'edad_s': int(ahora - sala.get('creada_en', ahora)),
+            'inactiva_s': int(ahora - sala.get('ultima_actividad', sala.get('creada_en', ahora))),
+            'asientos': [{'sid': s, 'vivo': _sid_vivo(s),
+                          'nombre': jugadores.get(s, {}).get('nombre')} for s in sala.get('sids', [])],
+            'ronda': getattr(motor, 'ronda_n', None) if motor else None,
+            'fase': getattr(motor, 'fase', None) if motor else None,
+        })
+
+    huerfanos = [s for s, info in jugadores.items()
+                 if info.get('sala') not in salas and info.get('sala') not in codigos_4p]
+    return jsonify({
+        'salas_2p': len(salas),
+        'salas_4p': len(codigos_4p),
+        'jugadores': len(jugadores),
+        'huerfanos': len(huerfanos),
+        'detalle': detalle,
+    })
 
 
 # ==========================================
@@ -829,7 +1442,22 @@ social.init_social(app, socketio, {
     'jugadores': jugadores,
     'generar_codigo': generar_codigo,
     'emitir_lista_publicas': emitir_lista_publicas,
+    'salir_de_sala': _salir_de_sala_2p,
 })
+
+# ==========================================
+# MUS 4 JUGADORES (Roadmap #6): registra sus handlers sobre ESTA instancia de
+# socketio (patrón init como social.py). No usar `from server import socketio`
+# dentro del módulo: server.py corre como __main__ y se re-importaría en otra
+# instancia distinta, dejando los handlers sin efecto.
+# ==========================================
+import server_mus4  # noqa: E402
+server_mus4.init_mus4(socketio, jugadores, salas)
+
+# El barredor de salas 2p arranca aquí (después de que exista el registro 4p, que
+# consulta para no dar por huérfanas sus entradas en `jugadores`).
+socketio.start_background_task(_barredor_2p)
+print("🧹 Barredor de salas 2p activo (cada %ds)." % INTERVALO_BARRIDO)
 
 
 if __name__ == '__main__':

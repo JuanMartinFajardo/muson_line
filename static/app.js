@@ -32,6 +32,9 @@ let cartasSeleccionadas = [];
 let subfaseApuestasActual = "";
 let apuestaVistaActual = 0; // CORREGIDO: V mayúscula
 let enPartida = false;
+// Partida contra la IA: al salir no hay a quién avisar ni hueco que ofrecer, así
+// que el texto de confirmación es distinto (se pierde la partida sin más).
+let esPartidaContraBot = false;
 let recuentoTimeout;
 
 // PANTALLAS CORRECTAS
@@ -148,6 +151,26 @@ const dict = {
         msg_no_publicas: "No hay partidas públicas ahora mismo. ¡Crea tú una!",
         txt_cartas_sin_repartir: "[Cartas sin repartir]",
         txt_hola: "Hola",
+        // --- Salida de partida y sustituciones ---
+        btn_salir_title: "Salir de la partida",
+        salir_titulo: "¿Salir de la partida?",
+        salir_texto: "Volverás al menú principal. Los demás jugadores podrán esperar a que otra persona ocupe tu sitio.",
+        salir_texto_bot: "Volverás al menú principal y esta partida contra la IA se perderá.",
+        salir_confirmar: "Sí, salir",
+        salir_cancelar: "Seguir jugando",
+        abandono_titulo: "Un jugador ha dejado la partida",
+        abandono_texto: "{nombre} ha abandonado la partida. ¿Quieres esperar a que otra persona ocupe su sitio o prefieres salir?",
+        abandono_texto_timeout: "{nombre} se ha desconectado y no ha vuelto a tiempo. ¿Quieres esperar a que otra persona ocupe su sitio o prefieres salir?",
+        abandono_esperar: "Esperar a otro jugador",
+        abandono_salir: "Salir yo también",
+        espera_reemplazo_titulo: "Buscando un jugador…",
+        espera_reemplazo_texto: "Tu partida aparece en la lista como partida en curso: cualquiera puede unirse y ocupar el hueco. El marcador se conserva y se repartirá una mano nueva.",
+        espera_reemplazo_salir: "Dejarlo y volver al menú",
+        espera_reemplazo_fin: "Nadie se ha unido a tiempo. Volviendo al menú principal.",
+        reemplazo_encontrado: "{nombre} se une a la partida. ¡Mano nueva!",
+        txt_en_curso: "En curso",
+        txt_hueco_libre: "Hueco libre",
+        txt_marcador: "Marcador",
         // --- Autenticación (auth.js) ---
         user_or_email: "Usuario o correo",
         email_label: "Correo electrónico",
@@ -366,6 +389,26 @@ const dict = {
         msg_no_publicas: "There are no public games right now. Create one!",
         txt_cartas_sin_repartir: "[Cards not dealt yet]",
         txt_hola: "Hello",
+        // --- Leaving a game and substitutions ---
+        btn_salir_title: "Leave the game",
+        salir_titulo: "Leave the game?",
+        salir_texto: "You'll go back to the main menu. The other players will be able to wait for someone else to take your seat.",
+        salir_texto_bot: "You'll go back to the main menu and this game against the AI will be lost.",
+        salir_confirmar: "Yes, leave",
+        salir_cancelar: "Keep playing",
+        abandono_titulo: "A player has left the game",
+        abandono_texto: "{nombre} has left the game. Do you want to wait for someone else to take their seat, or leave too?",
+        abandono_texto_timeout: "{nombre} disconnected and didn't come back in time. Do you want to wait for someone else to take their seat, or leave too?",
+        abandono_esperar: "Wait for another player",
+        abandono_salir: "Leave as well",
+        espera_reemplazo_titulo: "Looking for a player…",
+        espera_reemplazo_texto: "Your game is listed as an ongoing match: anyone can join and take the empty seat. The score is kept and a fresh hand will be dealt.",
+        espera_reemplazo_salir: "Give up and go back to the menu",
+        espera_reemplazo_fin: "Nobody joined in time. Going back to the main menu.",
+        reemplazo_encontrado: "{nombre} joins the game. New hand!",
+        txt_en_curso: "Ongoing",
+        txt_hueco_libre: "Seat free",
+        txt_marcador: "Score",
         // --- Authentication (auth.js) ---
         user_or_email: "Username or email",
         email_label: "Email address",
@@ -514,6 +557,12 @@ function aplicarTraduccion() {
         }
     });
     
+    // 1bis. Tooltips (title="...") de los botones que solo llevan icono.
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const clave = el.getAttribute('data-i18n-title');
+        if (dict[langActual] && dict[langActual][clave]) el.title = dict[langActual][clave];
+    });
+
     // 2. Cambiar el texto del botón de idioma para mostrar la alternativa
     const btnLang = document.getElementById('btn-lang');
     if(btnLang) btnLang.innerText = langActual === 'es' ? 'EN' : 'ES';
@@ -591,8 +640,9 @@ btnJugarBot.addEventListener('click', () => {
     let mejorDe = parseInt(document.getElementById('in-mejor-de').value) || 3;
     
     // Emitimos un nuevo evento específico para el bot
+    esPartidaContraBot = true;
     socket.emit('crear_partida_bot', { nombre: miNombre, al_mejor_de: mejorDe });
-    
+
     btnCrear.disabled = true;
     btnUnirse.disabled = true;
     btnJugarBot.disabled = true;
@@ -621,9 +671,151 @@ btnUnirse.addEventListener('click', () => {
 document.getElementById('btn-volver-menu').addEventListener('click', () => {
     enPartida = false;
     localStorage.removeItem('callmus_sala');
+    localStorage.removeItem('callmus_token');   // salida voluntaria: no reconectar
     socket.emit('abandonar_sala_limpiamente');
     setTimeout(() => { window.location.reload(); }, 100);
 });
+
+
+// ==========================================
+// SALIDA DE PARTIDA Y SUSTITUCIONES
+// Overlays compartidos: app4.js reutiliza estas funciones para el 2v2, así que
+// todo lo que hay aquí es agnóstico del modo (el "qué emitir" lo pone quien llama).
+// ==========================================
+const ovSalir = document.getElementById('overlay-salir');
+const ovAbandono = document.getElementById('overlay-abandono');
+const ovEspera = document.getElementById('overlay-espera-reemplazo');
+
+let _accionSalir = null;        // callback del overlay de confirmación
+let _accionEsperar = null;      // callbacks del overlay de abandono
+let _accionSalirAbandono = null;
+let _accionSalirEspera = null;
+let _esperaInterval = null;
+
+function ocultarOverlaysPartida() {
+    [ovSalir, ovAbandono, ovEspera].forEach(o => o && o.classList.add('hidden'));
+    clearInterval(_esperaInterval);
+    _esperaInterval = null;
+}
+
+/** Confirmación previa a abandonar. `onConfirm` solo se ejecuta si el jugador acepta. */
+function confirmarSalidaPartida(texto, onConfirm) {
+    document.getElementById('overlay-salir-texto').innerText = texto || t('salir_texto');
+    _accionSalir = onConfirm;
+    ovSalir.classList.remove('hidden');
+}
+
+/** Alguien se fue: preguntamos si esperamos sustituto o nos vamos también.
+ *  `texto` permite al 2v2 dar su propia redacción (nombra el asiento vacante). */
+function mostrarAvisoAbandono({ nombre, motivo, onEsperar, onSalir, texto }) {
+    const clave = motivo === 'timeout' ? 'abandono_texto_timeout' : 'abandono_texto';
+    document.getElementById('overlay-abandono-texto').innerText =
+        texto || t_dinamico(clave, { nombre: nombre || '...' });
+    _accionEsperar = onEsperar;
+    _accionSalirAbandono = onSalir;
+    ovEspera.classList.add('hidden');
+    ovAbandono.classList.remove('hidden');
+}
+
+/** La partida se anuncia buscando sustituto: overlay con cuenta atrás.
+ *  `opciones.texto` sustituye la explicación por defecto (el 2v2 añade cuántos faltan). */
+function mostrarEsperaReemplazo(segundos, onSalir, opciones) {
+    _accionSalirEspera = onSalir;
+    ovAbandono.classList.add('hidden');
+    ovEspera.classList.remove('hidden');
+    document.getElementById('overlay-espera-texto').innerText =
+        (opciones && opciones.texto) || t('espera_reemplazo_texto');
+    const cont = document.getElementById('overlay-espera-cont');
+    clearInterval(_esperaInterval);
+    let restante = Math.max(0, parseInt(segundos) || 0);
+    const pinta = () => {
+        const m = Math.floor(restante / 60);
+        const s = restante % 60;
+        cont.innerText = m + ':' + String(s).padStart(2, '0');
+    };
+    pinta();
+    _esperaInterval = setInterval(() => {
+        restante -= 1;
+        pinta();
+        if (restante <= 0) { clearInterval(_esperaInterval); _esperaInterval = null; }
+    }, 1000);
+}
+
+function ocultarEsperaReemplazo() {
+    ovEspera.classList.add('hidden');
+    clearInterval(_esperaInterval);
+    _esperaInterval = null;
+}
+
+document.getElementById('btn-salir-cancelar').addEventListener('click', () => {
+    ovSalir.classList.add('hidden');
+    _accionSalir = null;
+});
+document.getElementById('btn-salir-confirmar').addEventListener('click', () => {
+    ovSalir.classList.add('hidden');
+    const cb = _accionSalir;
+    _accionSalir = null;
+    if (cb) cb();
+});
+document.getElementById('btn-abandono-esperar').addEventListener('click', () => {
+    ovAbandono.classList.add('hidden');
+    if (_accionEsperar) _accionEsperar();
+});
+document.getElementById('btn-abandono-salir').addEventListener('click', () => {
+    ovAbandono.classList.add('hidden');
+    if (_accionSalirAbandono) _accionSalirAbandono();
+});
+document.getElementById('btn-espera-salir').addEventListener('click', () => {
+    ocultarEsperaReemplazo();
+    if (_accionSalirEspera) _accionSalirEspera();
+});
+
+// --- Cableado del modo 1v1 / vs IA ---
+function salirDePartida2p() {
+    enPartida = false;
+    ocultarOverlaysPartida();
+    localStorage.removeItem('callmus_sala');
+    localStorage.removeItem('callmus_token');   // salida voluntaria: no reconectar
+    socket.emit('abandonar_partida');
+    setTimeout(() => { window.location.reload(); }, 150);
+}
+
+document.getElementById('btn-salir-partida').addEventListener('click', () => {
+    confirmarSalidaPartida(esPartidaContraBot ? t('salir_texto_bot') : t('salir_texto'),
+                           salirDePartida2p);
+});
+
+// El rival se fue (o agotó su ventana de reconexión): esperar o salir.
+socket.on('jugador_abandono', (d) => {
+    if (!enPartida) return;
+    ocultarOverlayReconexion();
+    mostrarAvisoAbandono({
+        nombre: (d && d.nombre) || '...',
+        motivo: d && d.motivo,
+        onEsperar: () => socket.emit('esperar_reemplazo'),
+        onSalir: salirDePartida2p,
+    });
+});
+
+// Aceptamos esperar: la partida ya sale anunciada en la lista pública.
+socket.on('esperando_reemplazo', (d) => {
+    if (!enPartida) return;
+    mostrarEsperaReemplazo((d && d.segundos) || 0, salirDePartida2p);
+});
+
+// Alguien ocupó el hueco: se reanuda con marcador intacto y mano nueva.
+socket.on('reemplazo_encontrado', (d) => {
+    ocultarOverlaysPartida();
+    if (enPartida && d && d.nombre) mostrarToastPartida(t_dinamico('reemplazo_encontrado', { nombre: d.nombre }));
+});
+
+function mostrarToastPartida(texto) {
+    const toast = document.getElementById('social-toast');
+    if (!toast) return;
+    toast.innerText = texto;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 3500);
+}
 
 window.addEventListener('beforeunload', (e) => {
     if (enPartida) {
@@ -637,6 +829,7 @@ socket.on('sala_creada', (datos) => {
     document.getElementById('txt-codigo').innerText = datos.codigo;
     menuMsg.innerText = "";
     localStorage.setItem('callmus_sala', datos.codigo);
+    if (datos.token) localStorage.setItem('callmus_token', datos.token);  // reconexión
     btnCrear.disabled = true;
     btnUnirse.disabled = true;
 });
@@ -646,6 +839,7 @@ socket.on('error_sala', (datos) => {
     btnCrear.disabled = false;
     btnUnirse.disabled = false;
     localStorage.removeItem('callmus_sala');
+    localStorage.removeItem('callmus_token');   // token viejo inservible
 });
 
 // Dibujar la tabla de partidas públicas
@@ -675,9 +869,20 @@ tbody.innerHTML = '<tr><td colspan="3" style="padding: 10px; opacity: 0.7;" data
             botonHTML = `<button class="btn-unirse-publica" data-codigo="${partida.codigo}" style="padding: 5px 10px; font-size: 0.8em; background-color: #81a1c1; border-radius: 4px; cursor: pointer; border: none;">${t("btn_unirse_publica")}</button>`;
         }
 
+        // Partida EN CURSO con hueco: se anuncia con el marcador que heredarías.
+        let etiqueta = '';
+        let columnaMedia = partida.al_mejor_de;
+        if (partida.en_curso) {
+            tr.className = 'fila-en-curso';
+            etiqueta = `<span class="badge-en-curso">${t('txt_en_curso')}</span>`;
+            if (partida.marcador) {
+                columnaMedia = `${partida.al_mejor_de}<br><small style="opacity:0.75;">${t('txt_marcador')} ${partida.marcador[0]}-${partida.marcador[1]}</small>`;
+            }
+        }
+
         tr.innerHTML = `
-            <td style="padding: 8px; border-bottom: 1px solid #4c566a; color: #ebcb8b;">${partida.creador}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #4c566a;">${partida.al_mejor_de}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #4c566a; color: #ebcb8b;">${partida.creador}${etiqueta}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #4c566a;">${columnaMedia}</td>
             <td style="padding: 8px; border-bottom: 1px solid #4c566a;">
                 ${botonHTML}
             </td>
@@ -723,13 +928,66 @@ document.getElementById('btn-show-privacy').addEventListener('click', () => {
     document.getElementById('modal-privacy').classList.remove('hidden');
 });
 
-socket.on('rival_desconectado', () => {
+socket.on('rival_desconectado', (d) => {
     if (enPartida) {
-        alert("Tu rival se ha desconectado o ha abandonado la partida. Volviendo al menú principal.");
+        ocultarOverlayReconexion();
+        ocultarOverlaysPartida();
+        alert((d && d.motivo === 'sin_reemplazo')
+            ? t('espera_reemplazo_fin')
+            : "Tu rival se ha desconectado o ha abandonado la partida. Volviendo al menú principal.");
         enPartida = false;
         localStorage.removeItem('callmus_sala');
+        localStorage.removeItem('callmus_token');
         window.location.reload();
     }
+});
+
+// ==========================================
+// Reconexión 2p / vs-IA: pausa por caída del rival + reenganche automático.
+// ==========================================
+let _reconInterval = null;
+function mostrarOverlayReconexion(segundos) {
+    const ov = document.getElementById('overlay-reconexion');
+    const msg = document.getElementById('overlay-reconexion-msg');
+    const cont = document.getElementById('overlay-reconexion-cont');
+    if (!ov) return;
+    const en = (typeof langActual !== 'undefined' && langActual === 'en');
+    msg.innerText = en ? 'A player dropped. Waiting for them to return…'
+                       : 'Un jugador se ha caído. Esperando a que vuelva…';
+    ov.classList.remove('hidden');
+    clearInterval(_reconInterval);
+    if (segundos && segundos > 0) {
+        let restante = segundos;
+        cont.innerText = restante + 's';
+        _reconInterval = setInterval(() => {
+            restante -= 1;
+            cont.innerText = (restante > 0 ? restante : 0) + 's';
+            if (restante <= 0) clearInterval(_reconInterval);
+        }, 1000);
+    } else {
+        cont.innerText = '';
+    }
+}
+function ocultarOverlayReconexion() {
+    const ov = document.getElementById('overlay-reconexion');
+    if (ov) ov.classList.add('hidden');
+    clearInterval(_reconInterval);
+}
+
+// El rival (o yo, si reconecto con el rival aún fuera) sigue caído: mostramos aviso.
+socket.on('oponente_desconectado', (d) => {
+    if (!enPartida) return;
+    mostrarOverlayReconexion((d && d.gracia) || 0);
+});
+socket.on('oponente_reconectado', () => ocultarOverlayReconexion());
+
+// Nos reengancharon a la partida en curso: volvemos a la mesa (el estado la repinta).
+socket.on('reanudado', () => {
+    menuScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    enPartida = true;
+    const msgEl = document.getElementById('menu-msg');
+    if (msgEl) msgEl.innerText = "";
 });
 
 // ==========================================
@@ -812,7 +1070,10 @@ document.getElementById('btn-next-round').addEventListener('click', (e) => {
 socket.on('actualizar_mesa', (datos) => {
     // 1. FILTRO: Si el paquete no es para mí, lo ignoro
     if (datos.para_sid !== socket.id) return;
-    
+
+    // Token de reconexión: nos aseguramos de tenerlo siempre guardado (invitado incl.).
+    if (datos.reconexion_token) localStorage.setItem('callmus_token', datos.reconexion_token);
+
     clearTimeout(recuentoTimeout);
     
     // 2. CHIVATO: Esto imprimirá los datos en la consola si por fin llegan
@@ -1556,18 +1817,30 @@ document.getElementById('btn-share-api').addEventListener('click', () => {
 socket.on('connect', () => {
     // Este evento es a prueba de balas: solo se dispara cuando
     // la conexión con el servidor está 100% establecida y lista.
-    
+
+    // Si hay una sesión 4p activa, que la gestione app4.js (su propio 'connect').
+    if (localStorage.getItem('callmus4_codigo')) return;
+
     const salaGuardada = localStorage.getItem('callmus_sala');
     const nombreGuardado = localStorage.getItem('callmus_nombre');
+    const tokenGuardado = localStorage.getItem('callmus_token');
 
-    // Si tenemos una sala guardada y no estamos ya jugando
-    if (salaGuardada && nombreGuardado && !enPartida) {
-        const msgEl = document.getElementById('menu-msg');
+    if (!salaGuardada || enPartida) return;
+
+    const msgEl = document.getElementById('menu-msg');
+
+    // Con token → estábamos en plena partida: reenganche por identidad (2p/vs-IA).
+    if (tokenGuardado) {
         if (msgEl) msgEl.innerText = "Reconectando a tu partida automáticamente...";
-        
+        console.log(`🔌 Reanudando partida ${salaGuardada} con token.`);
+        socket.emit('reanudar_partida', { codigo: salaGuardada, token: tokenGuardado });
+        return;
+    }
+
+    // Sin token → sala en espera (aún no arrancó): reclamamos el asiento.
+    if (nombreGuardado) {
+        if (msgEl) msgEl.innerText = "Reconectando a tu partida automáticamente...";
         console.log(`🔌 Conexión establecida. Reclamando sala oculta: ${salaGuardada}`);
-        
-        // Enviamos la petición sin temporizadores
         socket.emit('unirse_sala', { nombre: nombreGuardado, codigo: salaGuardada });
     }
 });

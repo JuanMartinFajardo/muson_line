@@ -6,7 +6,7 @@ Implementation guide for planned CallMus features, written so an agent can pick 
 - Every user-visible string goes into both `dict.es` and `dict.en` in [static/app.js](../static/app.js) and is rendered via `t()` / `data-i18n`. Server → client messages that need localization are sent as `{code, ...params}` objects.
 - New DB tables go in [base_datos.py](../base_datos.py) `init_db()` with `CREATE TABLE IF NOT EXISTS`.
 - Secrets/config via `os.environ`, never hardcoded.
-- Suggested priority order: **1 (login) → 21 (bug fixes) → 14 (deck-exhausted notice) → 9 (turn timer) → 18 (resume bot games) → 2 (tutorial i18n) → 16 (security) → 13 (admin) → 19 (stats) → 3 (friends/groups) → 4 (tournaments)** — then the rest.
+- Suggested priority order: ~~1 (login)~~ → ~~21 (bug fixes)~~ → **14 (deck-exhausted notice) → 9 (turn timer) → 18 (resume bot games)** → ~~2 (tutorial i18n)~~ → **16 (security) → 13 (admin) → 19 (stats)** → ~~3 (friends/groups)~~ → **4 (tournaments)** — then the rest.
 
 ---
 
@@ -205,7 +205,25 @@ TournamentMatches(id, tournament_id, round INTEGER, slot INTEGER, player1_id NUL
 
 ---
 
-## 6. Mus for 4 players (online only, no bots)
+## 6. Mus for 4 players (online only, no bots) — ✅ DONE (2026-07-24)
+
+**Current state:** implemented and verified end-to-end (2v2, online, no bots). New parallel
+engine `PartidaMus4` (`mus_mecanicas_4.py`, seat-keyed, per-team scoring) built on shared
+pure functions in `mus_core.py`; server handlers in `server_mus4.py` (separate `salas4`
+registry, seat↔sid map, `*_4` events, blind per-seat state, authoritative turn timer,
+reconnect grace, ghost sweeper); frontend in `static/app4.js` + `static/table4.js` +
+`static/style4.css` (4-seat table relative to the viewer, seat picker, animations, full
+ES/EN i18n). Match results (final score, e.g. 2-1) recorded in the new `Partidas4` table
+plus per-player 4p tallies on `Usuarios`, separate from 1v1 ELO (explained by a note in the
+Leaderboard). 2p mode untouched (regression-tested). See [log.md](../log.md) and
+[Implementing-Mus-4-Players](Implementing-Mus-4-Players.md). Bots (#7/#8) remain future work.
+
+**Acceptance:** ✅ four Socket.IO clients play a complete 4p match (best-of-1 and best-of-3)
+with correct lance resolution and team scoring; disconnect pauses the room and a token-based
+reanudar restores the seat within the grace window; the `Partidas4` row is written; a full 2p
+game still fires `rival_desconectado` on drop; table/showdown render verified in-browser (ES/EN).
+
+<details><summary>Original plan (kept for reference)</summary>
 
 **The largest gameplay feature.** The whole engine assumes 2 players; 4-player Mus is the traditional 2v2 partnership game with different rules (speaking order around the table, partners, señas are usually excluded online, all four declare Pares/Juego, discards refill order, "de paso" points, and scoring flows to the team).
 
@@ -227,6 +245,8 @@ TournamentMatches(id, tournament_id, round INTEGER, slot INTEGER, player1_id NUL
 **Frontend steps:** the game screen needs a 4-seat layout (partner top, opponents left/right), team score display, and declaration indicators. This is a big `app.js` change — consider extracting the table renderer into `static/table4.js`.
 
 **Acceptance:** four browsers play a complete 4p game to 40 with correct lance resolution and team scoring; 2p mode is untouched (regression-test it).
+
+</details>
 
 ---
 
@@ -459,7 +479,59 @@ Concrete, ordered avenues (see [Bot-AI](Bot-AI.md) for pipeline details):
 
 ---
 
-## 21. Bug fixes (ghost games and friends)
+## 21. Bug fixes (ghost games and friends) — ✅ DONE (2026-07-25)
+
+**Current state:** all six vectors fixed in `server.py` (plus one in `social.py`) and
+verified with a scripted soak test driving real Socket.IO clients. See [log.md](../log.md)
+for the change entry.
+
+**What was done:**
+1. ✅ **Waiting rooms never expire → fixed twice over.** `emitir_lista_publicas` now
+   refuses to advertise a waiting room with no *live* seat (`_sid_vivo`: not `None`,
+   not a `BOT_` sid, and still present in `jugadores`) — previously such rooms were
+   published with `creador_sid: None` and stayed in the lobby forever. The 2-minute
+   `limpiar_sala_huerfana` timer also checks liveness instead of `is None`, and a new
+   periodic sweeper (`_barredor_2p`, every 5 min, mirroring `server_mus4._barredor`)
+   deletes waiting rooms with no live seat after a 2-min grace (`vacia_desde`), waiting
+   rooms older than 30 min, playing rooms idle > 2 h, and pauses/replacement windows
+   whose one-shot timer never fired.
+2. ✅ **Bot `jugadores` leak:** every death path now goes through `_destruir_sala_2p`,
+   which sweeps *all* of `jugadores` for entries pointing at the room (not just the
+   current seats, so remapped/abandoned sids go too) and calls `close_room`. The
+   sweeper additionally purges orphan `jugadores` entries whose room exists in neither
+   `salas` nor `salas4`.
+3. ✅ **`abandonar_sala_limpiamente`** extracted into `_salir_de_sala_2p(sid)`: it now
+   does `leave_room(codigo)`, frees the seat and its token, drops the `jugadores` entry,
+   and — if it is called with a live game (old client, duplicate event) — routes to
+   `_abrir_hueco_2p` so the rival is told instead of the table silently freezing.
+4. ✅ **Seat race in `unirse_sala`:** `sids` is normalised to exactly two slots *before*
+   choosing, assignment is `sids[i] = sid` (never `append`), and occupancy is
+   re-validated immediately before sitting — two interleaved joins can no longer produce
+   a three-seat room; the loser gets `error_sala`.
+5. ✅ **`enviar_estado_a_jugadores` crash-proofed:** missing engine state for a seat is
+   skipped with a warning instead of raising `KeyError`; the rival's state is read
+   through an `estado_rival` fallback dict; `partidas_ganadas` and the debug print use
+   `.get()`. The bot's background task is wrapped in `try/except` so a bot error can no
+   longer kill the greenlet mid-update (the "frozen game" that reads as a ghost).
+6. ✅ **Observability:** rooms carry `creada_en` / `ultima_actividad` (stamped in
+   `procesar_accion_interna`, on join, on resume and on substitution), and
+   `GET /api/debug/salas?token=…` returns per-room state, age, idle time, seat liveness,
+   phase and the orphan count. The endpoint 404s unless `DEBUG_TOKEN` is set in the
+   environment (see `.env.example`); it is the natural data source for the #13 panel.
+7. ✅ **Friends (`social.py`):** `invitar_amigo` created a room while the host might
+   already be sitting in another one, overwriting `jugadores[sid]` and orphaning the old
+   room — it now evicts the host first via the `salir_de_sala` context hook. The invite
+   room also gets `tokens` / `creada_en` / `ultima_actividad` like every other room, so
+   the host can resume it after a refresh and the sweeper can see it.
+
+**Acceptance:** ✅ a soak test (create / join / abandon / hard-disconnect at every phase:
+waiting, playing, paused, replacement, after match end, plus simultaneous joins and a
+full vs-bot match played to the end) leaves `salas` and `jugadores` empty except for
+live games; the public list never shows a dead room; the sweeper was unit-tested against
+hand-aged rooms for all five expiry rules and confirmed not to touch 4p players sharing
+the same `jugadores` dict.
+
+<details><summary>Original plan (kept for reference)</summary>
 
 **Known ghost-game vectors (all in `server.py`):**
 
@@ -473,3 +545,5 @@ Concrete, ordered avenues (see [Bot-AI](Bot-AI.md) for pipeline details):
 **Approach for the agent:** reproduce first (two browser tabs + killing tabs at each phase: waiting, playing, recuento, after match end), then apply fixes 1–5, then add the sweeper + metrics, then re-run the same matrix. Also regression-test the seat-recovery path in `unirse_sala` (creator refresh while waiting) since these fixes touch it.
 
 **Acceptance:** after a soak test of creating/abandoning/disconnecting rooms in every phase, `salas` and `jugadores` return to empty (except live games); the public list never shows dead rooms.
+
+</details>

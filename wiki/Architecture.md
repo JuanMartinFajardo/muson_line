@@ -63,13 +63,18 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 
 ```python
 jugadores = { sid: {'nombre': str, 'sala': code, 'username': str|None} }
-salas     = { code: {'estado': 'esperando'|'jugando',
+salas     = { code: {'estado': 'esperando'|'jugando'|'pausada'|'esperando_reemplazo',
                      'sids': [sid1, sid2],       # None marks a vacated seat
                      'motor': PartidaMus,         # once the game starts
                      'bot': SmartBot,             # only in bot rooms
                      'al_mejor_de': int, 'publico': bool,
+                     'tokens': {seat: str},       # identity for reconnecting
+                     'esperando_desde': float,    # only while looking for a substitute
+                     'esperando_votos': set[int], # seats that accepted to wait
                      'username': str|None, 'creador_nombre': str} }
 ```
+
+Room lifecycle: `esperando` → `jugando` → (`pausada`, 90 s of reconnection grace) → (`esperando_reemplazo`, 5 min advertised as an ongoing match with a free seat) → destroyed. The 4-player registry `salas4` in `server_mus4.py` follows the same states, indexed by seat instead of by sid.
 
 Room codes are 4 random chars (`A-Z0-9`). Bot rooms use a fake SID `BOT_<code>`.
 
@@ -84,6 +89,6 @@ Room codes are 4 random chars (`A-Z0-9`). Bot rooms use a fake SID `BOT_<code>`.
 ## Known architectural limitations
 
 - **All rooms are lost on server restart** (in-memory only); games vs bot cannot be resumed after disconnect.
-- **Disconnect during a game destroys the room** ("ghost games" can appear when cleanup logic misses edge cases — see Roadmap "Fix bugs").
+- **A room with every player disconnected survives until its timer fires** (grace or replacement window): it stops being advertised because the public lists skip rooms with no live player, but it stays in memory for up to 5 minutes so a refresh can reclaim the seat.
 - Secrets (Flask `SECRET_KEY`, SMTP credentials, Google OAuth keys) are **hardcoded placeholders** in `server.py` — must move to environment variables.
 - `server.py` mixes concerns (auth, rooms, game relay, bot orchestration) in one file; the Roadmap features (friends, tournaments, admin) will require splitting into blueprints/modules.

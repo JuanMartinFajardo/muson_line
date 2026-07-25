@@ -12,6 +12,7 @@
 # ==========================================================================
 
 import time
+import secrets
 from functools import wraps
 
 from flask import request, session, jsonify
@@ -364,21 +365,32 @@ def init_social(app, socketio, ctx):
         jugadores = _ctx['jugadores']
         generar_codigo = _ctx['generar_codigo']
         emitir_lista_publicas = _ctx.get('emitir_lista_publicas')
+        salir_de_sala = _ctx.get('salir_de_sala')
+
+        # Si el anfitrión ya estaba sentado en otra sala (p.ej. esperando en el
+        # vestíbulo), hay que desalojarlo antes: si no, `jugadores[sid]` se
+        # sobrescribe más abajo y la sala anterior queda de fantasma (Roadmap #21).
+        if salir_de_sala:
+            salir_de_sala(sid)
 
         codigo = generar_codigo()
         while codigo in salas:
             codigo = generar_codigo()
 
         # Sentamos al anfitrión en el asiento 0, sala PRIVADA (no aparece en públicas).
+        token = secrets.token_hex(16)
         jugadores[sid] = {'nombre': yo, 'sala': codigo, 'username': yo}
         join_room(codigo)
         salas[codigo] = {
             'estado': 'esperando', 'sids': [sid], 'al_mejor_de': al_mejor_de,
-            'publico': False, 'username': yo, 'creador_nombre': yo
+            'publico': False, 'username': yo, 'creador_nombre': yo,
+            'tokens': {0: token},
+            'creada_en': time.time(), 'ultima_actividad': time.time()
         }
 
         # El anfitrión entra al panel de espera exactamente igual que hoy.
-        socketio.emit('sala_creada', {'codigo': codigo}, room=sid)
+        # El token le permite reanudar si refresca antes de que llegue el invitado.
+        socketio.emit('sala_creada', {'codigo': codigo, 'token': token}, room=sid)
         # Al invitado le llega el código para que se una con el flujo normal.
         notificar(amigo_username, 'invitacion_partida',
                   {'codigo': codigo, 'de': yo, 'al_mejor_de': al_mejor_de})

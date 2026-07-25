@@ -11,6 +11,8 @@
     <meta property="og:type" content="website">
     <!-- Aquí es donde carga el diseño. Si esto falla, se ve todo blanco -->
     <link rel="stylesheet" href="/static/style.css">
+    <!-- Mus 4 jugadores (Roadmap #6): estilos propios, cargados tras style.css -->
+    <link rel="stylesheet" href="/static/style4.css">
     <!-- Librería de WebSockets (Actualizada a la v4.7.5) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="apple-touch-icon" sizes="180x180" href="static/favicon_io/apple-touch-icon.png">
@@ -81,7 +83,9 @@
                 <button id="btn-crear" data-i18n="btn_crear">Crear partida nueva</button>
                 
                 <button id="btn-jugar-bot" data-i18n="btn_jugar_bot" style="margin-left: 10px; background-color: #b48ead; border: none; color: #eceff4; font-weight: bold; padding: 10px 15px; border-radius: 4px; cursor: pointer; transition: 0.3s;">Jugar contra bot</button>
-                
+
+                <button id="btn-crear-4" data-i18n="btn_crear_4" style="margin-top: 12px; width: 100%; background-color: #5e81ac; color: #eceff4; font-weight: bold; padding: 12px; border-radius: 8px; border: none; cursor: pointer; transition: 0.3s;">👥 Mus 4 jugadores</button>
+
                 <button id="btn-tutorial" data-i18n="btn_tutorial" style="margin-top: 15px; width: 100%; background-color: #f3e0bf; color: #2e3440; font-weight: bold; padding: 12px; border-radius: 8px; font-size: 1.1em; border: none; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">🎓 How to Play (Tutorial)</button>
 
                 <div id="codigo-creado" class="hidden" style="margin-top: 10px;">
@@ -144,8 +148,18 @@
     <!-- Empieza con la clase 'hidden' para no verse hasta que toque -->
     <div id="game-screen" class="screen hidden">
 
+        <!-- Aviso de pausa por caída del rival, con cuenta atrás de la ventana de gracia. -->
+        <div id="overlay-reconexion" class="hidden" style="position:absolute; inset:0; z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(20,24,32,0.88); text-align:center; padding:24px;">
+            <div class="spinner-reconexion" style="width:46px; height:46px; border:4px solid #4c566a; border-top-color:#88c0d0; border-radius:50%; animation:girar-reconexion 0.9s linear infinite; margin-bottom:18px;"></div>
+            <p id="overlay-reconexion-msg" style="color:#eceff4; font-size:1.15em; max-width:420px; line-height:1.5;">Un jugador se ha caído. Esperando a que vuelva…</p>
+            <p id="overlay-reconexion-cont" style="color:#ebcb8b; font-weight:bold; font-size:1.4em; margin-top:10px;"></p>
+        </div>
+
         <button id="btn-help-game" title="Tutorial / Ayuda" style="position: absolute; top: 15px; left: 15px; background-color: #4c566a; color: #eceff4; border: 2px solid #88c0d0; border-radius: 50%; width: 38px; height: 38px; font-weight: bold; font-size: 1.2em; cursor: pointer; z-index: 50; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: 0.2s;">?</button>
-        
+
+        <!-- Salida de la partida (siempre disponible; pide confirmación). -->
+        <button id="btn-salir-partida" class="btn-salir-mesa" data-i18n-title="btn_salir_title" title="Salir de la partida">✕</button>
+
         <div id="turno-rival" class="turno-indicador hidden" data-i18n="opponent_speaks">⚠️ El rival habla</div>
         
         <!-- ÁREA DEL RIVAL -->
@@ -215,6 +229,85 @@
         </div>
     </div>
 
+
+    <!-- ========================================= -->
+    <!-- 3. PANTALLA DE MUS A 4 JUGADORES (2v2)     -->
+    <!-- ========================================= -->
+    <div id="game-screen-4" class="screen hidden">
+        <button id="btn-help-game-4" title="Tutorial / Ayuda" style="position: absolute; top: 12px; left: 12px; background-color: #4c566a; color: #eceff4; border: 2px solid #88c0d0; border-radius: 50%; width: 36px; height: 36px; font-weight: bold; font-size: 1.15em; cursor: pointer; z-index: 50;">?</button>
+
+        <!-- Salida de la partida (siempre disponible; pide confirmación). -->
+        <button id="btn-salir-partida-4" class="btn-salir-mesa" data-i18n-title="btn_salir_title" title="Salir de la partida">✕</button>
+
+        <!-- Marcadores de equipo -->
+        <div id="score-bar-4">
+            <div id="score-team-a" class="team-score"><span class="team-label" data-i18n="equipo_a">Equipo A</span><span class="team-pts"><span class="pts">0</span>/40</span><span class="team-games">0</span></div>
+            <div id="score-mejor-de-4"></div>
+            <div id="score-team-b" class="team-score"><span class="team-label" data-i18n="equipo_b">Equipo B</span><span class="team-pts"><span class="pts">0</span>/40</span><span class="team-games">0</span></div>
+        </div>
+
+        <div id="mesa-4">
+            <!-- Compañero (arriba) -->
+            <div id="seat-top" class="seat-4" data-slot="top">
+                <div class="seat-name"></div>
+                <div class="seat-chips"></div>
+                <div class="seat-cards"></div>
+            </div>
+
+            <!-- Oponente izquierda -->
+            <div id="seat-left" class="seat-4" data-slot="left">
+                <div class="seat-name"></div>
+                <div class="seat-chips"></div>
+                <div class="seat-cards"></div>
+            </div>
+
+            <!-- Mesa central -->
+            <div id="center-table-4">
+                <div id="turno-timer-4" class="hidden"><div id="turno-timer-bar-4"></div></div>
+                <p id="game-log-4" data-i18n="esperando_jugadores_4">Esperando jugadores…</p>
+                <div id="betting-log-4" class="hidden"></div>
+
+                <div id="action-buttons-4" class="hidden">
+                    <button id="btn-deal-4" data-i18n="btn_deal">Repartir Cartas</button>
+                    <button id="btn-pedrete-4" class="hidden">¡Pedrete!</button>
+                    <button id="btn-mus-4" class="hidden">Mus</button>
+                    <button id="btn-nomus-4" data-i18n="btn_nomus" class="hidden">Corto</button>
+                    <button id="btn-descartar-4" data-i18n="btn_descartar" class="hidden">Descartar (0)</button>
+                    <button id="btn-next-round-4" data-i18n="btn_next_round" class="hidden">Siguiente ronda</button>
+                    <button id="btn-volver-menu-4" data-i18n="btn_volver_menu" class="hidden" style="background-color: #bf616a;">Volver al Menú</button>
+                </div>
+
+                <div id="apuesta-iniciar-4" class="hidden panel-apuestas">
+                    <input type="number" id="in-envidar-4" value="2" min="2" max="40" style="width:50px;">
+                    <button id="btn-envidar-4" data-i18n="btn_envidar">Envidar</button>
+                    <button id="btn-pasar-4" data-i18n="btn_pasar">Pasar</button>
+                    <button id="btn-ordago-4" data-i18n="btn_ordago">Órdago</button>
+                </div>
+
+                <div id="apuesta-responder-4" class="hidden panel-apuestas">
+                    <button id="btn-ver-4" data-i18n="btn_ver">Ver</button>
+                    <input type="number" id="in-subir-4" value="2" min="2" max="40" style="width:50px;">
+                    <button id="btn-subir-4" data-i18n="btn_subir">Subir</button>
+                    <button id="btn-nover-4" data-i18n="btn_nover">No ver</button>
+                    <button id="btn-ordago-resp-4" data-i18n="btn_ordago_resp">Órdago</button>
+                </div>
+            </div>
+
+            <!-- Oponente derecha -->
+            <div id="seat-right" class="seat-4" data-slot="right">
+                <div class="seat-name"></div>
+                <div class="seat-chips"></div>
+                <div class="seat-cards"></div>
+            </div>
+
+            <!-- Tú (abajo) -->
+            <div id="seat-bottom" class="seat-4" data-slot="bottom">
+                <div class="seat-name"></div>
+                <div class="seat-chips"></div>
+                <div class="seat-cards" id="my-cards-4"></div>
+            </div>
+        </div>
+    </div>
 
     <div class="watermark" data-i18n="watermark">Creado por Juan Martín Fajardo</div>
     <!-- Código de la lógica del juego -->
@@ -353,6 +446,7 @@
                     </tbody>
                 </table>
             </div>
+            <p data-i18n="leaderboard_nota_4p" style="margin: 12px 2px 0 2px; font-size: 0.78em; color: #d8dee9; opacity: 0.7; line-height: 1.4; text-align: left;">Nota: el ELO y las victorias de arriba son de las partidas 1 contra 1. En el Mus a 4 jugadores (2v2) se guarda aparte el marcador final de cada partida (p. ej. 2-1), sumando a cada jugador los juegos ganados con su equipo.</p>
         </div>
 
         <!-- Modal Social (amigos, grupos, chat) -->
@@ -401,6 +495,63 @@
             </div>
         </div>
 
+        <!-- Modal Mus 4 jugadores (crear/unirse + sala de espera con asientos) -->
+        <div id="modal-4" class="hidden" style="position: relative; background: #2e3440; padding: 25px 22px 22px 22px; border-radius: 8px; border: 1px solid #4c566a; width: 440px; max-width: 95vw; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 12px;">
+            <button class="btn-cerrar-modal" style="position: absolute; top: 10px; left: 10px; background: none; border: none; color: #bf616a; font-size: 1.8em; cursor: pointer; font-weight: bold; line-height: 1;">&times;</button>
+            <h2 style="color: #88c0d0; margin: 5px 0 4px 0;" data-i18n="btn_crear_4">👥 Mus 4 jugadores</h2>
+
+            <!-- Vista A: crear / unirse -->
+            <div id="panel-4-setup">
+                <input type="text" id="nombre-jugador-4" placeholder="Tu nombre..." data-i18n="tu_nombre" style="width: 90%; font-size: 1.05em; padding: 8px; margin-bottom: 12px; background: #3b4252; color: white; border: 1px solid #4c566a; border-radius: 4px;">
+
+                <div style="padding: 12px; border: 1px solid #4c566a; border-radius: 8px; margin-bottom: 12px;">
+                    <p style="margin: 0 0 8px 0; color: #d8dee9; font-size: 0.9em;" data-i18n="elige_asiento">Elige un asiento</p>
+                    <div id="seat-picker-4" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin: 12px 0;">
+                        <label for="in-mejor-de-4" data-i18n="al_mejor_de" style="font-weight: bold; color: #eceff4;">Al mejor de:</label>
+                        <input type="number" id="in-mejor-de-4" value="3" min="1" max="21" step="2" style="width: 55px; text-align: center; font-size: 1.1em; padding: 5px;">
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <input type="checkbox" id="in-publico-4" checked style="transform: scale(1.2); margin-right: 5px;">
+                        <label for="in-publico-4" style="color: #eceff4; cursor: pointer;" data-i18n="in_publico">Hacer pública</label>
+                    </div>
+                    <button id="btn-crear-sala-4" data-i18n="btn_crear" style="width: 100%; background-color: #a3be8c; color: #2e3440; font-weight: bold; padding: 10px; border-radius: 6px; border: none; cursor: pointer;">Crear partida nueva</button>
+                </div>
+
+                <div style="padding: 12px; border: 1px solid #4c566a; border-radius: 8px;">
+                    <input type="text" id="in-codigo-4" placeholder="Código de sala..." data-i18n="codigo_placeholder" style="width: 55%; text-transform: uppercase; font-size: 1.05em; padding: 6px; text-align: center;">
+                    <button id="btn-unirse-4" data-i18n="btn_unirse" style="background-color: #81a1c1; color: #2e3440; font-weight: bold; padding: 8px 12px; border-radius: 6px; border: none; cursor: pointer;">Unirse con código</button>
+                </div>
+
+                <div style="padding: 10px; border: 1px solid #4c566a; border-radius: 8px; margin-top: 12px; background-color: #2e3440;">
+                    <h3 style="margin: 0 0 6px 0; color: #88c0d0; font-size: 1em;" data-i18n="public_games_4">🌐 Salas 4 jugadores</h3>
+                    <div style="max-height: 130px; overflow-y: auto; border: 1px solid #3b4252; border-radius: 4px;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 0.88em;">
+                            <tbody id="lista-publicas-4">
+                                <tr><td colspan="3" style="padding: 10px; opacity: 0.7;" data-i18n="msg_no_publicas">No hay partidas públicas.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vista B: sala de espera con los cuatro asientos -->
+            <div id="panel-4-espera" class="hidden">
+                <p style="margin: 0 0 6px 0; color: #d8dee9;"><span data-i18n="codigo_sala">Código de tu sala:</span></p>
+                <h2 id="txt-codigo-4" style="color: #ebcb8b; letter-spacing: 3px; font-size: 1.9em; margin: 4px 0 10px 0;"></h2>
+                <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 14px;">
+                    <button id="btn-share-copy-4" title="Copiar código" style="background-color: #4c566a; color: #eceff4; padding: 8px; border-radius: 6px; cursor: pointer; width: 42px; height: 42px; border: none; font-size: 1.1em;">📋</button>
+                    <button id="btn-share-wa-4" title="WhatsApp" style="background-color: #25D366; color: white; padding: 8px; border-radius: 6px; cursor: pointer; width: 42px; height: 42px; border: none; font-size: 1.3em;">💬</button>
+                </div>
+                <div id="asientos-espera-4" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;"></div>
+                <p id="espera-msg-4" class="anim-parpadeo" style="font-size: 0.95em; opacity: 0.85;" data-i18n="esperando_jugadores_4">Esperando jugadores…</p>
+                <button id="btn-cancelar-4" data-i18n="btn_volver_menu" style="margin-top: 6px; background-color: #bf616a; color: #eceff4; font-weight: bold; padding: 8px 14px; border-radius: 6px; border: none; cursor: pointer;">Volver al Menú</button>
+            </div>
+
+            <p id="msg-4" style="color: #bf616a; font-size: 0.9em; margin: 4px 0 0 0; font-weight: bold;"></p>
+        </div>
+
 
     </div>
 
@@ -416,10 +567,57 @@
         </div>
     </div>
 
-    <script src="/static/app.js?=v6"></script>
+    <!-- ========================================================= -->
+    <!-- Salida de partida y sustituciones (compartido 1v1 / 2v2)  -->
+    <!-- Son overlays fijos propios, no modales de #modal-overlay,  -->
+    <!-- para que funcionen igual sobre cualquiera de las mesas.    -->
+    <!-- ========================================================= -->
+
+    <!-- 1. Confirmación antes de abandonar -->
+    <div id="overlay-salir" class="overlay-partida hidden">
+        <div class="caja-overlay">
+            <h3 data-i18n="salir_titulo">¿Salir de la partida?</h3>
+            <p id="overlay-salir-texto" data-i18n="salir_texto">Volverás al menú principal y perderás la partida en curso.</p>
+            <div class="acciones-overlay">
+                <button id="btn-salir-confirmar" class="btn-peligro" data-i18n="salir_confirmar">Sí, salir</button>
+                <button id="btn-salir-cancelar" class="btn-neutro" data-i18n="salir_cancelar">Seguir jugando</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Alguien se ha ido: esperar sustituto o marcharse también -->
+    <div id="overlay-abandono" class="overlay-partida hidden">
+        <div class="caja-overlay">
+            <h3 id="overlay-abandono-titulo" data-i18n="abandono_titulo">Un jugador ha dejado la partida</h3>
+            <p id="overlay-abandono-texto"></p>
+            <div class="acciones-overlay">
+                <button id="btn-abandono-esperar" class="btn-ok" data-i18n="abandono_esperar">Esperar a otro jugador</button>
+                <button id="btn-abandono-salir" class="btn-peligro" data-i18n="abandono_salir">Salir yo también</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Partida anunciada buscando sustituto, con cuenta atrás -->
+    <div id="overlay-espera-reemplazo" class="overlay-partida hidden">
+        <div class="caja-overlay">
+            <div class="spinner-reconexion"></div>
+            <h3 data-i18n="espera_reemplazo_titulo">Buscando un jugador…</h3>
+            <!-- Sin data-i18n: el texto lo fija mostrarEsperaReemplazo() según el modo. -->
+            <p id="overlay-espera-texto">Tu partida aparece como partida en curso: cualquiera puede unirse y ocupar el hueco.</p>
+            <p id="overlay-espera-cont" class="cuenta-atras"></p>
+            <div class="acciones-overlay">
+                <button id="btn-espera-salir" class="btn-peligro" data-i18n="espera_reemplazo_salir">Dejarlo y volver al menú</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?=v8"></script>
     <script src="/static/auth.js?=v2"></script>
     <script src="/static/social.js?=v2"></script>
-    <script src="/static/tutorial.js"></script> </body>
+    <script src="/static/tutorial.js"></script>
+    <!-- Mus 4 jugadores (Roadmap #6): app4 (lógica) + table4 (render). Cargan tras app.js para reusar socket/dict/t. -->
+    <script src="/static/table4.js?=v1"></script>
+    <script src="/static/app4.js?=v2"></script> </body>
 
 </body>
 </html>

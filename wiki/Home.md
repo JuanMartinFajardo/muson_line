@@ -37,4 +37,8 @@ Things to do in the future:
 - Improve connection (prevent disconnection problem)
 - For users in app or logged, save status of games (with player or AI), so that you can continue the games.
 - when invited to a game by a friend and accepted, friend screen should be removed
-- 
+- Groups should be accepted
+- name for 4player mus should be the username
+
+
+

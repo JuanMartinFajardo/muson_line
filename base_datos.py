@@ -84,6 +84,27 @@ def init_db():
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_partidas_jug ON Partidas(ganador_id, perdedor_id, fecha)')
 
+    # Historial de partidas de 4 jugadores (2v2). Roadmap #6.
+    # Guardamos ambos equipos y el marcador final del match (juegos ganados por
+    # cada equipo, p.ej. 2-1 o 3-0) para poder atribuir a cada jugador el número
+    # de juegos ganados (útil para clasificaciones de grupo). Jugadores invitados
+    # (sin cuenta) se guardan como NULL. No toca el ELO 1v1.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Partidas4 (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha          TEXT NOT NULL,
+            match_id       TEXT,
+            al_mejor_de    INTEGER,
+            ganador1_id    INTEGER,
+            ganador2_id    INTEGER,
+            perdedor1_id   INTEGER,
+            perdedor2_id   INTEGER,
+            juegos_ganador INTEGER NOT NULL,
+            juegos_perdedor INTEGER NOT NULL
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_partidas4_fecha ON Partidas4(fecha)')
+
     conexion.commit()
     _migrar_columnas(conexion)
     _migrar_social(conexion)
@@ -109,6 +130,16 @@ def _migrar_columnas(conexion):
         cursor.execute("ALTER TABLE Usuarios ADD COLUMN email TEXT")
     if 'google_id' not in columnas:
         cursor.execute("ALTER TABLE Usuarios ADD COLUMN google_id TEXT")
+
+    # Estadísticas de Mus a 4 (2v2). Roadmap #6. Separadas del ELO 1v1:
+    #   victorias_4p = matches ganados; juegos_4p = juegos individuales ganados
+    #   (sumados desde el marcador final de cada match, p.ej. +2 al ganar 2-1).
+    if 'victorias_4p' not in columnas:
+        cursor.execute("ALTER TABLE Usuarios ADD COLUMN victorias_4p INTEGER DEFAULT 0")
+    if 'derrotas_4p' not in columnas:
+        cursor.execute("ALTER TABLE Usuarios ADD COLUMN derrotas_4p INTEGER DEFAULT 0")
+    if 'juegos_4p' not in columnas:
+        cursor.execute("ALTER TABLE Usuarios ADD COLUMN juegos_4p INTEGER DEFAULT 0")
 
     # Índices únicos (case-insensitive) para email y google_id.
     # Se crean como parciales para que los NULL no colisionen entre sí.
@@ -174,6 +205,62 @@ def registrar_partida_completa(ganador_user, perdedor_user):
 
     conexion.commit()
     conexion.close()
+
+
+def registrar_partida_4(usernames_ganadores, usernames_perdedores,
+                        juegos_ganador, juegos_perdedor,
+                        match_id=None, al_mejor_de=None):
+    """Registra el resultado de una partida de 4 jugadores (2v2). Roadmap #6.
+
+    - usernames_*: listas de 2 usernames (o None para invitados sin cuenta).
+    - juegos_ganador/juegos_perdedor: marcador final del match (p.ej. 2 y 1).
+
+    Guarda una fila en Partidas4 con ambos equipos y el marcador, y actualiza las
+    estadísticas 4p de cada jugador registrado: +1 match ganado/perdido y +N juegos
+    individuales según el marcador. No modifica el ELO ni las stats 1v1.
+    """
+    conexion = sqlite3.connect(DB_NAME)
+    cursor = conexion.cursor()
+
+    def id_de(username):
+        if not username:
+            return None
+        cursor.execute('SELECT id FROM Usuarios WHERE username = ?', (username,))
+        fila = cursor.fetchone()
+        return fila[0] if fila else None
+
+    g = [id_de(u) for u in (usernames_ganadores or [])]
+    p = [id_de(u) for u in (usernames_perdedores or [])]
+    while len(g) < 2:
+        g.append(None)
+    while len(p) < 2:
+        p.append(None)
+
+    cursor.execute('''
+        INSERT INTO Partidas4(fecha, match_id, al_mejor_de,
+                              ganador1_id, ganador2_id, perdedor1_id, perdedor2_id,
+                              juegos_ganador, juegos_perdedor)
+        VALUES(?,?,?,?,?,?,?,?,?)
+    ''', (datetime.now().isoformat(), match_id, al_mejor_de,
+          g[0], g[1], p[0], p[1], juegos_ganador, juegos_perdedor))
+
+    # Cada jugador se apunta los juegos que ganó su equipo en el marcador final.
+    for uid in g:
+        if uid is not None:
+            cursor.execute(
+                'UPDATE Usuarios SET victorias_4p = COALESCE(victorias_4p,0) + 1, '
+                'juegos_4p = COALESCE(juegos_4p,0) + ? WHERE id = ?',
+                (juegos_ganador, uid))
+    for uid in p:
+        if uid is not None:
+            cursor.execute(
+                'UPDATE Usuarios SET derrotas_4p = COALESCE(derrotas_4p,0) + 1, '
+                'juegos_4p = COALESCE(juegos_4p,0) + ? WHERE id = ?',
+                (juegos_perdedor, uid))
+
+    conexion.commit()
+    conexion.close()
+
 
 def existe_usuario(username, email):
     """Comprueba, ANTES de mandar el código, si el usuario o el email ya existen.
@@ -315,7 +402,9 @@ def obtener_usuario(username):
     conexion = sqlite3.connect(DB_NAME)
     conexion.row_factory = sqlite3.Row 
     cursor = conexion.cursor()
-    cursor.execute('SELECT username, country, birthdate, victorias, derrotas, elo, fecha_registro FROM Usuarios WHERE username = ?', (username,))
+    cursor.execute('SELECT username, country, birthdate, victorias, derrotas, elo, fecha_registro, '
+                   'COALESCE(victorias_4p,0) AS victorias_4p, COALESCE(derrotas_4p,0) AS derrotas_4p, '
+                   'COALESCE(juegos_4p,0) AS juegos_4p FROM Usuarios WHERE username = ?', (username,))
     fila = cursor.fetchone()
     conexion.close()
     
