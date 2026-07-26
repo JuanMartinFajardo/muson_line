@@ -21,3 +21,8 @@ redes_mus.py
 global_trainer.py
 .claude
 wiki/
+# Barajas temáticas (Roadmap #5): los renders intermedios de Blender se
+# regeneran con tools/decks/build_deck.py y pesan ~50 MB. Lo que sí se guarda
+# es dist/, que lleva los webp finales, el zip que se sube por el panel y el
+# informe de la puerta de legibilidad.
+tools/decks/build/

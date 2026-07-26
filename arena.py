@@ -153,8 +153,7 @@ def elegir_accion(modelo, partida, jugador):
 def jugar_partida(m1, m2):
     # Forzamos los nombres para saber quién es quién
     partida = PartidaMus("MODELO_1", "MODELO_2")
-    partida.generate_log = False
-    partida.iniciar_ronda()
+    partida.iniciar_ronda()   # el motor arranca con NullLogger: no escribe
     
     while True:
         jugador = partida.turno_de

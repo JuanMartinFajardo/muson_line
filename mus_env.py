@@ -1,4 +1,3 @@
-import copy
 import numpy as np
 from mus_mecanicas import PartidaMus, tiene_pares, tiene_juego
 import random
@@ -30,8 +29,7 @@ class MusBettingEnv:
     def reset(self):
         """Inicia una partida nueva y la adelanta hasta la fase de apuestas"""
         self.partida = PartidaMus("IA_1", "IA_2")
-        self.partida.generate_log = False
-        self.partida.iniciar_ronda()
+        self.partida.iniciar_ronda()   # el motor arranca con NullLogger: no escribe
         self._fast_forward_to_apuestas()
         return self.get_information_set()
 
@@ -212,9 +210,27 @@ class MusBettingEnv:
         }
         return estado
 
-    def clone(self):
-        """Bifurca el universo. Vital para explorar diferentes ramas en CFR."""
-        return copy.deepcopy(self)
+    def clone(self, copiador=None):
+        """Bifurca el universo. Vital para explorar diferentes ramas en CFR.
+
+        Antes era `copy.deepcopy(self)`, que era el cuello de botella real del
+        entrenamiento (§3.6 de la estrategia): el muestreo externo clona el
+        entorno en CADA acción explorada y deepcopy recorría también los dicts
+        de carta y el logger. `PartidaMus.fork()` copia solo los contenedores y
+        comparte las cartas (que el motor nunca muta). Ver bench_env.py.
+
+        `copiador` existe solo para el benchmark: pasarle `copy.deepcopy`
+        reproduce el comportamiento antiguo con el resto igual, que es la
+        comparación limpia."""
+        otro = object.__new__(MusBettingEnv)
+        otro.acciones_lista = self.acciones_lista
+        otro.partida = (copiador(self.partida) if copiador is not None
+                        else self.partida.fork())
+        return otro
+
+    # Mismo nombre que en mus_env4 para que bench_env.py y los trainers puedan
+    # tratar a los dos entornos igual.
+    fork = clone
     
 
 if __name__ == "__main__":

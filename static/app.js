@@ -3,10 +3,16 @@
 // ==========================================
 // Usamos setTimeout para no bloquear el hilo principal ni la conexión de WebSockets.
 // Esperará 2 segundos a que la web ya esté totalmente operativa antes de bajar las cartas.
+//
+// Con barajas temáticas (Roadmap #5) lo que hay que precargar depende de qué
+// tema tenga puesto el jugador en cada palo, así que de eso se encarga
+// decks.js; aquí sólo queda la baraja clásica para cuando ese archivo no esté.
 setTimeout(() => {
+    if (window.Barajas) { window.Barajas.precargar(); return; }
+
     const palos = ['coins', 'cups', 'swords', 'clubs'];
     const valores = ['01', '02', '03', '04', '05', '06', '07', '10', '11', '12'];
-    
+
     palos.forEach(palo => {
         valores.forEach(valor => {
             const img = new Image();
@@ -15,9 +21,29 @@ setTimeout(() => {
     });
     const back = new Image();
     back.src = '/static/img/card_back.webp';
-    
+
     console.log("Cartas cacheadas en segundo plano.");
 }, 2000);
+
+// ==========================================
+// PIEL DE LAS CARTAS (Roadmap #5)
+// ------------------------------------------
+// El servidor manda la identidad lógica de la carta y su `img` de la baraja
+// clásica; estas dos funciones la traducen al tema que el jugador tenga puesto
+// en ese palo. Si decks.js no ha cargado, se juega con la baraja de siempre.
+//
+// Cada carta se pinta con la baraja de SU DUEÑO: para las de otro jugador se
+// pasa la suya, que llega en el estado de la mesa. Sin ese dato (cliente o
+// servidor viejo) se cae a la propia, que es como funcionaba antes.
+// ==========================================
+function imgCarta(carta, baraja) {
+    return window.Barajas ? window.Barajas.rutaCarta(carta, baraja)
+                          : (carta && carta.img) || '/static/img/card_back.webp';
+}
+
+function imgDorso(baraja) {
+    return window.Barajas ? window.Barajas.rutaDorso(baraja) : '/static/img/card_back.webp';
+}
 
 // ==========================================
 // 0. CONEXIÓN AL SERVIDOR
@@ -39,6 +65,11 @@ let recuentoTimeout;
 // Al mejor de N: lo guardamos para poder pintar las piedras (los amarrakos) en
 // el recuento, donde el paquete del servidor no siempre lo repite.
 let alMejorDeActual = 3;
+// Baraja del rival (Roadmap #5): sus cartas se pintan con la suya, no con la
+// mía. Llega en cada estado, y suelta si la cambia en mitad de la partida; para
+// poder repintar en ese caso guardamos también el último estado recibido.
+let barajaRival = null;
+let ultimoEstadoMesa = null;
 
 // PANTALLAS CORRECTAS
 const menuScreen = document.getElementById('menu-screen');
@@ -1290,9 +1321,52 @@ document.getElementById('btn-next-round').addEventListener('click', (e) => {
 // 3. RECIBIR ESTADO DEL JUEGO
 // ==========================================
 
+// La zona del rival, en un sitio solo: sus cuatro dorsos mientras se juega y
+// sus cartas al descubierto en el recuento. Todo con SU baraja (Roadmap #5),
+// que llega en el estado y puede cambiar en plena partida, así que también se
+// repinta desde el aviso `baraja_rival` con el último estado recibido.
+function pintarCartasRival(datos) {
+    const cont = document.querySelector('#opponent-area .cards-placeholder');
+    if (!cont || !datos) return;
+
+    if (datos.fase === 'espera_reparto') {
+        cont.innerHTML = `${t('txt_cartas_sin_repartir')}`;
+        return;
+    }
+
+    if (datos.fase === 'recuento') {
+        cont.innerHTML = '';
+        (datos.cartas_rival || []).forEach(c => {
+            const d = document.createElement('div');
+            d.className = 'carta';
+            d.innerHTML = `<img src="${imgCarta(c, barajaRival)}" alt="${c.texto}" draggable="false" oncontextmenu="return false;">`;
+            cont.appendChild(d);
+        });
+        return;
+    }
+
+    const dorso = `<div class="carta"><img src="${imgDorso(barajaRival)}" draggable="false" oncontextmenu="return false;"></div>`;
+    cont.innerHTML = dorso.repeat(4);
+}
+
+// El rival ha cambiado de baraja sin levantarse de la mesa.
+socket.on('baraja_rival', (d) => {
+    if (!d || !d.config) return;
+    barajaRival = d.config;
+    if (window.Barajas) window.Barajas.precargarAjena(barajaRival);
+    if (enPartida) pintarCartasRival(ultimoEstadoMesa);
+});
+
 socket.on('actualizar_mesa', (datos) => {
     // 1. FILTRO: Si el paquete no es para mí, lo ignoro
     if (datos.para_sid !== socket.id) return;
+
+    // La baraja del rival, antes de pintar nada suyo.
+    if (datos.baraja_rival) {
+        barajaRival = datos.baraja_rival;
+        if (window.Barajas) window.Barajas.precargarAjena(barajaRival);
+    }
+    ultimoEstadoMesa = datos;
 
     // Token de reconexión: nos aseguramos de tenerlo siempre guardado (invitado incl.).
     if (datos.reconexion_token) localStorage.setItem('callmus_token', datos.reconexion_token);
@@ -1317,19 +1391,7 @@ socket.on('actualizar_mesa', (datos) => {
 
     faseJuego = datos.fase;
 
-    const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
-    if (contenedorRival) {
-        if (datos.fase === 'espera_reparto') {
-            contenedorRival.innerHTML = t('txt_cartas_sin_repartir');
-        } else if (datos.fase !== 'recuento') {
-            contenedorRival.innerHTML = `
-            <div class="carta"><img src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;"></div>
-            <div class="carta"><img src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;"></div>
-            <div class="carta"><img src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;"></div>
-            <div class="carta"><img src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;"></div>
-            `;
-        }
-    }
+    pintarCartasRival(datos);
 
     const logDiv = document.getElementById('betting-log');
     if (datos.fase === 'apuestas' || datos.fase === 'recuento') {
@@ -1413,7 +1475,7 @@ socket.on('actualizar_mesa', (datos) => {
         datos.mis_cartas.forEach((carta, index) => {
             const div = document.createElement('div');
             div.className = 'carta';
-            div.innerHTML = `<img src="${carta.img}" alt="${carta.texto}" draggable="false" oncontextmenu="return false;">`;
+            div.innerHTML = `<img src="${imgCarta(carta)}" alt="${carta.texto}" draggable="false" oncontextmenu="return false;">`;
 
             if (seleccionAnterior.includes(index)) {
                 cartasSeleccionadas.push(index);
@@ -1660,18 +1722,8 @@ function mostrarRecuentoEstatico(datos) {
     document.getElementById('mi-turno').classList.add('hidden');
     document.getElementById('turno-rival').classList.add('hidden');
 
-    const contenedorRival = document.querySelector('#opponent-area .cards-placeholder');
-    if (contenedorRival) {
-        contenedorRival.innerHTML = '';
-        if (datos.cartas_rival) {
-            datos.cartas_rival.forEach(c => {
-                const d = document.createElement('div');
-                d.className = 'carta';
-                d.innerHTML = `<img src="${c.img}" alt="${c.texto}" draggable="false" oncontextmenu="return false;">`;
-                contenedorRival.appendChild(d);
-            });
-        }
-    }
+    // Las cartas del rival ya las ha puesto boca arriba `pintarCartasRival`,
+    // que se llama al recibir el estado.
 
     if(document.getElementById('partidas-mios')) {
         const mejorDe = datos.al_mejor_de || alMejorDeActual;
@@ -1852,8 +1904,9 @@ function cerrarModales() {
     const modalPlay = document.getElementById('modal-play');
     if (modalPlay) modalPlay.classList.add('hidden');
 
-    // Modales de autenticación añadidos (verificación / recuperación)
-    ['modal-verify', 'modal-forgot', 'modal-reset'].forEach(id => {
+    // Modales de autenticación añadidos (verificación / recuperación) y el de
+    // barajas (Roadmap #5).
+    ['modal-verify', 'modal-forgot', 'modal-reset', 'modal-decks'].forEach(id => {
         const m = document.getElementById(id);
         if (m) m.classList.add('hidden');
     });

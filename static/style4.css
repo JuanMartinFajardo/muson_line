@@ -80,6 +80,35 @@
 /* Los oponentes izquierda/derecha en columna para ahorrar ancho */
 #seat-left .seat-cards, #seat-right .seat-cards { flex-direction: row; }
 
+/* ---------- Lo que canta cada jugador ---------- */
+/* Rótulo momentáneo sobre el asiento de quien acaba de jugar (ver
+   mostrarAccion4 en table4.js). Va en el borde superior del asiento para no
+   taparle las cartas, y se le deja desbordar a lo ancho: las columnas de los
+   lados son estrechas y «No quiero» no cabe dentro de ellas. */
+.seat-4 { position: relative; }
+.accion-burbuja {
+    position: absolute;
+    left: 50%; top: 0;
+    --bx: -50%;                /* lo usan también los fotogramas de abajo */
+    transform: translate(var(--bx), -55%);
+    z-index: 14;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: accionEntra4 2.6s ease-out forwards;
+}
+/* En las columnas de los lados el rótulo se ancla al borde de FUERA y crece
+   hacia el centro de la mesa: centrado sobre una columna de 60 px se salía
+   media plaquita de la pantalla en vertical. */
+#seat-left .accion-burbuja  { left: 0; right: auto; --bx: 0; }
+#seat-right .accion-burbuja { left: auto; right: 0; --bx: 0; }
+
+@keyframes accionEntra4 {
+    0%   { opacity: 0; transform: translate(var(--bx), -25%) scale(0.94); }
+    10%  { opacity: 1; transform: translate(var(--bx), -55%) scale(1); }
+    80%  { opacity: 1; transform: translate(var(--bx), -55%) scale(1); }
+    100% { opacity: 0; transform: translate(var(--bx), -80%) scale(1); }
+}
+
 /* ---------- Mesa central ---------- */
 #center-table-4 {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -134,6 +163,9 @@
 @media (prefers-reduced-motion: reduce) {
     .carta-4.deal-anim, .carta-4.flip-anim img,
     .puntos-flotantes, #mesa-4.ordago-shake, #ordago-flash-4 { animation: none !important; }
+    /* El rótulo de la jugada es información, no adorno: se queda quieto pero
+       visible todo el rato en vez de desaparecer con la animación. */
+    .accion-burbuja { animation: none !important; opacity: 1; }
     .seat-4.turno-activo { animation: none; }
 }
 

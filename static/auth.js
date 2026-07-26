@@ -92,6 +92,9 @@ function actualizarInterfazLogueado(usuario) {
     }
     if (typeof pintarIdentidadPlay === 'function') pintarIdentidadPlay();
     if (typeof refrescarAjustes === 'function') refrescarAjustes();
+    // La baraja guardada en la cuenta manda sobre la del navegador, y con
+    // sesión pueden aparecer temas que a un invitado le salían bloqueados.
+    if (window.Barajas) window.Barajas.recargar();
     cerrarModales(); // Definida en app.js
 }
 

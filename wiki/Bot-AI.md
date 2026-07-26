@@ -124,10 +124,194 @@ External-sampling MCCFR with **Linear CFR** weighting and continuous fine-tuning
 
 Loads two checkpoints and plays ~6,000 head-to-head games (both using the same optimal mus/discard logic) to measure which betting network is stronger. Used to pick which checkpoint ships in `SmartBot`.
 
+For 2v2 the successor is `tools/arena4.py` (§4.5), which adds seat permutation, seeded
+decks and points/hand ± stderr. `arena.py` still reports match winrate only, which is
+the weaker metric.
+
 ### Legacy: random forests (`global_trainer.py` + `learn/`)
 
 The original approach trained scikit-learn random forests on human game logs: `procesar_carpeta.compilar_dataset_global()` merges `logs/*.jsonl` into a CSV (with derived probability features from `learn/probability_calculator.py`), then `entrenar_mus / entrenar_descartes / entrenar_apuestas` fit models. The betting model imitated players instead of learning value, which motivated the switch to Deep CFR. The scripts are kept for dataset tooling and history.
 
+## 4. Training infrastructure (Phase 1 of the 4p roadmap) — shipped 2026-07-26
+
+Phase 1 of [Bot-AI-4p-Roadmap](Bot-AI-4p-Roadmap.md). Nothing here changes how the bots
+play; it changes what we can *measure* and *train on*.
+
+### 4.1 Log v2 — event sourcing ([mus_log.py](../mus_log.py))
+
+One module, both engines (`mode: "2p"` / `"4p"`), one file per match in **`logs/v2/`**.
+The v1 files stay in `logs/*.jsonl`, frozen — nothing writes there any more.
+
+The design principle (§8.2) is that the log stores **facts, not features**: the deal,
+every draw, every decision, the public declarations, the per-lance resolution. Anything
+a model wants is then *derived by replaying* through the engine. That is exactly what v1
+could not do — it froze a fixed feature set at write time, so improving the encoder did
+nothing for old data.
+
+| Event | Carries |
+| :--- | :--- |
+| `hdr` | version, match id, mode, rules, **seat identities** (human/bot, account code, checkpoint, personality), teams |
+| `deal` | round number, who is mano, the four hands in seat order |
+| `draw` | cards drawn after a discard or pedrete — the log *is* the deck |
+| `a` | one decision: `mus`/`no_mus`/`descarte`/`pedrete`/`pasar`/`envidar`/`subir`/`ver`/`nover`/`ordago`, plus `ms` since the previous event |
+| `decl` | public pares/juego declaration (the strongest public signal in Mus) |
+| `pi` | optional bot introspection: policy distribution and value at decision time |
+| `seat` | a seat changing hands mid-match (substitution) — keeps per-person attribution exact |
+| `eor` | per-lance resolution, scoreboard, final hands (showdown truth) |
+| `eom` | winner, games, `n_events` as an integrity check |
+
+Two deliberate deviations from the §8.3 draft schema, both for the better:
+
+- **Card values are raw (1–7, 10–12), not mus-normalized.** Normalizing is one line in
+  the encoder but irreversible in the log: without raw values a match cannot be
+  replayed (pedrete is exactly 4-5-6-7, and deck composition depends on the 2s and 3s).
+- **Discards log the indices thrown, not the card values.** The cards are already known
+  from `deal`/`draw`; the indices are what a replay needs to reproduce the action.
+
+Logging is on for every real 2v2 match (`server_mus4.LOG_V2`, with `activar_log()`
+called from `_iniciar_partida`) and for 2p matches against bots and humans. The engines
+default to a `NullLogger`, so the gym, the arena and the soaks write nothing.
+
+### 4.2 Replay ([mus_replay.py](../mus_replay.py)) — what makes the format load-bearing
+
+The engine has exactly one source of randomness, the deck. Replay swaps it for a FIFO
+of the cards the log names (`deal` in dealing order, then each `draw` in file order) —
+which is precisely the order the engine asks for cards. Everything else is derived.
+
+`tools/log_verify.py` uses this for the strong form of the integrity check: replay the
+match, **regenerate the event stream**, and compare event by event against the file
+(`ms`/`ts` excluded — human timing is not reproducible by definition; `pi`/`seat`
+excluded — the server writes those, not the engine). When they match, two things are
+proven at once: the log holds everything needed to reconstruct the match, and today's
+engine still resolves Mus the way it did on the day of the recording. That second half
+is a regression test on real traffic, for free.
+
+`tools/selftest_log.py` is the CI-style script: it plays random-but-legal matches with
+both engines, logs them, and demands the round trip. Random play on purpose — it visits
+the corners a heuristic bot almost never does (chained órdagos, forced calls, pedretes,
+exhausted decks, Punto instead of Juego).
+
+### 4.3 Fast cloning ([`fork()`](../mus_mecanicas_4.py)) and the throughput gate
+
+The §3.6 audit finding confirmed: `copy.deepcopy` was the training bottleneck.
+External-sampling CFR clones the environment at *every explored action*, and deepcopy
+walked the card dicts (value/suit/image path/text), the deck and the logger.
+
+Cards are **immutable in practice** — the engine moves them between lists but never
+edits them. So `fork()` copies only the containers and *shares* the card dicts. Two
+smaller wins came out of profiling the result: evaluating pares/juego without
+`collections.Counter` (≈170k Counter objects per 120 traversals), and not building the
+`vista()` dict on every `step()` (a third of traversal time, and CFR rarely needs it at
+that moment).
+
+`to_state()`/`from_state()` do real serialization to flat JSON-able structures, which
+also hands Roadmap #18 layer 2 (saved games) its persistence for free.
+
+**[bench_env.py](../bench_env.py) — the gate (≥10×, target 20×):**
+
+| Environment | deepcopy | `fork()` | ratio |
+| :--- | ---: | ---: | ---: |
+| 2p — `MusBettingEnv` | 38.2 traversals/s | 490.3 | **12.8×** |
+| 2v2 — `MusBettingEnv4` | 47.5 traversals/s | 545.4 | **11.5×** |
+
+Those two rows isolate the clone: it is the only thing that differs between them. The
+hand-evaluation and lazy-observation fixes speed up *both* rows, so the honest
+end-to-end "before vs after" is larger — measured against the pre-Phase-1 code in the
+2p engine: **22.7 → 490.3 traversals/s, 21.6×**, which does hit the 20× target.
+
+**Gate passed**, so renting CPU cores (§12) is unblocked. Still open, and deliberately
+deferred to Phase 2: batching net queries per traversal and multiprocessing workers.
+Neither can be tuned without a real network in the loop.
+
+### 4.4 Shared encoder ([encoder.py](../encoder.py)) and `MusBettingEnv4`
+
+`codificar(vista) -> float32[71]` is the *only* state encoding for 4p, used by the
+training environment, by serving, and by the dataset exporter. That is the root fix for
+train/serve skew (§3.4): with one function there is no second copy to drift.
+
+| Block | Dims | Contents |
+| :--- | ---: | :--- |
+| A — self | 15 | mano-distance one-hot, 4 card values, pares tier/prize, juego value, discards |
+| B — public | 22 | lance one-hot, mus rounds, and per other seat (rival/partner/rival) the pares and juego declarations + discard count |
+| C — betting | 19 | pending raise, órdago flag, seen bet, lance pot, team-relative owners ×4, whose bet is live, last bettor (seat-relative), partner-can-answer, pot odds inputs |
+| D — score | 7 | team/rival points, points-to-40, match score |
+| E — signs | 8 | **reserved, zero until Phase 6** |
+
+Two conventions worth naming. Tri-states (a declaration can be yes / no / *not yet
+called*) take **two** dimensions (known, value) — encoding "unknown" as 0.5 would tell
+the network it is halfway between yes and no. And expensive-to-discover features (has
+pares, pares tier, juego value) are handed over precomputed; spending network capacity
+rediscovering the rules of Mus buys nothing. Block E exists today so the Phase 6
+fine-tune *continues* from the signs-off checkpoint instead of retraining: with zeroed
+inputs the function is identical by construction.
+
+[`MusBettingEnv4`](../mus_env4.py) carries the two reward corrections from the audit.
+The terminal reward is the **per-round team point delta**, not the absolute scoreboard
+(§3.2 — the random starting-score offset cancelled inside the regrets but wasted
+capacity and added variance). And the fast-forward no longer invents uniform
+scoreboards: `DistribucionEstados` samples `(points_A, points_B, mus_rounds)` triples
+**observed in real v2 logs** (§3.4). With no corpus yet it falls back to an explicit
+prior and *says so* (`env.dist.origen`), so nobody mistakes "no data" for "measured".
+
+### 4.5 Measurement harness, and what it already says
+
+**`tools/arena4.py`** — three choices separate a number from an anecdote:
+*permuted seats* (each pairing plays both placements and averages — being mano wins
+ties, so without this you measure the seat, not the bot), *seeded decks* (common random
+numbers via the engine's injectable `rng`, so the difference measured is between
+policies, not between cards), and *points per hand ± stderr* rather than match winrate
+(a 40–0 and a 40–39 are not the same result, and points/hand is the unit the roadmap's
+gates are written in).
+
+**`tools/lbr_probe.py`** — Local Best Response for 2p, the second rung of the §7 ladder:
+a belief over the rival's hand pruned by public information (declarations, discard
+counts), and a greedy one-step evaluation over a restricted action set. Its winnings are
+a **lower bound** on exploitability.
+
+Measured (this is the Phase 1 acceptance evidence):
+
+| Check | Result |
+| :--- | :--- |
+| Log round trip, real server path | 8 best-of-3 matches through `server_mus4` handlers, 1,700+ events, **all replay byte-exactly** |
+| Log round trip, random play | ~1,160 matches across both engines (`selftest_log`), **all byte-exact** |
+| Bench gate | 11.5× worst case (12.8× on 2p) — **passes ≥10×** |
+| `MusBettingEnv4` fuzz | 10,000 hands, 59,133 decisions, **0 illegal states**, forks provably independent |
+| arena4 sanity | heuristic vs random **+14.66 ± 2.81 points/hand** (\|t\| = 5.2) |
+| LBR vs random | **+12.8 ± 1.2 points/hand** — random is massively exploitable |
+| LBR vs table-calibrated 2p heuristic | −0.24 ± 1.23 → bound is **0.0**: the probe finds no exploit |
+
+One caution on that last row, because it is easy to over-read: a bound of zero does
+**not** say the heuristic is near-Nash. It says this particular restricted, one-step
+probe cannot beat it. Claiming strength needs the other rungs of §7 — the exact 2p best
+response (Phase 1.5), the RL best response (Phase 3.1), and the checkpoint-pool arena.
+LBR only ever proves a bot is *bad*, never that it is good.
+
+Note also that the arena's +14.66 points/hand against random looks enormous because
+random bots throw órdagos constantly: matches end in ~2 hands with 40-point swings. It
+is a real number in a real unit, but it is not comparable to the ~1.5 points/hand gates
+between *competent* bots later in the roadmap.
+
+### 4.6 Deriving datasets ([tools/logs2dataset.py](../tools/logs2dataset.py))
+
+Replays every v2 log and emits one row per decision: identity (match, seat, human/bot,
+account code, personality), the decision (lance, action, amount, `ms`), context (hand,
+scoreboard), outcome labels (points the team won that hand, match result), and the 71
+encoder columns for 4p rows. Parquet when `pyarrow` is installed, CSV otherwise (an
+optional dependency — the web host does not need it).
+
+The point is regeneration: **when the encoder changes, the whole dataset is rebuilt from
+the same logs**, including the historical corpus. The report line also tracks the
+Phase 4.1 gate (≥10,000 human decisions) so the behaviour-cloning phase has a number to
+wait on.
+
 ## Data collection
 
-Every match (human or bot) appends per-turn JSON lines to `logs/<MATCH_ID>.jsonl` via `PartidaMus.registrar_movimiento_ia()` — including both hands, action, amounts, and final outcome flags. This corpus supports future retraining and the Roadmap's game-statistics feature.
+Every 2v2 match and every 2p match now append a replayable v2 event log to
+`logs/v2/<MATCH_ID>.jsonl` (see §4.1). The admin log-download endpoint walks the whole
+`logs/` tree, so both the frozen v1 files and the v2 corpus come out in the zip.
+
+Legacy: v1 wrote per-turn rows via `PartidaMus.registrar_movimiento_ia()`, duplicating
+the full context on every line (once per player, mirrored) and identifying players by
+display name. Those 17-odd files remain readable for the random-forest tooling in
+`learn/`, but they cannot be replayed, so no new feature can ever be extracted from
+them — which is precisely why the format was broken cleanly rather than extended.

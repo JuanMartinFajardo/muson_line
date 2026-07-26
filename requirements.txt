@@ -10,3 +10,5 @@ joblib
 --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 matplotlib
 tensorboard
+# pyarrow  # opcional, solo para tools/logs2dataset.py: sin él exporta CSV
+Authlib

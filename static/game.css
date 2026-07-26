@@ -588,6 +588,31 @@
     box-shadow: 0 5px 24px rgba(201, 162, 39, 0.3);
 }
 
+/* --- Lo que canta cada jugador --- */
+/* La colocación y la animación las pone style4.css; aquí sólo el aspecto: una
+   plaquita de la misma tinta que el resto de la mesa. */
+.accion-burbuja {
+    padding: 4px 11px;
+    background: var(--cm-ink-2);
+    border: 1px solid var(--cm-hair-2);
+    border-radius: 2px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    font-family: var(--cm-serif);
+    font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--cm-bone);
+}
+/* El equipo de quien canta, en el filete: de un vistazo se ve de qué lado va. */
+.seat-4.equipo-A .accion-burbuja { border-color: rgba(201, 162, 39, 0.45); }
+.seat-4.equipo-B .accion-burbuja { border-color: rgba(124, 147, 184, 0.45); }
+/* Cortar el mus abre la mano: merece destacar sin llegar a ser un órdago. */
+.accion-burbuja.corta { color: var(--cm-gold-hi); }
+/* El órdago y el pedrete se juegan la partida entera. */
+.accion-burbuja.fuerte {
+    border-color: rgba(194, 53, 46, 0.7) !important;
+    color: var(--cm-red);
+    font-size: 0.72rem; letter-spacing: 0.16em;
+}
+
 /* --- El centro de la mesa de 2v2 --- */
 #center-table-4 {
     gap: 6px;

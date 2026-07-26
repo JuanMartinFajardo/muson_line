@@ -6,7 +6,7 @@ Implementation guide for planned CallMus features, written so an agent can pick 
 - Every user-visible string goes into both `dict.es` and `dict.en` in [static/app.js](../static/app.js) and is rendered via `t()` / `data-i18n`. Server → client messages that need localization are sent as `{code, ...params}` objects.
 - New DB tables go in [base_datos.py](../base_datos.py) `init_db()` with `CREATE TABLE IF NOT EXISTS`.
 - Secrets/config via `os.environ`, never hardcoded.
-- Suggested priority order: ~~1 (login)~~ → ~~21 (bug fixes)~~ → ~~22 (settings menu)~~ → ~~23 (player codes)~~ → **14 (deck-exhausted notice) → 9 (turn timer) → 18 (resume bot games)** → ~~2 (tutorial i18n)~~ → ~~13 (admin)~~ → **16 (security) → 19 (stats)** → ~~3 (friends/groups)~~ → **4 (tournaments)** — then the rest.
+- Suggested priority order: ~~1 (login)~~ → ~~21 (bug fixes)~~ → ~~22 (settings menu)~~ → ~~23 (player codes)~~ → **14 (deck-exhausted notice) → 9 (turn timer) → 18 (resume bot games)** → ~~2 (tutorial i18n)~~ → ~~13 (admin)~~ → **16 (security) → 19 (stats)** → ~~3 (friends/groups)~~ → ~~5 (decks)~~ → **4 (tournaments)** — then the rest.
 
 ---
 
@@ -188,20 +188,47 @@ TournamentMatches(id, tournament_id, round INTEGER, slot INTEGER, player1_id NUL
 
 ---
 
-## 5. Special decks and deck-builder menu
+## 5. Special decks and deck-builder menu — ✅ DONE (2026-07-26)
 
 **Goal:** cosmetic card skins; players compose a custom deck by choosing which art each card uses.
 
-**Current mechanism:** card images resolve server-side in `crear_baraja()` via `obtener_ruta_imagen(f"card_{palo_en}_{valor:02d}")`. There are already hints of alternate skins in `mus_mecanicas.py` (comments `Oros_btc`, `Copas_pirate`).
+**What shipped.** The unit is the **theme**: the 11 images (10 cards + back) that fill one of the
+four suit slots. A player builds a deck by picking four themes, one per slot, plus a back. Suits
+don't score in mus, so mixing is free.
 
-**Steps:**
-1. **Asset organization:** `static/img/decks/<deck_id>/card_<suit>_<NN>.webp` plus `card_back.webp`; keep the current set as `decks/classic/`. A `decks.json` manifest (id, display name, unlocked-by-default flag).
-2. **Make skins purely client-side** (recommended — avoids touching the engine): the server keeps sending logical card identity (`valor`, `palo`); the client maps `(palo, valor) → image path` using the player's selected deck instead of using the `img` field. Update `app.js` render functions and the preloader; keep `img` in payloads for backward compat, then remove.
-3. **Deck-builder UI:** new modal "My deck": a 40-card grid; for each card (or per-suit / whole-deck for v1) pick among unlocked skins; save selection. **Persistence:** localStorage for guests, plus a `Usuarios.deck_config TEXT` (JSON) column for logged users with `GET/POST /api/deck` endpoints.
-4. Each player sees **their own** deck skin for all cards on the table (opponent's choice is irrelevant client-side).
-5. Card back selection included.
+1. **Assets:** `static/img/decks/<slug>/NN.webp` + `back.webp` + `thumb.webp`, all 208×319. The
+   four classic suits are registered as themes too (`origen='clasica'`) pointing at the original
+   `static/img/card_<suit>_<NN>.webp` — nothing was moved, and they can be renamed or restricted
+   from the panel like any other. The manifest is the `Decks` table, not a JSON file, because the
+   panel has to be able to write it.
+2. **Skins are purely client-side.** The server still sends `valor`/`palo`/`img`; `static/decks.js`
+   maps `(palo, valor) → ruta` through the player's config and falls back to `img` if anything is
+   missing. `app.js` and `table4.js` call `imgCarta()` / `imgDorso()`. The engine was not touched.
+3. **UI:** menu → **Mis barajas**. The built deck sits on top (an ace per suit plus the back,
+   which double as the slot tabs) and the catalogue of themes below. Guests persist to
+   localStorage; accounts to `Usuarios.deck_config` via `GET /api/decks` and `POST /api/deck`.
+4. Each player sees their own skins. Nothing about a deck choice reaches the other player.
+5. Card back selection included, as a fifth slot.
 
-**Acceptance:** a player picks a mixed custom deck, plays a game seeing their skins, reloads and (if logged in) keeps the config on another device.
+**Access control (added beyond the original plan).** Each theme carries an access mode —
+`todos` / `cuenta` / `restringido` — plus per-account grants in `DeckAcceso`. Locked themes are
+still listed, greyed with the reason, which is what makes a collection worth having. Enforcement
+is server-side: `decks.normalizar_config` silently drops any theme the player can't use, so
+revoking access downgrades that slot to the classic deck on the next load.
+
+**Admin (added beyond the original plan).** Panel → **Barajas**: upload a theme as a zip or as
+loose files, replace a single card, edit names/description/order, retire a theme, set its access
+mode and grant or revoke individual accounts. Every uploaded image is reopened with Pillow,
+rescaled to 208×319 and re-encoded to webp — the original bytes are never served.
+
+**Art pipeline.** `tools/decks/` builds themes from the theme files in `wiki/decks/` with headless
+Blender. See [DECK_PIPELINE.md](decks/DECK_PIPELINE.md) for the procedure, including the redo loop
+and the automated legibility gate. Four themes shipped: `ducks`, `coffee`, `quijote`,
+`organic-chemistry` — 38–56 KB each against a 150 KB budget.
+
+**Acceptance — verified:** a mixed deck (ducks/coffee/quijote/classic + coffee back) was built in
+the modal, a hand was played against the bot showing those skins on the table and the coffee back
+on the opponent's cards, and the config survived a reload.
 
 ---
 
@@ -522,7 +549,12 @@ Not a code task — a launch checklist:
 3. New event `reanudar_partida {codigo?, token?/session}`: match by username or token, swap the old sid for the new one everywhere (`sala['sids']`, `jugadores`, and inside the engine — add a `PartidaMus.reemplazar_sid(viejo, nuevo)` helper that rewrites `j1/j2`, `estado` keys, `id_mano/id_postre`, `turno_de`, `partidas_ganadas`, `jugadores_listos`, `nombres_ia`, `quien_sube`, `ganadores_fase`, `dejes_fase` values, `quien_corta_mus`). **Alternative that avoids all this rewriting:** key the engine by stable player IDs (`'p1'/'p2'`) instead of sids and keep a `sid → player_id` map in the room. This is the cleaner refactor; do it if touching the engine anyway.
 4. Lobby: on load, ask the server (`GET /api/partida_pendiente` using session/token) and show a "Resume game vs bot (you: 23 – bot: 31)" banner with resume/discard buttons.
 
-**Layer 2 — persistence (optional v2):** serialize the engine to JSON (all fields are primitives except card dicts — trivially serializable) into a `SavedGames(user_or_token, codigo, estado_json, updated_at)` table on every recuento (not every action — cheap and consistent); on server boot, don't preload anything; on resume request, if not in memory, rebuild `PartidaMus` from JSON (write `PartidaMus.from_dict/to_dict`) and a fresh `SmartBot`.
+**Layer 2 — persistence (optional v2):** serialize the engine to JSON (all fields are primitives except card dicts — trivially serializable) into a `SavedGames(user_or_token, codigo, estado_json, updated_at)` table on every recuento (not every action — cheap and consistent); on server boot, don't preload anything; on resume request, if not in memory, rebuild `PartidaMus` from JSON and a fresh `SmartBot`.
+
+> **The serialization is already done** (2026-07-26): Phase 1.3 of the AI roadmap needed
+> a flat engine state for fast cloning, so `PartidaMus.to_state()/from_state()` and the
+> `PartidaMus4` equivalents exist and are JSON-able (cards encode as `(value, suit)`).
+> Layer 2 is now just the table plus the resume path — see [Bot-AI](Bot-AI.md) §4.3.
 
 **Acceptance:** close the tab mid-bot-game, reopen, click resume, continue from the same round with the same scores; ghost cleanup still removes 24h-old paused rooms.
 
@@ -540,7 +572,7 @@ Not a code task — a launch checklist:
    ```
    Pass the extra facts from `enviar_estado_a_jugadores`'s persistence block (the engine knows `ronda_n`, órdago usage via `ordago_aceptado_en`, and the match_id).
 2. **Per-user stats endpoint** `GET /api/stats/<username>`: totals, winrate, ELO history (add an `EloHistory(user_id, elo, fecha)` row on every update — or derive from `Partidas`), vs-bot vs online split, órdagos won/lost, longest streak, favorite outcome breakdown.
-3. **Deeper lance stats (v2):** a nightly job (or on-demand admin action) that parses that user's rows out of `logs/*.jsonl` into aggregates: % mus, % bids by lance, showdown win rate by lance — store in a `UserLanceStats` cache table. Don't parse JSONL per web request.
+3. **Deeper lance stats (v2):** a nightly job (or on-demand admin action) that aggregates that user's decisions into % mus, % bids by lance, showdown win rate by lance — store in a `UserLanceStats` cache table. Don't parse JSONL per web request. **Use `tools/logs2dataset.py`** (2026-07-26): it already replays `logs/v2/` into one row per decision with the player's account code, lance, action and per-hand outcome, which is exactly this aggregation's input. The frozen v1 files identify players by display name and cannot be attributed reliably.
 4. **Frontend:** a "My stats" modal (from the greeting bar) with numbers + a simple ELO sparkline (inline SVG, no chart lib); extend the leaderboard modal with a click-through to public profile stats.
 5. Every label in both languages.
 
@@ -549,6 +581,13 @@ Not a code task — a launch checklist:
 ---
 
 ## 20. Improve the AI
+
+> **Partly delivered (2026-07-26).** Phase 1 of [Bot-AI-4p-Roadmap](Bot-AI-4p-Roadmap.md)
+> shipped the infrastructure these items depend on: #20.2 (train/serve mismatch) is fixed
+> at the root by one shared `encoder.py` plus real-state sampling from v2 logs, and #20.5
+> and #20.7 now have their data path (`logs/v2` + `tools/logs2dataset.py`) and their
+> measurement harness (`tools/arena4.py`, `tools/lbr_probe.py`). #20.3 and #20.4 are
+> scheduled as generation `4g2`. Details in [Bot-AI](Bot-AI.md) §4.
 
 Concrete, ordered avenues (see [Bot-AI](Bot-AI.md) for pipeline details):
 

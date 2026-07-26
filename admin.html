@@ -72,6 +72,24 @@ button.b:disabled{opacity:.45;cursor:not-allowed}
 .burbuja.admin{background:var(--azul2);margin-left:auto}
 .burbuja .meta{display:block;font-size:.75em;opacity:.65;margin-bottom:3px}
 .oculto{display:none !important}
+/* --- Barajas (Roadmap #5) --- */
+.deck{background:var(--bg);border:1px solid var(--linea);border-radius:8px;padding:14px;margin-bottom:14px}
+.deck-cab{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.deck-cab img{width:52px;height:80px;object-fit:cover;border-radius:5px;border:1px solid var(--linea);background:var(--bg3)}
+.deck-tit{flex:1;min-width:200px}
+.deck-tit b{font-size:1.05em;color:var(--txt)}
+.deck-tit .slug{color:var(--amarillo);font-family:ui-monospace,monospace;font-size:.85em}
+.deck-cartas{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.deck-carta{width:46px;text-align:center}
+.deck-carta img{width:46px;height:70px;object-fit:cover;border-radius:4px;border:1px solid var(--linea);
+                background:var(--bg3);display:block}
+.deck-carta.falta img{border-color:var(--rojo);opacity:.35}
+.deck-carta span{font-size:.7em;color:var(--txt2)}
+.deck-panel{margin-top:12px;padding-top:12px;border-top:1px solid var(--linea)}
+.deck-acc{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.deck-acc .quien{background:var(--bg3);border-radius:12px;padding:3px 6px 3px 10px;font-size:.8em;
+                 display:inline-flex;align-items:center;gap:6px}
+.deck-acc .quien button{background:none;border:none;color:var(--rojo);cursor:pointer;font-size:1.1em;line-height:1}
 .dos{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media(max-width:820px){.dos{grid-template-columns:1fr}}
 code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.88em;color:var(--amarillo)}
@@ -90,6 +108,7 @@ code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.88em;colo
   <button data-vista="salas">Salas</button>
   <button data-vista="soporte">Soporte<span id="badge-soporte" class="badge oculto">0</span></button>
   <button data-vista="anuncios">Anuncios</button>
+  <button data-vista="barajas">Barajas</button>
   <button data-vista="ajustes">Variables y bot</button>
   <button data-vista="datos">Datos</button>
   <button data-vista="auditoria">Auditoría</button>
@@ -252,6 +271,47 @@ code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.88em;colo
           <tbody id="tbody-anuncios"><tr><td colspan="8" class="nota">Cargando…</td></tr></tbody>
         </table>
       </div>
+    </div>
+  </section>
+
+  <!-- ============================ BARAJAS ============================ -->
+  <!-- Roadmap #5. Un "tema" son las 10 cartas y el dorso que ocupan uno de los
+       cuatro huecos de palo de la baraja del jugador. -->
+  <section id="v-barajas">
+    <div class="caja">
+      <h3>Subir un tema nuevo</h3>
+      <p class="nota">Un tema son <b>11 imágenes</b>: <code>01</code>–<code>07</code>,
+        <code>10</code>, <code>11</code>, <code>12</code> y <code>back</code>, más una
+        <code>thumb</code> opcional para el selector. Sube un zip con todas o los archivos
+        sueltos: el nombre de cada archivo dice qué carta es
+        (<code>01.webp</code>, <code>card_coins_01.png</code>, <code>back.webp</code>…).
+        Todo se reescala a 208×319 y se vuelve a codificar en webp al guardarlo.</p>
+      <div class="fila">
+        <input id="deck-slug" placeholder="slug (ducks, coffee…)" style="width:190px">
+        <input id="deck-nombre" placeholder="Nombre en castellano" style="flex:1;min-width:180px">
+        <input id="deck-nombre-en" placeholder="Name in English" style="flex:1;min-width:180px">
+      </div>
+      <div class="fila">
+        <input id="deck-desc" placeholder="Descripción corta (opcional)" style="flex:1;min-width:260px">
+        <select id="deck-acceso" title="Quién puede usarlo">
+          <option value="todos">Acceso: todo el mundo</option>
+          <option value="cuenta">Acceso: solo con cuenta</option>
+          <option value="restringido">Acceso: solo a quien yo diga</option>
+        </select>
+        <input id="deck-orden" type="number" value="100" title="Orden en el selector" style="width:90px">
+      </div>
+      <div class="fila">
+        <label class="nota">Zip del tema <input type="file" id="deck-zip" accept=".zip"></label>
+        <label class="nota">…o imágenes sueltas <input type="file" id="deck-imgs" accept="image/*" multiple></label>
+        <button class="b b-ok" id="btn-crear-deck">Crear tema</button>
+      </div>
+      <p class="nota">El <b>slug</b> no se puede cambiar después: es la carpeta donde viven
+        las imágenes y lo que queda guardado en la baraja de cada jugador.</p>
+    </div>
+
+    <div class="caja">
+      <h3>Temas registrados</h3>
+      <div id="lista-decks"><p class="nota">Cargando…</p></div>
     </div>
   </section>
 
@@ -780,6 +840,312 @@ $('btn-crear-config').addEventListener('click', async () => {
     $('cfg-clave').value = ''; $('cfg-valor').value = '';
     cargadores.ajustes();
   } else aviso('No se pudo guardar: ' + ((r && r.mensaje) || 'error'), true);
+});
+
+// ==========================================================================
+// Barajas (Roadmap #5)
+// --------------------------------------------------------------------------
+// Cada tarjeta enseña un tema entero — las 11 imágenes tal y como las va a ver
+// un jugador — porque el fallo típico de una subida no es un error del
+// servidor, es una carta que falta o que está del revés.
+// ==========================================================================
+const ETIQ_ACCESO = {
+  todos: ['Todo el mundo', 'p-ok'],
+  cuenta: ['Solo con cuenta', 'p-esp'],
+  restringido: ['Solo a quien yo diga', 'p-admin']
+};
+const ERR_DECK = {
+  slug_invalido: 'El slug debe ser minúsculas, números y guiones (3-32 caracteres).',
+  slug_repetido: 'Ya hay un tema con ese slug.',
+  sin_imagenes: 'No has adjuntado ninguna imagen.',
+  imagen_invalida: 'Uno de los archivos no es una imagen que se pueda abrir.',
+  archivo_grande: 'Alguna imagen pasa de 4 MB.',
+  zip_grande: 'El zip es demasiado grande.',
+  zip_invalido: 'Ese archivo no es un zip válido.',
+  zip_sin_cartas: 'El zip no trae ningún archivo con nombre de carta.',
+  zip_con_demasiados_archivos: 'El zip trae demasiados archivos.',
+  clasica_no_editable: 'Los cuatro temas clásicos no se pueden reemplazar desde aquí.',
+  clasica_no_borrable: 'Los cuatro temas clásicos no se pueden borrar: son el suelo al que cae todo el mundo.',
+  usuario_no_encontrado: 'No existe ninguna cuenta con ese nombre o código.'
+};
+const errDeck = m => ERR_DECK[m] || ('No se pudo: ' + (m || 'error'));
+
+let presupuestoDeck = { objetivo: 153600, techo: 194560 };
+let valoresDeck = ['01','02','03','04','05','06','07','10','11','12'];
+
+function kb(bytes) { return bytes ? (bytes / 1024).toFixed(0) + ' KB' : '—'; }
+
+/** Sube un formulario multipart. `api()` no vale: manda JSON. */
+async function subirDeck(url, formulario) {
+  try {
+    const res = await fetch(url, { method: 'POST', body: formulario,
+                                   credentials: 'same-origin', cache: 'no-store' });
+    if (res.status === 403) { aviso('Tu sesión ya no es de administrador.', true); return null; }
+    if (res.status === 413) { aviso('El archivo es demasiado grande.', true); return null; }
+    return await res.json();
+  } catch (e) { aviso('Error de red: ' + e.message, true); return null; }
+}
+
+cargadores.barajas = async function () {
+  const d = await api('/admin/api/decks');
+  const caja = $('lista-decks');
+  caja.replaceChildren();
+  if (!d || !d.exito) return;
+  if (d.presupuesto) presupuestoDeck = d.presupuesto;
+  if (d.valores) valoresDeck = d.valores;
+  if (!d.decks.length) { caja.appendChild(nota('Todavía no hay ningún tema.')); return; }
+  d.decks.forEach(deck => caja.appendChild(tarjetaDeck(deck)));
+};
+
+function nota(texto) {
+  const p = document.createElement('p');
+  p.className = 'nota';
+  p.textContent = texto;
+  return p;
+}
+
+function tarjetaDeck(deck) {
+  const caja = document.createElement('div');
+  caja.className = 'deck';
+
+  // --- Cabecera: miniatura, nombre, estado ---
+  const cab = document.createElement('div');
+  cab.className = 'deck-cab';
+  const mini = document.createElement('img');
+  mini.src = deck.thumb + '?v=' + (Date.parse(deck.updated_at) || 0);
+  mini.alt = ''; mini.loading = 'lazy';
+  cab.appendChild(mini);
+
+  const tit = document.createElement('div');
+  tit.className = 'deck-tit';
+  const linea = document.createElement('div');
+  const nombre = document.createElement('b');
+  nombre.textContent = deck.nombre;
+  const slug = document.createElement('span');
+  slug.className = 'slug';
+  slug.textContent = '  ' + deck.slug;
+  linea.append(nombre, slug);
+  tit.appendChild(linea);
+
+  const estados = document.createElement('div');
+  estados.style.margin = '6px 0';
+  const [etiqueta, clase] = ETIQ_ACCESO[deck.acceso] || ETIQ_ACCESO.todos;
+  estados.appendChild(pill(etiqueta, clase));
+  if (!deck.activo) estados.appendChild(pill('Retirado', 'p-del'));
+  if (deck.origen === 'clasica') estados.appendChild(pill('Clásica', 'p-del'));
+  if (!deck.completo) estados.appendChild(pill('Faltan ' + deck.faltan.length, 'p-ban'));
+  if (deck.acceso === 'restringido') estados.appendChild(pill(deck.concedidos + ' con acceso', 'p-del'));
+  Array.from(estados.children).forEach(p => p.style.marginRight = '5px');
+  tit.appendChild(estados);
+
+  if (deck.descripcion) tit.appendChild(nota(deck.descripcion));
+  if (deck.origen !== 'clasica') {
+    const peso = nota('Ocupa ' + kb(deck.peso) + ' · presupuesto ' + kb(presupuestoDeck.objetivo)
+                      + (deck.peso > presupuestoDeck.techo ? ' — POR ENCIMA DEL TECHO' : ''));
+    if (deck.peso > presupuestoDeck.techo) peso.style.color = 'var(--rojo)';
+    tit.appendChild(peso);
+  }
+  cab.appendChild(tit);
+
+  const acciones = document.createElement('div');
+  acciones.className = 'fila';
+  acciones.style.margin = '0';
+  const btnPanel = boton('Editar', 'b-azul', () => {
+    panel.classList.toggle('oculto');
+    if (!panel.classList.contains('oculto') && deck.acceso === 'restringido') pintarAccesos();
+  });
+  acciones.appendChild(btnPanel);
+  if (deck.origen !== 'clasica') {
+    acciones.appendChild(boton('Borrar', 'b-mal', async () => {
+      if (!confirm(`¿Borrar el tema «${deck.nombre}» y sus imágenes?\n\nLos jugadores que lo tuvieran puesto volverán a la baraja clásica en ese hueco.`)) return;
+      const r = await api(`/admin/api/decks/${deck.id}/eliminar`, 'POST', {});
+      if (r && r.exito) { aviso('Tema borrado.'); cargadores.barajas(); }
+      else aviso(errDeck(r && r.mensaje), true);
+    }));
+  }
+  cab.appendChild(acciones);
+  caja.appendChild(cab);
+
+  // --- Las 11 cartas, para ver de un vistazo si el tema está bien ---
+  const tira = document.createElement('div');
+  tira.className = 'deck-cartas';
+  valoresDeck.concat(['back']).forEach(vv => {
+    const hueco = document.createElement('div');
+    hueco.className = 'deck-carta' + (deck.faltan.includes(vv) ? ' falta' : '');
+    const img = document.createElement('img');
+    // El sello de la última modificación fuerza a recargar la imagen: si no,
+    // al sustituir una carta seguiríamos viendo la vieja en caché.
+    img.src = (vv === 'back' ? deck.dorso : deck.cartas[vv])
+              + '?v=' + (Date.parse(deck.updated_at) || 0);
+    img.alt = vv; img.loading = 'lazy';
+    const et = document.createElement('span');
+    et.textContent = vv === 'back' ? 'dorso' : vv;
+    hueco.append(img, et);
+    tira.appendChild(hueco);
+  });
+  caja.appendChild(tira);
+
+  // --- Panel de edición, plegado ---
+  const panel = document.createElement('div');
+  panel.className = 'deck-panel oculto';
+
+  const f1 = document.createElement('div');
+  f1.className = 'fila';
+  const inNombre = campo('text', deck.nombre, 'Nombre (es)', '1 1 160px');
+  const inNombreEn = campo('text', deck.nombre_en || '', 'Name (en)', '1 1 160px');
+  const inDesc = campo('text', deck.descripcion || '', 'Descripción', '2 1 220px');
+  f1.append(inNombre, inNombreEn, inDesc);
+
+  const f2 = document.createElement('div');
+  f2.className = 'fila';
+  const selAcceso = document.createElement('select');
+  Object.entries(ETIQ_ACCESO).forEach(([valor, [texto]]) => {
+    const o = document.createElement('option');
+    o.value = valor; o.textContent = texto;
+    if (deck.acceso === valor) o.selected = true;
+    selAcceso.appendChild(o);
+  });
+  const inOrden = campo('number', deck.orden, 'Orden', '0 0 90px');
+  const etActivo = document.createElement('label');
+  etActivo.className = 'nota';
+  const chkActivo = document.createElement('input');
+  chkActivo.type = 'checkbox'; chkActivo.checked = !!deck.activo;
+  etActivo.append(chkActivo, document.createTextNode(' visible en el selector'));
+  f2.append(selAcceso, inOrden, etActivo, boton('Guardar', 'b-ok', async () => {
+    const r = await api(`/admin/api/decks/${deck.id}`, 'POST', {
+      nombre: inNombre.value.trim() || deck.slug,
+      nombre_en: inNombreEn.value.trim(),
+      descripcion: inDesc.value.trim(),
+      acceso: selAcceso.value,
+      orden: parseInt(inOrden.value, 10) || 100,
+      activo: chkActivo.checked ? 1 : 0
+    });
+    if (r && r.exito) { aviso('Tema actualizado.'); cargadores.barajas(); }
+    else aviso(errDeck(r && r.mensaje), true);
+  }));
+  panel.append(f1, f2);
+
+  // Reemplazo de imágenes (no aplica a las clásicas: sus archivos son los
+  // originales del juego y los comparten el tutorial y los dorsos).
+  if (deck.origen !== 'clasica') {
+    const f3 = document.createElement('div');
+    f3.className = 'fila';
+    const selPieza = document.createElement('select');
+    [['', 'Por el nombre del archivo']].concat(
+      valoresDeck.map(v => [v, 'Carta ' + v]), [['back', 'Dorso'], ['thumb', 'Miniatura']]
+    ).forEach(([valor, texto]) => {
+      const o = document.createElement('option');
+      o.value = valor; o.textContent = texto;
+      selPieza.appendChild(o);
+    });
+    const inZip = document.createElement('input');
+    inZip.type = 'file'; inZip.accept = '.zip';
+    const inImgs = document.createElement('input');
+    inImgs.type = 'file'; inImgs.accept = 'image/*'; inImgs.multiple = true;
+    f3.append(rotulo('Sustituir:', selPieza), rotulo('zip', inZip), rotulo('imágenes', inImgs),
+      boton('Subir', 'b-azul', async () => {
+        const fd = new FormData();
+        if (selPieza.value) fd.append('pieza', selPieza.value);
+        if (inZip.files[0]) fd.append('zip', inZip.files[0]);
+        Array.from(inImgs.files).forEach(f => fd.append('imagenes', f));
+        if (!inZip.files[0] && !inImgs.files.length) { aviso('Elige algún archivo.', true); return; }
+        const r = await subirDeck(`/admin/api/decks/${deck.id}/imagenes`, fd);
+        if (r && r.exito) { aviso('Subidas: ' + r.escritas.join(', ')); cargadores.barajas(); }
+        else aviso(errDeck(r && r.mensaje), true);
+      }));
+    panel.appendChild(f3);
+    panel.appendChild(nota('Con «Por el nombre del archivo» puedes soltar varias a la vez; '
+      + 'eligiendo una carta concreta se sustituye esa, se llame como se llame el archivo.'));
+  }
+
+  // Permisos individuales: solo tienen sentido en los temas restringidos.
+  const cajaAcc = document.createElement('div');
+  cajaAcc.style.marginTop = '10px';
+  const listaAcc = document.createElement('div');
+  listaAcc.className = 'deck-acc';
+
+  async function pintarAccesos() {
+    const r = await api(`/admin/api/decks/${deck.id}/acceso`);
+    listaAcc.replaceChildren();
+    if (!r || !r.exito) return;
+    if (!r.cuentas.length) { listaAcc.appendChild(nota('Nadie tiene acceso todavía.')); return; }
+    r.cuentas.forEach(c => {
+      const chip = document.createElement('span');
+      chip.className = 'quien';
+      chip.appendChild(document.createTextNode(`${c.username} #${c.codigo}`));
+      const quitar = document.createElement('button');
+      quitar.textContent = '×';
+      quitar.title = 'Retirar el acceso';
+      quitar.addEventListener('click', async () => {
+        const q = await api(`/admin/api/decks/${deck.id}/acceso`, 'POST',
+                            { usuario: c.username, conceder: false });
+        if (q && q.exito) { pintarAccesos(); cargadores.barajas(); }
+      });
+      chip.appendChild(quitar);
+      listaAcc.appendChild(chip);
+    });
+  }
+
+  const f4 = document.createElement('div');
+  f4.className = 'fila';
+  const inQuien = campo('text', '', 'usuario, #CÓDIGO, varios separados por comas', '1 1 240px');
+  f4.append(inQuien, boton('Dar acceso', 'b-ok', async () => {
+    if (!inQuien.value.trim()) return;
+    const r = await api(`/admin/api/decks/${deck.id}/acceso`, 'POST',
+                        { usuario: inQuien.value, conceder: true });
+    if (r && r.exito) {
+      inQuien.value = '';
+      if (r.fallos && r.fallos.length) aviso('No encontrados: ' + r.fallos.join(', '), true);
+      else aviso('Acceso concedido.');
+      pintarAccesos(); cargadores.barajas();
+    } else aviso(errDeck(r && r.mensaje), true);
+  }));
+  const tituloAcc = document.createElement('h4');
+  tituloAcc.textContent = 'Quién puede usar este tema';
+  tituloAcc.style.margin = '0 0 4px 0';
+  cajaAcc.append(tituloAcc,
+    nota('Solo se aplica con el acceso «Solo a quien yo diga». Los administradores ven todos los temas.'),
+    f4, listaAcc);
+  panel.appendChild(cajaAcc);
+
+  caja.appendChild(panel);
+  return caja;
+}
+
+function campo(tipo, valor, marcador, flex) {
+  const i = document.createElement('input');
+  i.type = tipo; i.value = valor; i.placeholder = marcador;
+  if (flex) i.style.flex = flex;
+  return i;
+}
+
+function rotulo(texto, control) {
+  const l = document.createElement('label');
+  l.className = 'nota';
+  l.append(document.createTextNode(texto + ' '), control);
+  return l;
+}
+
+$('btn-crear-deck').addEventListener('click', async () => {
+  const fd = new FormData();
+  fd.append('slug', $('deck-slug').value.trim().toLowerCase());
+  fd.append('nombre', $('deck-nombre').value.trim());
+  fd.append('nombre_en', $('deck-nombre-en').value.trim());
+  fd.append('descripcion', $('deck-desc').value.trim());
+  fd.append('acceso', $('deck-acceso').value);
+  fd.append('orden', $('deck-orden').value || '100');
+  if ($('deck-zip').files[0]) fd.append('zip', $('deck-zip').files[0]);
+  Array.from($('deck-imgs').files).forEach(f => fd.append('imagenes', f));
+  if (!$('deck-zip').files[0] && !$('deck-imgs').files.length) {
+    aviso('Adjunta el zip del tema o sus imágenes.', true); return;
+  }
+  const r = await subirDeck('/admin/api/decks', fd);
+  if (r && r.exito) {
+    aviso(`Tema creado con ${r.escritas.length} imágenes.`);
+    ['deck-slug','deck-nombre','deck-nombre-en','deck-desc','deck-zip','deck-imgs']
+      .forEach(id => $(id).value = '');
+    cargadores.barajas();
+  } else aviso(errDeck(r && r.mensaje), true);
 });
 
 // ==========================================================================

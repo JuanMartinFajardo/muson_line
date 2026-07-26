@@ -17,13 +17,18 @@ from mus_mecanicas import (
     comp_punto,
     obtener_ruta_imagen,
     J_RANK,
+    carta_a_clave,
+    clave_a_carta,
+    cartas_a_claves,
+    claves_a_cartas,
 )
 
 __all__ = [
     'crear_baraja', 'get_valores_mus', 'tiene_pares', 'get_pares_info',
     'get_suma_juego', 'tiene_juego', 'es_la_real', 'comparar_cartas',
     'comp_pares_info', 'comp_juego', 'comp_punto', 'obtener_ruta_imagen',
-    'J_RANK', 'mejor_hand_equipo',
+    'J_RANK', 'mejor_hand_equipo', 'carta_a_clave', 'clave_a_carta',
+    'cartas_a_claves', 'claves_a_cartas',
 ]
 
 

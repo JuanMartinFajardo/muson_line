@@ -33,6 +33,7 @@ from flask import (render_template, request, session, jsonify,
                    send_file, Response)
 
 import base_datos
+import decks
 import mus_senas
 
 RAIZ = os.path.dirname(os.path.abspath(__file__))
@@ -396,8 +397,11 @@ def init_admin(app, socketio, ctx):
     @app.route('/admin/api/descargas/logs', methods=['GET'])
     @admin_requerido
     def admin_descargar_logs():
-        """Zip de logs/*.jsonl, opcionalmente acotado por fecha de modificación
-        (?desde=YYYY-MM-DD&hasta=YYYY-MM-DD, ambos inclusive)."""
+        """Zip de los logs de partida, opcionalmente acotado por fecha de
+        modificación (?desde=YYYY-MM-DD&hasta=YYYY-MM-DD, ambos inclusive).
+
+        Recorre el árbol entero: los ficheros del formato v1 están en la raíz de
+        logs/ (congelados, no se escribe más ahí) y los del v2 en logs/v2/."""
         desde = _fecha(request.args.get('desde'))
         hasta = _fecha(request.args.get('hasta'))
         if hasta:
@@ -406,15 +410,17 @@ def init_admin(app, socketio, ctx):
         memoria = io.BytesIO()
         incluidos = 0
         with zipfile.ZipFile(memoria, 'w', zipfile.ZIP_DEFLATED) as z:
-            for nombre in sorted(os.listdir(DIR_LOGS)) if os.path.isdir(DIR_LOGS) else []:
-                if not nombre.endswith('.jsonl'):
-                    continue
-                ruta = os.path.join(DIR_LOGS, nombre)
-                marca = datetime.fromtimestamp(os.path.getmtime(ruta))
-                if (desde and marca < desde) or (hasta and marca >= hasta):
-                    continue
-                z.write(ruta, arcname=f"logs/{nombre}")
-                incluidos += 1
+            for carpeta, _sub, ficheros in os.walk(DIR_LOGS) if os.path.isdir(DIR_LOGS) else []:
+                for nombre in sorted(ficheros):
+                    if not nombre.endswith('.jsonl'):
+                        continue
+                    ruta = os.path.join(carpeta, nombre)
+                    marca = datetime.fromtimestamp(os.path.getmtime(ruta))
+                    if (desde and marca < desde) or (hasta and marca >= hasta):
+                        continue
+                    rel = os.path.relpath(ruta, DIR_LOGS)
+                    z.write(ruta, arcname=os.path.join('logs', rel))
+                    incluidos += 1
         memoria.seek(0)
         _auditar('descargar_logs', None, f"{incluidos} archivos")
         return send_file(memoria, mimetype='application/zip', as_attachment=True,
@@ -617,7 +623,157 @@ def init_admin(app, socketio, ctx):
         return jsonify({'exito': True})
 
     # ======================================================================
-    # 8. Auditoría
+    # 8. Barajas temáticas (Roadmap #5)
+    # ----------------------------------------------------------------------
+    # Un tema son 11 imágenes (10 cartas + dorso) y ocupa uno de los cuatro
+    # huecos de palo. Aquí se suben, se les pone nombre y se decide quién
+    # puede usarlos; `decks.py` valida y reprocesa cada archivo.
+    # ======================================================================
+
+    @app.route('/admin/api/decks', methods=['GET'])
+    @admin_requerido
+    def admin_decks():
+        salida = []
+        for d in base_datos.decks_todos(incluir_inactivos=True):
+            faltan = decks.piezas_presentes(d)
+            salida.append({
+                **d,
+                'thumb': decks.ruta_thumb(d),
+                'dorso': decks.ruta_dorso(d),
+                'cartas': {vv: decks.ruta_cara(d, vv) for vv in decks.VALORES},
+                'faltan': faltan,
+                'completo': not faltan,
+                'peso': decks.peso_en_disco(d['slug']),
+                'concedidos': len(base_datos.deck_accesos(d['id'])),
+            })
+        return jsonify({'exito': True, 'decks': salida,
+                        'valores': list(decks.VALORES),
+                        'huecos': list(decks.HUECOS),
+                        'presupuesto': decks.PRESUPUESTO_TEMA})
+
+    @app.route('/admin/api/decks', methods=['POST'])
+    @admin_requerido
+    def admin_deck_crear():
+        """Alta de un tema. El formulario es multipart: los metadatos en campos
+        normales y las imágenes en un zip o sueltas."""
+        try:
+            slug = decks.validar_slug(request.form.get('slug'))
+        except decks.ErrorDeck as e:
+            return jsonify({'exito': False, 'mensaje': str(e)}), 400
+        if base_datos.deck_por_slug(slug):
+            return jsonify({'exito': False, 'mensaje': 'slug_repetido'}), 409
+
+        nombre = (request.form.get('nombre') or '').strip() or slug
+        try:
+            escritas = _instalar_subida(slug)
+        except decks.ErrorDeck as e:
+            decks.borrar_archivos(slug)
+            return jsonify({'exito': False, 'mensaje': str(e)}), 400
+        if not escritas:
+            return jsonify({'exito': False, 'mensaje': 'sin_imagenes'}), 400
+
+        deck_id = base_datos.deck_crear(
+            slug, nombre,
+            nombre_en=(request.form.get('nombre_en') or '').strip() or None,
+            descripcion=(request.form.get('descripcion') or '').strip() or None,
+            acceso=request.form.get('acceso') or 'todos',
+            orden=request.form.get('orden', type=int) or 100,
+            creado_por=session.get('username'))
+        if not deck_id:
+            decks.borrar_archivos(slug)
+            return jsonify({'exito': False, 'mensaje': 'slug_repetido'}), 409
+        _auditar('deck_crear', slug, f"{len(escritas)} imágenes")
+        return jsonify({'exito': True, 'id': deck_id, 'escritas': escritas})
+
+    @app.route('/admin/api/decks/<int:deck_id>', methods=['POST'])
+    @admin_requerido
+    def admin_deck_editar(deck_id):
+        deck = base_datos.deck_por_id(deck_id)
+        if not deck:
+            return jsonify({'exito': False, 'mensaje': 'no_existe'}), 404
+        datos = request.json or {}
+        campos = {k: v for k, v in datos.items()
+                  if k in ('nombre', 'nombre_en', 'descripcion', 'acceso', 'activo', 'orden')}
+        if 'acceso' in campos and campos['acceso'] not in base_datos.ACCESOS_DECK:
+            return jsonify({'exito': False, 'mensaje': 'acceso_invalido'}), 400
+        base_datos.deck_actualizar(deck_id, **campos)
+        _auditar('deck_editar', deck['slug'], str(campos)[:200])
+        return jsonify({'exito': True, 'deck': base_datos.deck_por_id(deck_id)})
+
+    @app.route('/admin/api/decks/<int:deck_id>/imagenes', methods=['POST'])
+    @admin_requerido
+    def admin_deck_imagenes(deck_id):
+        """Sube o sustituye imágenes de un tema que ya existe. Vale tanto para
+        completar un tema a medias como para rehacer una sola carta."""
+        deck = base_datos.deck_por_id(deck_id)
+        if not deck:
+            return jsonify({'exito': False, 'mensaje': 'no_existe'}), 404
+        if deck['origen'] == 'clasica':
+            return jsonify({'exito': False, 'mensaje': 'clasica_no_editable'}), 400
+        try:
+            escritas = _instalar_subida(deck['slug'], request.form.get('pieza'))
+        except decks.ErrorDeck as e:
+            return jsonify({'exito': False, 'mensaje': str(e)}), 400
+        if not escritas:
+            return jsonify({'exito': False, 'mensaje': 'sin_imagenes'}), 400
+        base_datos.deck_actualizar(deck_id, nombre=deck['nombre'])   # toca updated_at
+        _auditar('deck_imagenes', deck['slug'], ', '.join(escritas))
+        return jsonify({'exito': True, 'escritas': escritas,
+                        'faltan': decks.piezas_presentes(base_datos.deck_por_id(deck_id))})
+
+    @app.route('/admin/api/decks/<int:deck_id>/eliminar', methods=['POST'])
+    @admin_requerido
+    def admin_deck_eliminar(deck_id):
+        deck = base_datos.deck_por_id(deck_id)
+        if not deck:
+            return jsonify({'exito': False, 'mensaje': 'no_existe'}), 404
+        if deck['origen'] == 'clasica':
+            # Los cuatro clásicos son la baraja a la que cae todo el mundo cuando
+            # su tema desaparece: si se pudieran borrar, no habría suelo.
+            return jsonify({'exito': False, 'mensaje': 'clasica_no_borrable'}), 400
+        base_datos.deck_borrar(deck_id)
+        decks.borrar_archivos(deck['slug'])
+        _auditar('deck_borrar', deck['slug'])
+        return jsonify({'exito': True})
+
+    @app.route('/admin/api/decks/<int:deck_id>/acceso', methods=['GET'])
+    @admin_requerido
+    def admin_deck_acceso(deck_id):
+        if not base_datos.deck_por_id(deck_id):
+            return jsonify({'exito': False, 'mensaje': 'no_existe'}), 404
+        return jsonify({'exito': True, 'cuentas': base_datos.deck_accesos(deck_id)})
+
+    @app.route('/admin/api/decks/<int:deck_id>/acceso', methods=['POST'])
+    @admin_requerido
+    def admin_deck_acceso_set(deck_id):
+        """Concede o retira el permiso individual de una cuenta. Se admite el
+        nombre o el #CÓDIGO, que es lo que un jugador sabe decir de sí mismo."""
+        deck = base_datos.deck_por_id(deck_id)
+        if not deck:
+            return jsonify({'exito': False, 'mensaje': 'no_existe'}), 404
+        datos = request.json or {}
+        objetivo = (datos.get('usuario') or '').strip()
+        usuarios, fallos = _resolver_destinatarios(objetivo)
+        if not usuarios:
+            return jsonify({'exito': False, 'mensaje': 'usuario_no_encontrado',
+                            'fallos': fallos}), 404
+        conceder = bool(datos.get('conceder', True))
+        for uid in usuarios:
+            if conceder:
+                base_datos.deck_conceder(deck_id, uid, session.get('username'))
+                nombre = base_datos.obtener_username_por_id(uid)
+                if nombre:
+                    _notificar(nombre, 'baraja_desbloqueada',
+                               {'slug': deck['slug'], 'nombre': deck['nombre']})
+            else:
+                base_datos.deck_revocar(deck_id, uid)
+        _auditar('deck_acceso', deck['slug'],
+                 f"{'conceder' if conceder else 'retirar'} → {objetivo}")
+        return jsonify({'exito': True, 'cuentas': base_datos.deck_accesos(deck_id),
+                        'fallos': fallos})
+
+    # ======================================================================
+    # 9. Auditoría
     # ======================================================================
 
     @app.route('/admin/api/auditoria', methods=['GET'])
@@ -628,7 +784,7 @@ def init_admin(app, socketio, ctx):
                             request.args.get('limite', 100, type=int))})
 
     # ======================================================================
-    # 9. SOPORTE — lado del jugador
+    # 10. SOPORTE — lado del jugador
     # ======================================================================
 
     @app.route('/api/soporte', methods=['GET'])
@@ -759,6 +915,37 @@ def _listar_grupos():
                                     (SELECT COUNT(*) FROM GroupMembers m WHERE m.group_id = g.id) n
                              FROM Groups g ORDER BY g.name COLLATE NOCASE""").fetchall()
     return [dict(r) for r in filas]
+
+
+def _instalar_subida(slug, pieza_forzada=None):
+    """Saca las imágenes de un formulario multipart y las instala en el tema.
+
+    Acepta las dos formas en que un diseñador tiene el trabajo a mano: un zip
+    con el tema entero, o los archivos sueltos. El nombre de cada archivo dice
+    qué carta es (`01.webp`, `card_coins_01.png`, `back.webp`…); `pieza_forzada`
+    permite decirlo a mano cuando se sustituye una sola carta y el archivo se
+    llama de cualquier manera. Devuelve las piezas escritas.
+    """
+    escritas = []
+
+    zip_subido = request.files.get('zip')
+    if zip_subido and zip_subido.filename:
+        piezas, _peso = decks.instalar_zip(slug, zip_subido.read())
+        escritas.extend(piezas)
+
+    sueltos = [f for f in request.files.getlist('imagenes') if f and f.filename]
+    if pieza_forzada and len(sueltos) == 1:
+        decks.instalar_pieza(slug, pieza_forzada, sueltos[0].read())
+        escritas.append(pieza_forzada)
+    else:
+        for archivo in sueltos:
+            pieza = decks._nombre_pieza(archivo.filename)
+            if not pieza:
+                raise decks.ErrorDeck(f'nombre_no_reconocido: {archivo.filename[:40]}')
+            decks.instalar_pieza(slug, pieza, archivo.read())
+            escritas.append(pieza)
+
+    return sorted(set(escritas))
 
 
 def _resolver_destinatarios(texto):

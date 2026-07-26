@@ -12,7 +12,7 @@ Flask + Flask-SocketIO server (eventlet)  ──►  SQLite (mus.db)
         │
         ├── PartidaMus  (one game engine instance per room, in memory)
         ├── SmartBot    (PyTorch Deep CFR inference, for bot rooms)
-        └── logs/*.jsonl (per-match training logs)
+        └── logs/v2/*.jsonl (event-sourced, replayable per-match logs)
 ```
 
 There is **no build step**: the frontend is plain HTML/CSS/JS served directly by Flask (`static_folder='static'`, `template_folder='.'`). All game state lives **in server memory** (the `salas` and `jugadores` dictionaries); only user accounts and match results are persisted in SQLite.
@@ -32,6 +32,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [social.py](../social.py) | Friends, DMs, groups and group leaderboards (`init_social`); also owns the single Socket.IO `connect` handler (presence + ban check) |
 | [server_mus4.py](../server_mus4.py) | 4-player (2v2) room registry and handlers (`init_mus4`), engine `mus_mecanicas_4.py`; also owns the señas focus registry |
 | [mus_senas.py](../mus_senas.py) | Pure: which sign a hand makes, with an admin-editable priority order ([Señas](Senas-2v2.md)) |
+| [mus_log.py](../mus_log.py) | Log v2: event-sourced match logger shared by both engines, plus the replay-side card source ([Bot-AI](Bot-AI.md) §4.1) |
 | [admin.py](../admin.py) | Admin panel (`init_admin`): accounts, live rooms, downloads, `Config` variables, audit, plus the player-facing support and announcement endpoints |
 
 ### Training / offline (not needed to run the server)
@@ -40,8 +41,13 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | :--- | :--- |
 | [train_cfr.py](../train_cfr.py) | Deep CFR (Linear CFR, external-sampling MCCFR) training loop for the betting network |
 | [mus_env.py](../mus_env.py) | `MusBettingEnv`: gym-like wrapper around `PartidaMus` used by the CFR trainer |
+| [mus_env4.py](../mus_env4.py) | `MusBettingEnv4`: the 2v2 gym over `PartidaMus4`, with team-delta rewards and log-seeded state sampling |
+| [encoder.py](../encoder.py) | The **single** 4p state encoding (71 dims, blocks A–E), shared by training, serving and dataset export |
+| [mus_replay.py](../mus_replay.py) | Replays a v2 log through the engine; the base for log verification and dataset derivation |
+| [bench_env.py](../bench_env.py) | Simulator throughput benchmark (`fork()` vs `deepcopy`) — the Phase 1 performance gate |
 | [arena.py](../arena.py) | Pits two model checkpoints against each other over thousands of games to measure progress |
 | [global_trainer.py](../global_trainer.py) | Legacy pipeline: compiles `logs/` into a CSV and trains the old random-forest models |
+| `tools/` | `log_verify.py` (replay integrity), `selftest_log.py` (log round trip, CI-style), `logs2dataset.py` (v2 → Parquet), `fuzz_env4.py`, `arena4.py` (2v2 arena, seat-permuted), `lbr_probe.py` (2p exploitability bound), `soak_bots4.py`, `soak_server_bots4.py`, `decks/` |
 | `learn/` | Training assets: `probability_calculator.py`, `dataset_generator.py`, `procesar_carpeta.py`, `entrenar_*.py`, CFR checkpoints (`learn/cfr/*.pth`), precomputed tables (`learn/global_variables/mus_data.json`), datasets, old models |
 
 ### Frontend
@@ -66,7 +72,8 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | Item | Role |
 | :--- | :--- |
 | `mus.db` | SQLite database (`Usuarios` table) |
-| `logs/*.jsonl` | One file per match ID; one JSON line per game turn (used for AI training) |
+| `logs/v2/*.jsonl` | **Current format.** One file per match, event-sourced and exactly replayable ([Bot-AI](Bot-AI.md) §4.1) |
+| `logs/*.jsonl` | Legacy v1, **frozen** (nothing writes there any more): one row per turn with the features frozen at write time, so matches cannot be replayed |
 | `learn/global_variables/mus_data.json` | Precomputed win probabilities and expected values for all 330 possible hands (mano/postre) |
 
 ## Key in-memory structures (server.py)
@@ -94,7 +101,11 @@ Room codes are 4 random chars (`A-Z0-9`). Bot rooms use a fake SID `BOT_<code>`.
 2. `handle_accion_juego` → `procesar_accion_interna(sid, room, datos)` validates turn ownership and calls the corresponding `PartidaMus` method (`cantar_mus`, `procesar_descarte`, `accion_apuesta`, …).
 3. `enviar_estado_a_jugadores(room)` builds a **per-player payload** (own cards visible, opponent's hidden except at showdown) and emits `actualizar_mesa` to the room.
 4. If the room has a bot, the same function asks `SmartBot.obtener_accion(partida)`; if the bot has a move, a background task sleeps `bot_delay` seconds (the `Config` variable, default 1.5, editable from `/admin`) and re-enters `procesar_accion_interna` with the bot's SID.
-5. When a game ends (`fase == 'recuento'` and someone reaches 40), the result is written to SQLite (`registrar_partida_completa`) and the per-turn history is flushed to `logs/<match_id>.jsonl`.
+5. When a game ends (`fase == 'recuento'` and someone reaches 40), the result is written to SQLite (`registrar_partida_completa`).
+
+Logging is not part of that last step any more: the v2 logger writes **each event as it
+happens** (`mus_log.MatchLogger`, flushed immediately), so a match interrupted halfway
+still leaves all its completed hands on disk — which is the common case in production.
 
 ## Known architectural limitations
 

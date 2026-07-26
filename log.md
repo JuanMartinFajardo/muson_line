@@ -4,6 +4,67 @@ Historial cronológico de cambios relevantes del proyecto. El más reciente arri
 
 ---
 
+## 2026-07-26 — Fase 1 del bot 2v2: log v2, motor rápido y arnés de medición
+
+Infraestructura de la que dependen todas las fases de entrenamiento siguientes
+([Bot-AI-4p-Roadmap](wiki/Bot-AI-4p-Roadmap.md) Fase 1). No cambia cómo juegan los
+bots; cambia lo que se puede medir y con qué datos se puede entrenar. Documentado en
+[Bot-AI](wiki/Bot-AI.md) §4.
+
+- **Log v2 con *event sourcing*** (`mus_log.py`, nuevo): un solo módulo para los dos
+  motores, un fichero por match en `logs/v2/`. Se registran HECHOS (reparto, robos,
+  decisiones, declaraciones, resolución por lance), no features: cualquier variable de
+  entrenamiento se deriva luego RE-JUGANDO el log. Eso es lo que el v1 no permitía —
+  congelaba un conjunto fijo de features al escribir, así que mejorar el encoder no
+  servía de nada para los datos viejos. Los ficheros v1 (`logs/*.jsonl`) quedan
+  congelados y se borra el camino `registrar_movimiento_ia`. Dos desvíos deliberados
+  del esquema del borrador: los valores de carta se guardan CRUDOS (sin normalizar 3→12
+  y 2→1, que es irreversible y rompería la re-jugada) y los descartes guardan los
+  ÍNDICES tirados en vez de los valores.
+- **Re-jugada** (`mus_replay.py`, nuevo): el motor solo tiene una fuente de azar, la
+  baraja, y la re-jugada la sustituye por las cartas que dicta el log.
+  `tools/log_verify.py` usa esto en su forma fuerte: re-juega el match, REGENERA el
+  flujo de eventos y lo compara evento a evento con el fichero. Cuando coinciden se
+  demuestran dos cosas de golpe: el log basta para reconstruir la partida, y el motor
+  de hoy sigue resolviendo el mus como el día del registro (test de regresión gratis
+  sobre tráfico real). `tools/selftest_log.py` lo automatiza jugando al azar entre las
+  acciones legales, que es lo que recorre los rincones raros.
+- **Clonado rápido del motor** (`fork()` / `to_state()` / `from_state()` en los dos
+  motores): las cartas son inmutables en la práctica, así que el fork copia solo los
+  contenedores y las comparte. Se cambia `copy.deepcopy` en `mus_env.py`. De paso, dos
+  optimizaciones que salieron del perfil: evaluar pares/juego sin `collections.Counter`
+  (~170.000 objetos por 120 travesías) y no construir el dict de `vista()` en cada
+  `step()`. `to_state()` es JSON-able, así que también resuelve gratis la
+  serialización que pedía Roadmap #18 capa 2.
+- **Puerta de rendimiento superada** (`bench_env.py`, nuevo): 2p 38,2 → 490,3
+  traversals/s y 2v2 47,5 → 545,4 (11,5× el peor caso, puerta ≥10×). Contra el código
+  anterior a la Fase 1 el "antes vs después" real en 2p es 22,7 → 490,3 = **21,6×**,
+  que sí alcanza el objetivo de 20×. Queda pendiente para la Fase 2 agrupar consultas
+  a la red y los workers de multiprocessing: no se pueden afinar sin una red de verdad
+  en el bucle.
+- **Encoder único** (`encoder.py`, nuevo): 71 dimensiones en bloques A–E, la MISMA
+  función para entrenar, servir y exportar datasets. Es la corrección de raíz del
+  desajuste entrenamiento/servicio. El bloque E (señas) queda reservado a cero desde
+  hoy para que el ajuste fino de la Fase 6 continúe desde el checkpoint sin señas en
+  vez de reentrenar.
+- **Gimnasio 2v2** (`mus_env4.py`, nuevo): recompensa = delta de puntos de la mano por
+  equipo (no el marcador absoluto) y muestreo de estados REALES sacados de los logs v2
+  en vez de marcadores uniformes inventados. Sin corpus todavía cae a un prior
+  explícito y lo dice (`env.dist.origen`), para que nadie confunda "sin datos" con
+  "medido".
+- **Arnés de medición**: `tools/arena4.py` (asientos permutados, repartos sembrados,
+  puntos por mano ± error estándar en vez de winrate de match) y `tools/lbr_probe.py`
+  (Local Best Response para 2p: cota INFERIOR de explotabilidad).
+- **Comprobado**: 8 matches al mejor de 3 por el camino real de `server_mus4` re-juegan
+  byte a byte; ~1.160 matches al azar en ambos motores, todos byte-exactos;
+  `MusBettingEnv4` con 10.000 manos y 59.133 decisiones sin un solo estado ilegal;
+  arena4 da heurístico vs aleatorio +14,66 ± 2,81 puntos/mano; LBR saca +12,8 al
+  aleatorio y **0,0** al heurístico calibrado con tablas (la sonda no encuentra
+  explotación — que NO es lo mismo que decir que ese bot sea fuerte).
+- Se añade `LOG_V2` en `server_mus4.py` como interruptor (los soaks lo apagan para no
+  ensuciar el corpus) y la descarga de logs del panel de admin recorre ya todo el árbol
+  `logs/`.
+
 ## 2026-07-25 — Estrategia ML del bot 2v2 (análisis y hoja de ruta) — solo documentación
 
 Dos páginas nuevas en la wiki, sin cambios de código:

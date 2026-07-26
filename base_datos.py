@@ -195,9 +195,60 @@ def init_db():
         )
     ''')
 
+    # ==========================================
+    # BARAJAS TEMÁTICAS (Roadmap #5)
+    # ==========================================
+
+    # Una fila = un TEMA, es decir el juego de 11 imágenes (10 cartas + dorso)
+    # que ocupa uno de los cuatro huecos de palo de la baraja del jugador. Los
+    # cuatro temas clásicos (oros, copas, espadas, bastos) también viven aquí,
+    # marcados con origen='clasica', para que el panel pueda restringirlos o
+    # renombrarlos igual que a los subidos; sus imágenes siguen donde estaban.
+    #
+    #   acceso: 'todos'       → cualquiera, también sin cuenta
+    #           'cuenta'      → hace falta haber iniciado sesión
+    #           'restringido' → sólo quien esté en DeckAcceso (y los admins)
+    #   activo: 0 lo retira del selector sin borrar los archivos ni las
+    #           configuraciones que ya lo usaban.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Decks (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug        TEXT UNIQUE NOT NULL,
+            nombre      TEXT NOT NULL,
+            nombre_en   TEXT,
+            descripcion TEXT,
+            acceso      TEXT NOT NULL DEFAULT 'todos',
+            activo      INTEGER NOT NULL DEFAULT 1,
+            orden       INTEGER NOT NULL DEFAULT 100,
+            origen      TEXT NOT NULL DEFAULT 'subida',   -- 'clasica' | 'subida'
+            patron      TEXT,                             -- cara: ruta con {vv}; NULL = carpeta del slug
+            patron_dorso TEXT,                            -- dorso; NULL = carpeta del slug
+            creado_por  TEXT,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_decks_orden ON Decks(activo, orden, id)')
+
+    # Permisos individuales de los temas 'restringido'. La fila desaparece con el
+    # tema; si se borra la cuenta, el permiso queda huérfano pero es inofensivo
+    # (nadie puede volver a ser ese id).
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS DeckAcceso (
+            deck_id       INTEGER NOT NULL,
+            user_id       INTEGER NOT NULL,
+            concedido_por TEXT,
+            created_at    TEXT NOT NULL,
+            UNIQUE(deck_id, user_id)
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_deckacceso_user ON DeckAcceso(user_id)')
+
     conexion.commit()
     _migrar_columnas(conexion)
     _migrar_social(conexion)
+    _migrar_decks(conexion)
+    _sembrar_barajas_clasicas(conexion)
     conexion.close()
 
 
@@ -209,6 +260,47 @@ def _migrar_social(conexion):
     if 'invite_policy' not in columnas:
         cursor.execute("ALTER TABLE Groups ADD COLUMN invite_policy TEXT NOT NULL DEFAULT 'admins'")
     conexion.commit()
+
+def _migrar_decks(conexion):
+    """Migraciones idempotentes de la tabla de barajas."""
+    cursor = conexion.cursor()
+    cursor.execute("PRAGMA table_info(Decks)")
+    columnas = {fila[1] for fila in cursor.fetchall()}
+    if 'patron_dorso' not in columnas:
+        cursor.execute("ALTER TABLE Decks ADD COLUMN patron_dorso TEXT")
+        cursor.execute("UPDATE Decks SET patron_dorso = '/static/img/card_back.webp' "
+                       "WHERE origen = 'clasica'")
+    conexion.commit()
+
+
+#: Los cuatro temas que ya venían con el juego. `patron` apunta a los archivos de
+#: siempre (`static/img/card_<palo>_<NN>.webp`), así que sembrarlos no mueve ni un
+#: byte: sólo los hace visibles y administrables desde el panel.
+BARAJAS_CLASICAS = [
+    ('coins',  'Oros',    'Coins',  10),
+    ('cups',   'Copas',   'Cups',   11),
+    ('swords', 'Espadas', 'Swords', 12),
+    ('clubs',  'Bastos',  'Clubs',  13),
+]
+
+
+def _sembrar_barajas_clasicas(conexion):
+    """Registra los cuatro temas clásicos si aún no están. Idempotente: no toca
+    los que ya existen, para no pisar el acceso que le haya puesto un admin."""
+    cursor = conexion.cursor()
+    ahora = datetime.now().isoformat()
+    for slug, nombre, nombre_en, orden in BARAJAS_CLASICAS:
+        cursor.execute("""
+            INSERT INTO Decks(slug, nombre, nombre_en, descripcion, acceso, activo,
+                              orden, origen, patron, patron_dorso, creado_por,
+                              created_at, updated_at)
+            VALUES(?,?,?,?,'todos',1,?,'clasica',?,?,?,?,?)
+            ON CONFLICT(slug) DO NOTHING
+        """, (slug, nombre, nombre_en, 'Baraja española original de CallMus.',
+              orden, f'/static/img/card_{slug}_{{vv}}.webp',
+              '/static/img/card_back.webp', None, ahora, ahora))
+    conexion.commit()
+
 
 def _migrar_columnas(conexion):
     """Añade columnas nuevas a bases de datos antiguas sin perder datos existentes."""
@@ -268,6 +360,13 @@ def _migrar_columnas(conexion):
         cursor.execute("ALTER TABLE Usuarios ADD COLUMN ban_motivo TEXT")
     if 'ban_en' not in columnas:
         cursor.execute("ALTER TABLE Usuarios ADD COLUMN ban_en TEXT")
+
+    # Barajas temáticas (Roadmap #5). JSON con el tema elegido para cada hueco de
+    # palo y para el dorso: {"coins": "ducks", ..., "dorso": "coffee"}. Es puro
+    # adorno y sólo lo ve su dueño, así que un valor corrupto o que apunte a un
+    # tema retirado no rompe nada: el cliente cae a la baraja clásica.
+    if 'deck_config' not in columnas:
+        cursor.execute("ALTER TABLE Usuarios ADD COLUMN deck_config TEXT")
 
     # Rellena el código de las cuentas anteriores a esta columna. El bucle es
     # idempotente por sí solo (busca las que aún no lo tienen), así que aunque una
@@ -1790,7 +1889,149 @@ def estadisticas_globales():
             'partidas4_hoy': uno("SELECT COUNT(*) n FROM Partidas4 WHERE fecha LIKE ?", (hoy + '%',)),
             'tickets_pendientes': contar_tickets_pendientes(),
             'anuncios_activos': uno("SELECT COUNT(*) n FROM Anuncios WHERE activo = 1"),
+            'barajas': uno("SELECT COUNT(*) n FROM Decks WHERE activo = 1"),
         }
+
+
+# --- 8. Barajas temáticas (Roadmap #5) --------------------------------------
+#
+# Aquí sólo está el acceso a la tabla. Quién puede usar cada tema, dónde están
+# sus imágenes y cómo se valida una subida es cosa de `decks.py`.
+
+ACCESOS_DECK = ('todos', 'cuenta', 'restringido')
+
+
+def decks_todos(incluir_inactivos=True):
+    """Todos los temas registrados, ordenados como se enseñan en el selector."""
+    sql = "SELECT * FROM Decks"
+    if not incluir_inactivos:
+        sql += " WHERE activo = 1"
+    sql += " ORDER BY orden, id"
+    with _conn() as c:
+        return [dict(r) for r in c.execute(sql).fetchall()]
+
+
+def deck_por_slug(slug):
+    with _conn() as c:
+        r = c.execute("SELECT * FROM Decks WHERE slug = ?", (slug,)).fetchone()
+    return dict(r) if r else None
+
+
+def deck_por_id(deck_id):
+    with _conn() as c:
+        r = c.execute("SELECT * FROM Decks WHERE id = ?", (deck_id,)).fetchone()
+    return dict(r) if r else None
+
+
+def deck_crear(slug, nombre, nombre_en=None, descripcion=None, acceso='todos',
+               orden=100, creado_por=None, patron=None, patron_dorso=None):
+    """Alta de un tema subido. Devuelve su id, o None si el slug ya existía."""
+    ahora = datetime.now().isoformat()
+    try:
+        with _conn() as c:
+            cur = c.execute("""
+                INSERT INTO Decks(slug, nombre, nombre_en, descripcion, acceso, activo,
+                                  orden, origen, patron, patron_dorso, creado_por,
+                                  created_at, updated_at)
+                VALUES(?,?,?,?,?,1,?,'subida',?,?,?,?,?)
+            """, (slug, nombre, nombre_en, descripcion,
+                  acceso if acceso in ACCESOS_DECK else 'todos',
+                  int(orden), patron, patron_dorso, creado_por, ahora, ahora))
+            c.commit()
+            return cur.lastrowid
+    except sqlite3.IntegrityError:
+        return None
+
+
+def deck_actualizar(deck_id, **campos):
+    """Cambia metadatos de un tema. Sólo se aceptan las claves listadas: el slug
+    no se toca nunca (es la carpeta donde viven las imágenes y lo que hay
+    guardado en las configuraciones de los jugadores)."""
+    permitidas = ('nombre', 'nombre_en', 'descripcion', 'acceso', 'activo', 'orden')
+    sets, args = [], []
+    for clave in permitidas:
+        if clave not in campos:
+            continue
+        valor = campos[clave]
+        if clave == 'acceso' and valor not in ACCESOS_DECK:
+            continue
+        if clave in ('activo', 'orden'):
+            valor = int(valor)
+        sets.append(f"{clave} = ?")
+        args.append(valor)
+    if not sets:
+        return False
+    sets.append("updated_at = ?")
+    args.append(datetime.now().isoformat())
+    with _conn() as c:
+        cur = c.execute(f"UPDATE Decks SET {', '.join(sets)} WHERE id = ?",
+                        (*args, deck_id))
+        c.commit()
+        return cur.rowcount > 0
+
+
+def deck_borrar(deck_id):
+    """Borra el registro y sus permisos. Los archivos los borra `decks.py`; las
+    configuraciones que apuntaban al tema caen solas a la baraja clásica."""
+    with _conn() as c:
+        c.execute("DELETE FROM DeckAcceso WHERE deck_id = ?", (deck_id,))
+        cur = c.execute("DELETE FROM Decks WHERE id = ?", (deck_id,))
+        c.commit()
+        return cur.rowcount > 0
+
+
+def deck_accesos(deck_id):
+    """Cuentas con permiso individual sobre un tema restringido."""
+    with _conn() as c:
+        filas = c.execute("""
+            SELECT a.user_id, u.username, u.codigo, a.concedido_por, a.created_at
+            FROM DeckAcceso a JOIN Usuarios u ON u.id = a.user_id
+            WHERE a.deck_id = ? ORDER BY u.username COLLATE NOCASE
+        """, (deck_id,)).fetchall()
+    return [dict(r) for r in filas]
+
+
+def deck_conceder(deck_id, user_id, por=None):
+    with _conn() as c:
+        c.execute("""INSERT INTO DeckAcceso(deck_id, user_id, concedido_por, created_at)
+                     VALUES(?,?,?,?) ON CONFLICT(deck_id, user_id) DO NOTHING""",
+                  (deck_id, user_id, por, datetime.now().isoformat()))
+        c.commit()
+    return True
+
+
+def deck_revocar(deck_id, user_id):
+    with _conn() as c:
+        cur = c.execute("DELETE FROM DeckAcceso WHERE deck_id = ? AND user_id = ?",
+                        (deck_id, user_id))
+        c.commit()
+        return cur.rowcount > 0
+
+
+def deck_slugs_permitidos(user_id):
+    """Slugs de los temas restringidos que este jugador tiene concedidos."""
+    if not user_id:
+        return set()
+    with _conn() as c:
+        filas = c.execute("""SELECT d.slug FROM DeckAcceso a JOIN Decks d ON d.id = a.deck_id
+                             WHERE a.user_id = ?""", (user_id,)).fetchall()
+    return {r['slug'] for r in filas}
+
+
+def deck_config_get(username):
+    """JSON crudo de la baraja del jugador (o None). Lo interpreta quien lo pide."""
+    with _conn() as c:
+        r = c.execute("SELECT deck_config FROM Usuarios WHERE username = ? COLLATE NOCASE "
+                      "AND eliminada_en IS NULL", (username,)).fetchone()
+    return r['deck_config'] if r else None
+
+
+def deck_config_set(username, json_texto):
+    with _conn() as c:
+        cur = c.execute("UPDATE Usuarios SET deck_config = ? WHERE username = ? COLLATE NOCASE "
+                        "AND eliminada_en IS NULL", (json_texto, username))
+        c.commit()
+        return cur.rowcount > 0
 
 
 init_db()

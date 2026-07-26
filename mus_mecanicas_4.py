@@ -13,17 +13,21 @@
 #
 # NO se toca mus_mecanicas.py: solo se importan sus funciones puras desde mus_core.
 
-import os
-import json
 import random
 import string
-import datetime
 
 from mus_core import (
     crear_baraja, get_valores_mus, tiene_pares, get_pares_info,
     get_suma_juego, tiene_juego, comparar_cartas, comp_pares_info,
     comp_juego, comp_punto, mejor_hand_equipo,
+    cartas_a_claves, claves_a_cartas,
 )
+from mus_log import MatchLogger, NullLogger
+
+# Logger mudo compartido por todos los `fork()`. Un fork nunca escribe (es una
+# rama hipotética del árbol de CFR), así que construirle un NullLogger propio en
+# cada clon era pura asignación tirada en el camino más caliente del gimnasio.
+_LOG_MUDO = NullLogger('-', '4p')
 
 
 class PartidaMus4:
@@ -34,6 +38,13 @@ class PartidaMus4:
         self.equipos = {'A': [0, 2], 'B': [1, 3]}
         self.equipo_de = {0: 'A', 1: 'B', 2: 'A', 3: 'B'}
 
+        # Fuente de azar del motor. `None` = el `random` global de siempre (así
+        # `random.seed()` sigue controlando los repartos, como esperan los soaks);
+        # la arena y las sondas le enchufan un random.Random(semilla) para que dos
+        # enfrentamientos vean EXACTAMENTE los mismos repartos (números aleatorios
+        # comunes = mucha menos varianza por partida). Se guarda como None y no
+        # como el módulo porque un módulo no es copiable ni serializable.
+        self.rng = None
         self.mano = random.randint(0, 3)   # asiento de la Mano esta ronda
         self.baraja = []
         self.descartes = []
@@ -74,16 +85,22 @@ class PartidaMus4:
 
         self.mensaje_transicion = None
         self.recuento_calculado = False
+        self.baraja_agotada_aviso = False
         self.pasos_recuento = []
         self.jugadores_listos = []         # asientos listos para la siguiente ronda
         self.ronda_n = 0
 
-        # Logging (misma forma que el JSONL de 2p, con modo='4p').
+        # Log v2 (mus_log.py). Arranca mudo: el servidor llama a `activar_log()`
+        # cuando ya sabe quién se sienta dónde, y el gimnasio/arena lo dejan así.
         self.match_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         self.nombres = {}                  # {asiento: nombre para mostrar}
         self.usernames = {}                # {asiento: username registrado o None}
-        self.historial_ia = []
-        self.generate_log = True
+        self.log = NullLogger(self.match_id, '4p')
+        self._lances_ronda = {}            # resolución por lance, para el evento `eor`
+
+        # Baraja guionizada para la re-jugada (tools/log_verify.py). Si está
+        # puesta, `robar()` sirve de aquí en vez de la baraja aleatoria.
+        self.fuente_cartas = None
 
     # ==========================================
     # Helpers de orden y equipos
@@ -135,45 +152,53 @@ class PartidaMus4:
     def _equipo_tiene(self, equipo, predicado):
         return any(predicado(self.estado[s]['cartas']) for s in self.equipos[equipo])
 
-    # ==========================================
-    # Logging
-    # ==========================================
-    def registrar_movimiento(self, seat, accion, cantidad=0, detalles=None):
-        if not self.estado[seat]['cartas']:
-            return
-        fase_actual = self.fase
-        if self.fase == 'apuestas' and self.indice_fase < len(self.FASES_APUESTA):
-            fase_actual = self.FASES_APUESTA[self.indice_fase]
+    def _azar(self):
+        return self.rng if self.rng is not None else random
 
-        hora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        self.historial_ia.append({
-            "timestamp": hora,
-            "modo": "4p",
-            "match_id": self.match_id,
-            "ronda_n": self.ronda_n,
-            "fase": fase_actual,
-            "asiento": seat,
-            "equipo": self.equipo_de[seat],
-            "es_mano": (seat == self.mano),
-            "jugador": self.nombres.get(seat, f"J{seat}"),
-            "puntos_equipo": self.puntos[self.equipo_de[seat]],
-            "puntos_rival": self.puntos['B' if self.equipo_de[seat] == 'A' else 'A'],
-            "cartas_propias": [c['valor'] for c in self.estado[seat]['cartas']],
-            "accion": accion,
-            "cantidad": cantidad,
-            "detalles": detalles,
-        })
+    # ==========================================
+    # Log v2 (wiki/Bot-AI-4p-ML-Strategy.md §8)
+    # ==========================================
+    def _lance_actual(self):
+        if self.fase == 'apuestas' and self.indice_fase < len(self.FASES_APUESTA):
+            nombre = self.FASES_APUESTA[self.indice_fase]
+            return 'Punto' if (nombre == 'Juego' and self.juego_es_punto) else nombre
+        return None
+
+    def activar_log(self, seats=None, rules=None, dir_logs=None, enabled=True):
+        """Abre el fichero v2 del match y escribe la cabecera.
+
+        `seats` es la lista de identidades por asiento que conoce el servidor
+        ({'s','kind','uid','code','ckpt','pers'}); si no se pasa, se deduce de
+        `usernames` para que las herramientas offline también logueen algo útil.
+        """
+        if seats is None:
+            seats = [{'s': s, 'kind': 'human', 'code': self.usernames.get(s)}
+                     for s in range(4)]
+        # `team_response` deja constancia de CON QUÉ REGLAS se jugó la mano, que es
+        # lo que hará comparables los logs de antes y después de la Fase 2: hoy
+        # responde el turno y, si rehúsa, su compañero ('companero'); la Fase 2.1
+        # abre la respuesta a cualquiera de los dos en cualquier orden ('libre').
+        base = {'objetivo': 40, 'al_mejor_de': self.al_mejor_de,
+                'team_response': 'companero', 'senas': False, 'engine': 'mus4'}
+        if rules:
+            base.update(rules)
+        self.log = MatchLogger(self.match_id, '4p', enabled=enabled, dir_logs=dir_logs)
+        self.log.hdr(base, seats, [self.equipos['A'], self.equipos['B']])
+        return self.log
 
     # ==========================================
     # Reparto y baraja
     # ==========================================
     def robar(self, cantidad):
+        # Re-jugada: las cartas las dicta el log, no el azar.
+        if self.fuente_cartas is not None:
+            return self.fuente_cartas(cantidad)
         robadas = []
         for _ in range(cantidad):
             if not self.baraja:
                 # Sin cartas: rebarajamos los descartes y avisamos (Roadmap #14).
                 self.baraja = self.descartes.copy()
-                random.shuffle(self.baraja)
+                self._azar().shuffle(self.baraja)
                 self.descartes = []
                 self.baraja_agotada_aviso = True
             if self.baraja:
@@ -197,21 +222,24 @@ class PartidaMus4:
         self.rondas_mus = 0
         self.mensaje_transicion = None
         self.baraja_agotada_aviso = False
+        self._lances_ronda = {}
 
     def repartir_inicial(self):
         self.baraja = crear_baraja()
-        random.shuffle(self.baraja)
+        self._azar().shuffle(self.baraja)
         self.descartes = []
         for s in self.orden_desde(self.mano):
             self.estado[s]['cartas'] = self.robar(4)
         self.fase = 'mus'
         self.turno_de = self.mano
+        self.log.deal(self.ronda_n, self.mano,
+                      [[c['valor'] for c in self.estado[s]['cartas']] for s in range(4)])
 
     # ==========================================
     # Fase de Mus y descartes
     # ==========================================
     def cantar_mus(self, seat, quiere_mus):
-        self.registrar_movimiento(seat, 'mus' if quiere_mus else 'no_mus')
+        self.log.accion(seat, 'mus' if quiere_mus else 'no_mus')
         self.estado[seat]['quiere_mus'] = quiere_mus
 
         if not quiere_mus:
@@ -247,31 +275,37 @@ class PartidaMus4:
         if valores != [4, 5, 6, 7]:
             return False
 
-        self.registrar_movimiento(seat, 'pedrete')
+        self.log.accion(seat, 'pedrete')
         eq = self.equipo_de[seat]
         self.puntos[eq] += 1
 
         self.descartes.extend(self.estado[seat]['cartas'])
         self.estado[seat]['cartas'] = self.robar(4)
+        self.log.draw(seat, [c['valor'] for c in self.estado[seat]['cartas']])
 
         if self.puntos[eq] >= 40:
             self.fase = 'recuento'
             self.recuento_calculado = True
             self.pasos_recuento = [{'ganador_equipo': eq, 'datos': {'code': 'recuento_pedrete_win'}}]
+            self._lances_ronda['Pedrete'] = {'win': eq, 'pts': 1}
+            self._cerrar_ronda()
         return True
 
     def procesar_descarte(self, seat, indices_cartas_a_tirar):
         indices_cartas_a_tirar = [int(i) for i in indices_cartas_a_tirar]
         cartas_jugador = self.estado[seat]['cartas']
-        valores_tirados = [cartas_jugador[i]['valor']
-                           for i in sorted(indices_cartas_a_tirar, reverse=True)]
-        self.registrar_movimiento(seat, 'descarte', detalles={"cartas_tiradas": valores_tirados})
+        # El log guarda los ÍNDICES tirados (no los valores): es lo que hace
+        # falta para re-jugar, y las cartas ya se saben por el `deal`/`draw`.
+        self.log.accion(seat, 'descarte', idx=sorted(indices_cartas_a_tirar))
 
         cartas_tiradas = [cartas_jugador.pop(i) for i in sorted(indices_cartas_a_tirar, reverse=True)]
         self.descartes.extend(cartas_tiradas)
         self.estado[seat]['descartes_hechos'] = len(indices_cartas_a_tirar)
-        self.estado[seat]['cartas'].extend(self.robar(len(indices_cartas_a_tirar)))
+        nuevas = self.robar(len(indices_cartas_a_tirar))
+        self.estado[seat]['cartas'].extend(nuevas)
         self.estado[seat]['descartes_listos'] = True
+        if nuevas:
+            self.log.draw(seat, [c['valor'] for c in nuevas])
 
         if all(self.estado[s]['descartes_listos'] for s in range(4)):
             # Vuelta al mus.
@@ -319,8 +353,12 @@ class PartidaMus4:
 
         if nombre_fase == 'Pares':
             # Declaración automática (sin señas): cada asiento declara según sus cartas.
-            for s in range(4):
-                self.estado[s]['tiene_pares_dec'] = tiene_pares(self.estado[s]['cartas'])
+            # Son información PÚBLICA y la señal más informativa del mus, así que
+            # van al log como eventos de primera clase (§8.3), en orden de mesa.
+            for s in self.orden_desde(self.mano):
+                if self.estado[s]['tiene_pares_dec'] is None:
+                    self.estado[s]['tiene_pares_dec'] = tiene_pares(self.estado[s]['cartas'])
+                    self.log.decl(s, 'Pares', self.estado[s]['tiene_pares_dec'])
             a_tiene = self._equipo_tiene('A', tiene_pares)
             b_tiene = self._equipo_tiene('B', tiene_pares)
             if not (a_tiene and b_tiene):
@@ -336,8 +374,12 @@ class PartidaMus4:
             self.turno_de = self._primer_asiento_eligible(tiene_pares)
 
         elif nombre_fase == 'Juego':
-            for s in range(4):
-                self.estado[s]['tiene_juego_dec'] = tiene_juego(self.estado[s]['cartas'])
+            # Ojo: a esta rama se vuelve a entrar tras el aviso "juego a punto",
+            # por eso la declaración se emite una sola vez por ronda.
+            for s in self.orden_desde(self.mano):
+                if self.estado[s]['tiene_juego_dec'] is None:
+                    self.estado[s]['tiene_juego_dec'] = tiene_juego(self.estado[s]['cartas'])
+                    self.log.decl(s, 'Juego', self.estado[s]['tiene_juego_dec'])
             a_tiene = self._equipo_tiene('A', tiene_juego)
             b_tiene = self._equipo_tiene('B', tiene_juego)
             if not a_tiene and not b_tiene:
@@ -374,7 +416,9 @@ class PartidaMus4:
         self.preparar_subfase()
 
     def accion_apuesta(self, seat, accion, cantidad=0):
-        self.registrar_movimiento(seat, accion, cantidad)
+        # Se registra la cantidad PEDIDA, no la recortada: es la decisión real
+        # del jugador y es lo que hay que reinyectar para re-jugar la mano.
+        self.log.accion(seat, accion, lance=self._lance_actual(), cantidad=cantidad)
         nombre_fase = self.FASES_APUESTA[self.indice_fase]
         eq = self.equipo_de[seat]
         eq_rival = 'B' if eq == 'A' else 'A'
@@ -757,6 +801,7 @@ class PartidaMus4:
                     'ganador_equipo': ganador_eq,
                     'datos': {'code': 'recuento_ordago', 'fase': n_log},
                 })
+                self._lances_ronda[n_log] = {'win': ganador_eq, 'pts': 40, 'ordago': True}
                 continue
 
             if fase == 'Grande' and not ganador_eq:
@@ -798,11 +843,31 @@ class PartidaMus4:
             if pts_total > 0 and ganador_eq:
                 self.puntos[ganador_eq] = min(40, self.puntos[ganador_eq] + pts_total)
 
-            if self.dejes_fase.get(fase) is not None and pts_total == 0:
+            deje = self.dejes_fase.get(fase)
+            if deje is not None and pts_total == 0:
                 datos_paso = {'code': 'recuento_nover', 'fase': n_log}
             else:
                 datos_paso = {'code': 'recuento_gana', 'puntos': pts_total, 'fase': n_log}
             self.pasos_recuento.append({'ganador_equipo': ganador_eq, 'datos': datos_paso})
+            # `pts` es lo que se apunta en el recuento; `deje` son los puntos que
+            # ya se cobraron en el momento del "no quiero" (no se suman dos veces).
+            self._lances_ronda[n_log] = {'win': ganador_eq, 'pts': pts_total}
+            if deje is not None:
+                self._lances_ronda[n_log]['deje'] = deje['valor']
+
+        self._cerrar_ronda()
+        return self.pasos_recuento
+
+    def _cerrar_ronda(self):
+        """Cierre de ronda: evento `eor`, recuento de partidas y, si toca, `eom`.
+
+        Vive aparte porque hay DOS caminos hasta aquí: el recuento normal y el
+        pedrete que llega a 40 (que se salta `calcular_recuento` entero)."""
+        # Resolución por lance, marcador y manos finales — la verdad del
+        # showdown, que es lo que entrena al belief net de la Fase 3.
+        self.log.eor(self.ronda_n, self._lances_ronda,
+                     [self.puntos['A'], self.puntos['B']],
+                     [[c['valor'] for c in self.estado[s]['cartas']] for s in range(4)])
 
         # --- Cierre de partida / match ---
         if not self.partida_sumada:
@@ -818,30 +883,121 @@ class PartidaMus4:
                 if self.partidas_ganadas['A'] >= objetivo or self.partidas_ganadas['B'] >= objetivo:
                     self.match_finalizado = True
 
-        # Volcado del log al terminar la partida.
-        if self.partida_sumada:
-            self._dump_log()
+        if self.match_finalizado:
+            ganador = 'A' if self.partidas_ganadas['A'] > self.partidas_ganadas['B'] else 'B'
+            self.log.eom(ganador, [self.partidas_ganadas['A'], self.partidas_ganadas['B']])
 
-        return self.pasos_recuento
+    # ==========================================
+    # Estado plano: fork() y (de)serialización — Fase 1.3
+    # ------------------------------------------------------------------
+    # `copy.deepcopy(motor)` era el cuello de botella del gimnasio: el muestreo
+    # externo de CFR clona el entorno en CADA acción explorada, y deepcopy
+    # recorre también los dicts de carta (valor/palo/img/texto) y el logger.
+    #
+    # Las cartas son INMUTABLES en la práctica: el motor las mueve de una lista
+    # a otra pero nunca las modifica. Así que `fork()` copia los contenedores y
+    # COMPARTE los dicts de carta — que es de donde sale la mayor parte de la
+    # ganancia. `to_state()/from_state()` sí serializan de verdad (a tuplas
+    # planas JSON-ables), y de paso dan gratis la persistencia de partida que
+    # pide el Roadmap #18 capa 2.
+    # ==========================================
+    _CAMPOS_ESCALARES = (
+        'mano', 'al_mejor_de', 'match_finalizado', 'partida_sumada', 'fase',
+        'indice_fase', 'turno_de', 'apuesta_vista', 'subida_pendiente',
+        'quien_sube', 'equipo_apostador', 'ultimo_apostador', 'pases_consecutivos',
+        'ordago_aceptado_en', 'juego_es_punto', 'transicion_punto_mostrada',
+        'quien_corta_mus', 'rondas_mus', 'recuento_calculado', 'ronda_n',
+        'baraja_agotada_aviso', 'match_id',
+    )
 
-    def _dump_log(self):
-        if not self.historial_ia:
-            return
-        ganador_eq = 'A' if self.puntos['A'] >= self.puntos['B'] else 'B'
-        for mov in self.historial_ia:
-            mov['gano_ronda'] = (mov['equipo'] == ganador_eq)
-            mov['puntos_finales_equipo'] = self.puntos[mov['equipo']]
-        if self.generate_log:
-            try:
-                if not os.path.exists('logs'):
-                    os.makedirs('logs')
-                ruta = os.path.join('logs', f"{self.match_id}.jsonl")
-                with open(ruta, 'a', encoding='utf-8') as f:
-                    for mov in self.historial_ia:
-                        f.write(json.dumps(mov) + '\n')
-            except Exception as e:
-                print(f"Error guardando JSONL 4p en {self.match_id}:", e)
-        self.historial_ia = []
+    def fork(self):
+        """Copia rápida e independiente del motor (sin logger: un fork no escribe)."""
+        otro = object.__new__(PartidaMus4)
+        d, od = self.__dict__, otro.__dict__
+        for campo in PartidaMus4._CAMPOS_ESCALARES:
+            od[campo] = d[campo]
+        # Constantes compartidas: nadie las muta.
+        od['equipos'] = self.equipos
+        od['equipo_de'] = self.equipo_de
+        od['rng'] = self.rng
+        od['nombres'] = self.nombres
+        od['usernames'] = self.usernames
+        od['baraja'] = self.baraja[:]
+        od['descartes'] = self.descartes[:]
+        od['estado'] = {s: {'cartas': e['cartas'][:],
+                            'quiere_mus': e['quiere_mus'],
+                            'descartes_listos': e['descartes_listos'],
+                            'descartes_hechos': e['descartes_hechos'],
+                            'tiene_pares_dec': e['tiene_pares_dec'],
+                            'tiene_juego_dec': e['tiene_juego_dec']}
+                        for s, e in self.estado.items()}
+        od['puntos'] = dict(self.puntos)
+        od['partidas_ganadas'] = dict(self.partidas_ganadas)
+        od['botes'] = dict(self.botes)
+        od['dejes_fase'] = dict(self.dejes_fase)
+        od['ganadores_fase'] = dict(self.ganadores_fase)
+        od['respondedores'] = self.respondedores[:]
+        od['jugadores_listos'] = self.jugadores_listos[:]
+        od['pasos_recuento'] = list(self.pasos_recuento)
+        od['mensaje_transicion'] = self.mensaje_transicion
+        od['_lances_ronda'] = dict(self._lances_ronda)
+        od['log'] = _LOG_MUDO
+        od['fuente_cartas'] = None
+        return otro
+
+    def to_state(self):
+        """Estado completo como estructura plana JSON-able."""
+        est = {str(s): {'cartas': cartas_a_claves(e['cartas']),
+                        'quiere_mus': e['quiere_mus'],
+                        'descartes_listos': e['descartes_listos'],
+                        'descartes_hechos': e['descartes_hechos'],
+                        'tiene_pares_dec': e['tiene_pares_dec'],
+                        'tiene_juego_dec': e['tiene_juego_dec']}
+               for s, e in self.estado.items()}
+        return {
+            'v': 1,
+            'escalares': {c: getattr(self, c) for c in PartidaMus4._CAMPOS_ESCALARES},
+            'baraja': cartas_a_claves(self.baraja),
+            'descartes': cartas_a_claves(self.descartes),
+            'estado': est,
+            'puntos': dict(self.puntos),
+            'partidas_ganadas': dict(self.partidas_ganadas),
+            'botes': dict(self.botes),
+            'dejes_fase': dict(self.dejes_fase),
+            'ganadores_fase': dict(self.ganadores_fase),
+            'respondedores': list(self.respondedores),
+            'jugadores_listos': list(self.jugadores_listos),
+            'pasos_recuento': list(self.pasos_recuento),
+            'mensaje_transicion': self.mensaje_transicion,
+            'lances_ronda': dict(self._lances_ronda),
+        }
+
+    @classmethod
+    def from_state(cls, estado_plano):
+        motor = cls()
+        for campo, valor in estado_plano['escalares'].items():
+            setattr(motor, campo, valor)
+        motor.baraja = claves_a_cartas(estado_plano['baraja'])
+        motor.descartes = claves_a_cartas(estado_plano['descartes'])
+        motor.estado = {int(s): {'cartas': claves_a_cartas(e['cartas']),
+                                 'quiere_mus': e['quiere_mus'],
+                                 'descartes_listos': e['descartes_listos'],
+                                 'descartes_hechos': e['descartes_hechos'],
+                                 'tiene_pares_dec': e['tiene_pares_dec'],
+                                 'tiene_juego_dec': e['tiene_juego_dec']}
+                        for s, e in estado_plano['estado'].items()}
+        motor.puntos = dict(estado_plano['puntos'])
+        motor.partidas_ganadas = dict(estado_plano['partidas_ganadas'])
+        motor.botes = dict(estado_plano['botes'])
+        motor.dejes_fase = dict(estado_plano['dejes_fase'])
+        motor.ganadores_fase = dict(estado_plano['ganadores_fase'])
+        motor.respondedores = list(estado_plano['respondedores'])
+        motor.jugadores_listos = list(estado_plano['jugadores_listos'])
+        motor.pasos_recuento = list(estado_plano['pasos_recuento'])
+        motor.mensaje_transicion = estado_plano['mensaje_transicion']
+        motor._lances_ronda = dict(estado_plano.get('lances_ronda') or {})
+        motor.log = NullLogger(motor.match_id, '4p')
+        return motor
 
     # ==========================================
     # Avance de ronda / partida

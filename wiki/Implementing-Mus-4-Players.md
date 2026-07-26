@@ -276,6 +276,28 @@ At **recuento only**, add every seat's `cartas` to the `seats` entries (so the c
 
 **Result persistence:** when the match/game ends, record it like 2p. ELO is currently a 1v1 function ([base_datos.py](../base_datos.py)); for 4p either (a) skip ELO in v1 and only store a `Partidas` row per team (recommended — see Roadmap #19 stats table), or (b) apply the pairwise ELO update to each winner–loser cross pair. Do **not** modify `registrar_partida_completa`'s 2p behavior; add a new `registrar_partida_4(equipo_ganador_usernames, equipo_perdedor_usernames)`.
 
+### 4.3 bis. Announcing what each player did — `accion_4`
+
+With four seats the turn highlight alone doesn't say **who** just did what, so
+every game action is also announced to the room as `accion_4 {asiento, accion,
+cantidad}` from `procesar_accion_4` (bots included — they go through the same
+function). The client renders it for a couple of seconds over that player's own
+seat (`mostrarAccion4` in [table4.js](../static/table4.js), text and i18n in
+[app4.js](../static/app4.js)).
+
+Two details that matter:
+
+- **The amount is read *after* the engine plays it**, never from the request:
+  `accion_apuesta` clamps a bid to what's left before 40 and turns it into an
+  órdago when nothing fits, so what gets called isn't always what was asked for.
+- Everything announced is **public information in mus** (what you say out loud,
+  plus how many cards you throw), which is why it goes to the whole room. The
+  auto-discard on timeout announces too, so an AFK player's hand still shows.
+
+Bots also mark themselves ready for the next round the moment the recuento is
+broadcast, instead of pressing their button one at a time on `bot_delay`: the
+next hand then starts as soon as the *people* press theirs.
+
 ### 4.4 Connection handling (critical section)
 
 4p is far more sensitive to disconnects than 2p (four fragile sockets). Handle it explicitly:

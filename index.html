@@ -12,11 +12,11 @@
     <!-- Aquí es donde carga el diseño. Si esto falla, se ve todo blanco -->
     <link rel="stylesheet" href="/static/style.css?=v4">
     <!-- Mus 4 jugadores (Roadmap #6): estilos propios, cargados tras style.css -->
-    <link rel="stylesheet" href="/static/style4.css?=v2">
+    <link rel="stylesheet" href="/static/style4.css?=v3">
     <!-- Menú y ventana de Jugar: se carga al final para poder redefinir la paleta -->
     <link rel="stylesheet" href="/static/menu.css?=v2">
     <!-- El tapete (1v1 y 2v2) con el mismo lenguaje visual que el menú -->
-    <link rel="stylesheet" href="/static/game.css?=v3">
+    <link rel="stylesheet" href="/static/game.css?=v4">
     <!-- Señas del 2v2: caras, foco e iluminación. Después de game.css, que es
          quien fija el aspecto de los asientos. -->
     <link rel="stylesheet" href="/static/senas.css?=v1">
@@ -123,10 +123,9 @@
                     <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-copas"/></svg>
                     <span class="cm-row-label" data-i18n="menu_tutorial">Cómo se juega</span>
                 </button>
-                <button id="btn-decks" class="cm-row is-soon" data-soon="1">
+                <button id="btn-decks" class="cm-row">
                     <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-oros"/></svg>
                     <span class="cm-row-label" data-i18n="menu_decks">Mis barajas</span>
-                    <em class="cm-tag" data-i18n="tag_soon">Pronto</em>
                 </button>
             </nav>
 
@@ -683,6 +682,36 @@
         </div>
 
         <!-- ===================================================== -->
+        <!-- MIS BARAJAS (Roadmap #5)                               -->
+        <!-- Un "tema" son las 10 cartas y el dorso que ocupan uno   -->
+        <!-- de los cuatro huecos de palo. La rellena decks.js.      -->
+        <!-- ===================================================== -->
+        <div id="modal-decks" class="hidden cm-win cm-win-wide">
+            <button class="btn-cerrar-modal cm-close" aria-label="Cerrar">&times;</button>
+
+            <header class="cm-win-head">
+                <h2 class="cm-win-title" data-i18n="decks_titulo">Mis barajas</h2>
+                <p class="cm-win-sub" data-i18n="decks_sub">Elige un tema para cada palo. En el mus el palo no puntúa, así que puedes mezclarlos.</p>
+            </header>
+
+            <div class="cm-win-body">
+                <!-- La baraja montada: un as por palo, más el dorso. Cada carta
+                     es también el botón que elige qué hueco se está editando. -->
+                <div id="decks-resumen" class="deck-slots"></div>
+
+                <div class="deck-barra">
+                    <p id="decks-elige" class="deck-elige"></p>
+                    <button id="decks-todos-palos" class="cm-mini" data-i18n="decks_todos_palos">Poner en los cuatro palos</button>
+                    <button id="decks-restablecer" class="cm-mini" data-i18n="decks_restablecer">Volver a la baraja clásica</button>
+                </div>
+
+                <div id="decks-catalogo" class="deck-grid"></div>
+
+                <p id="decks-msg" class="cm-msg"></p>
+            </div>
+        </div>
+
+        <!-- ===================================================== -->
         <!-- VENTANA DE JUGAR: 1v1 y 2v2, crear y unirse            -->
         <!-- Reúne lo que antes estaba repartido entre el menú (1v1) -->
         <!-- y el desaparecido #modal-4 (2v2). Los ids de los campos -->
@@ -985,7 +1014,10 @@
         </div>
     </div>
 
-    <script src="/static/app.js?=v12"></script>
+    <script src="/static/app.js?=v13"></script>
+    <!-- Barajas temáticas (Roadmap #5). Antes que auth.js: éste le pide que
+         recargue el catálogo en cuanto se confirma la sesión. -->
+    <script src="/static/decks.js?=v2"></script>
     <script src="/static/auth.js?=v5"></script>
     <!-- Ventana de ajustes (idioma, cuenta). Carga tras auth.js: usa usuarioActual. -->
     <script src="/static/settings.js?=v2"></script>
@@ -995,11 +1027,11 @@
     <script src="/static/soporte.js?=v1"></script>
     <script src="/static/tutorial.js?=v2"></script>
     <!-- Mus 4 jugadores (Roadmap #6): app4 (lógica) + table4 (render). Cargan tras app.js para reusar socket/dict/t. -->
-    <script src="/static/table4.js?=v2"></script>
-    <script src="/static/app4.js?=v3"></script>
+    <script src="/static/table4.js?=v4"></script>
+    <script src="/static/app4.js?=v5"></script>
     <!-- Señas del 2v2: foco, caras y denuncias. Tras app4.js, que es quien le
          pasa cada estado de la mesa (Senas4.sincronizar). -->
-    <script src="/static/senas4.js?=v1"></script>
+    <script src="/static/senas4.js?=v2"></script>
     <!-- Menú principal y ventana de Jugar. Va al final: usa dict/t/socket de
          app.js y reengancha los paneles 2v2 que app4.js acaba de localizar. -->
     <script src="/static/menu.js?=v1"></script>

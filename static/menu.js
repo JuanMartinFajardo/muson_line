@@ -208,9 +208,9 @@
     window.avisarNoDisponible = avisar;
 
     // Cualquier elemento marcado con data-soon explica por qué no se puede usar.
-    const MOTIVOS = {
-        'btn-decks': 'pronto_barajas',
-    };
+    // «Mis barajas» ya existe (Roadmap #5); lo abre decks.js. Aquí sólo queda
+    // el mecanismo, para lo próximo que se anuncie antes de estar terminado.
+    const MOTIVOS = {};
     document.addEventListener('click', (e) => {
         const soon = e.target.closest('[data-soon]');
         if (!soon) return;

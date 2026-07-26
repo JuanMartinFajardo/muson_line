@@ -63,12 +63,18 @@ def aplicar(motor, seat, accion, cantidad, meta):
         motor.accion_apuesta(seat, accion, cantidad)
 
 
-def jugar_match(personalidades, al_mejor_de, stats):
+def jugar_match(personalidades, al_mejor_de, stats, dir_log=None):
     motor = PartidaMus4()
     motor.al_mejor_de = al_mejor_de
-    motor.generate_log = False
     motor.nombres = {s: f'Bot{s}-{personalidades[s]}' for s in range(4)}
     motor.usernames = {s: None for s in range(4)}
+    if dir_log:
+        # Con --log-dir el soak sirve además para generar corpus v2 de prueba
+        # (lo que consume tools/log_verify.py). Por defecto NO escribe nada:
+        # logs/v2 es para partidas de verdad.
+        motor.activar_log(
+            seats=[{'s': s, 'kind': 'bot', 'pers': personalidades[s]} for s in range(4)],
+            rules={'al_mejor_de': al_mejor_de}, dir_logs=dir_log)
     motor.iniciar_ronda()
 
     bots = {s: SmartBot4(f'BOT_SOAK_{s}', s, personalidades[s]) for s in range(4)}
@@ -124,6 +130,9 @@ def main():
     ap.add_argument('--semilla', type=int, default=7)
     ap.add_argument('--personalidades', nargs=4, default=None,
                     metavar='P', help='personalidad por asiento 0..3')
+    ap.add_argument('--log-dir', default=None,
+                    help='escribe un log v2 por match en este directorio '
+                         '(para probar tools/log_verify.py)')
     args = ap.parse_args()
 
     random.seed(args.semilla)
@@ -147,7 +156,7 @@ def main():
 
     for n in range(args.matches):
         try:
-            ganador, r = jugar_match(personalidades, args.al_mejor_de, stats)
+            ganador, r = jugar_match(personalidades, args.al_mejor_de, stats, args.log_dir)
         except JugadaIlegal as e:
             print(f"\n❌ FALLO en el match {n + 1}: {e}")
             return 1

@@ -18,7 +18,7 @@
 | [Database](Database.md) | `base_datos.py` — SQLite schema, ELO math |
 | [Authentication](Authentication.md) | Account system: register/verify/login/Google OAuth (partially implemented) |
 | [Frontend](Frontend.md) | `index.html`, `static/app.js`, `static/auth.js`, `static/tutorial.js`, i18n |
-| [Bot and AI](Bot-AI.md) | `bot_ml.py`, Deep CFR training pipeline, `learn/` folder |
+| [Bot and AI](Bot-AI.md) | `bot_ml.py`, Deep CFR training pipeline, `learn/` folder, and the §4 training infrastructure (log v2, encoder, benchmark, measurement harness) |
 | [4p Bot ML Strategy](Bot-AI-4p-ML-Strategy.md) | Deep analysis: Deep CFR + RL for the 2v2 bot, Nash-distance measurement, log format v2, signs |
 | [4p Bot Roadmap](Bot-AI-4p-Roadmap.md) | Phased execution plan for the 2v2 bot (P0 heuristic → P6 signs) |
 | [Setup and Deployment](Setup-and-Deployment.md) | How to install and run the server |

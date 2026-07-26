@@ -16,6 +16,7 @@ from datetime import timedelta
 from flask import (Flask, render_template, request, session, jsonify,
                    send_from_directory, redirect, url_for)
 import base_datos
+import decks
 import social
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from mus_mecanicas import PartidaMus
@@ -67,6 +68,11 @@ if not (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET):
 app = Flask(__name__, static_folder='static', template_folder='.')
 app.config['SECRET_KEY'] = SECRET_KEY
 app.permanent_session_lifetime = timedelta(days=30)
+# Techo global del cuerpo de una petición. Lo único que sube algo pesado es la
+# subida de barajas del panel (Roadmap #5), y ahí `decks.py` aplica sus propios
+# límites; esto es la red por debajo, para que nadie ocupe memoria mandando un
+# cuerpo enorme a cualquier otra ruta.
+app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 # ping_timeout/interval holgados: minimizar/cambiar de pestaña en el móvil suspende
 # los temporizadores del navegador; con umbrales altos un parón breve NO cuenta como
 # desconexión y ni siquiera hace falta reconectar. Compatible con eventlet.
@@ -261,6 +267,9 @@ def _sentar_reemplazo_2p(codigo, sid, nombre, username):
     motor = sala['motor']
     _remap_sid_2p(motor, _seat_motor_2p(motor, seat), sid)
     motor.nombres_ia[sid] = username or nombre
+    # El asiento cambia de dueño a mitad de match: al log v2, para que la
+    # atribución por persona del dataset derivado siga siendo exacta.
+    motor.log.seat(motor.seat(sid), 'human', code=username)
 
     sids[seat] = sid
     sala.get('ultimo_sid', {}).pop(seat, None)
@@ -316,6 +325,56 @@ def index():
 def api_leaderboard():
     datos = base_datos.obtener_leaderboard()
     return jsonify({'exito': True, 'leaderboard': datos})
+
+
+# ==========================================
+# BARAJAS TEMÁTICAS (Roadmap #5)
+# ------------------------------------------
+# El servidor NO deja de mandar el campo `img` de cada carta: la piel es cosa
+# del cliente, que resuelve la ruta con el tema que el jugador tenga puesto en
+# ese hueco de palo. Aquí sólo se dice qué temas existen, cuáles puede usar
+# quien pregunta, y se guarda su elección si tiene cuenta.
+#
+# El catálogo se sirve también sin sesión (un invitado juega con la baraja
+# clásica y ve el resto marcado como bloqueado), así que no hay nada privado
+# en la respuesta.
+#
+# La elección SÍ viaja a la mesa: cada carta se pinta con la baraja de su dueño,
+# así que la del rival hay que conocerla. La guarda `decks.recordar_baraja` por
+# sid (ver el evento `mi_baraja` más abajo) y sale en el estado de la partida.
+# ==========================================
+
+@app.route('/api/decks', methods=['GET'])
+def api_decks():
+    username = session.get('username')
+    es_admin = base_datos.es_admin(username)
+    idioma = 'en' if request.args.get('lang') == 'en' else 'es'
+    temas = decks.temas_para(username, es_admin, idioma)
+    usables = {t['slug'] for t in temas if not t['bloqueado']}
+    return jsonify({
+        'exito': True,
+        'temas': temas,
+        'huecos': list(decks.HUECOS),
+        'config': decks.config_de(username, usables) if username else None,
+        'defecto': decks.CONFIG_DEFECTO,
+        'logueado': bool(username),
+    })
+
+
+@app.route('/api/deck', methods=['POST'])
+def api_deck_guardar():
+    """Guarda la baraja del jugador. Los invitados la conservan en su navegador
+    (localStorage): sin cuenta no hay dónde guardarla ni nada que sincronizar."""
+    username = session.get('username')
+    if not username:
+        return jsonify({'exito': False, 'codigo': 'necesita_cuenta'}), 401
+    datos = request.json or {}
+    config = datos.get('config')
+    if not isinstance(config, dict):
+        return jsonify({'exito': False, 'codigo': 'config_invalida'}), 400
+    usables = decks.slugs_usables(username, base_datos.es_admin(username))
+    guardada = decks.guardar_config(username, config, usables)
+    return jsonify({'exito': True, 'config': guardada})
 
 
 # --- Helpers de correo, validación y códigos temporales ---
@@ -880,6 +939,50 @@ def handle_pedir_publicas():
     emitir_lista_publicas()
 
 
+# ==========================================
+# LA BARAJA DE CADA UNO EN LA MESA (Roadmap #5)
+# ------------------------------------------
+# El navegador anuncia con qué baraja juega: al conectar, al cargar el catálogo
+# y cada vez que se cambia en «Mis barajas». Vale igual para el invitado, que no
+# tiene dónde guardarla, y siempre se valida contra los temas que ese jugador
+# puede usar de verdad.
+# ==========================================
+
+def _baraja_de_sid(sid):
+    """La baraja con la que hay que pintar las cartas de ese asiento. Los bots
+    juegan con la clásica: no eligen."""
+    if not sid or sid.startswith('BOT_'):
+        return dict(decks.CONFIG_DEFECTO)
+    return decks.baraja_en_mesa(sid, jugadores.get(sid, {}).get('username'))
+
+
+@socketio.on('mi_baraja')
+def handle_mi_baraja(datos):
+    sid = request.sid
+    username = session.get('username')
+    config = decks.recordar_baraja(sid, (datos or {}).get('config'),
+                                   username, base_datos.es_admin(username))
+
+    # A los demás se les manda un aviso suelto, no el estado entero de la mesa:
+    # una difusión de estado reinicia el reloj del turno, y cambiar de baraja no
+    # puede regalarle tiempo a nadie.
+    info = jugadores.get(sid) or {}
+    if info.get('modo4'):
+        try:
+            import server_mus4
+            server_mus4.difundir_baraja_4(sid, config)
+        except Exception as e:
+            print(f"⚠️ Error difundiendo baraja 4p: {e}")
+        return
+
+    sala = salas.get(info.get('sala'))
+    if not sala:
+        return
+    for otro in sala.get('sids', []):
+        if otro and otro != sid and not otro.startswith('BOT_'):
+            socketio.emit('baraja_rival', {'config': config}, room=otro)
+
+
 # aqui iba el anteriorgestion de usuarios y sesiones
 
 
@@ -951,6 +1054,11 @@ def handle_crear_partida_bot(datos):
         bot_sid: 'Bot IA'
     }
     partida.al_mejor_de = al_mejor_de_valor
+    # Log v2 (mus_log.py): el asiento 0 es quien crea la sala, el 1 el bot.
+    partida.activar_log(
+        seats=[{'s': 0, 'kind': 'human', 'code': real_username},
+               {'s': 1, 'kind': 'bot', 'pers': getattr(salas[codigo]['bot'], 'personalidad', None)}],
+        rules={'al_mejor_de': al_mejor_de_valor})
     partida.iniciar_ronda()
     salas[codigo]['motor'] = partida
     
@@ -1062,6 +1170,12 @@ def handle_unirse_sala(datos):
                 j2_sid: jugadores.get(j2_sid, {}).get('username') or jugadores.get(j2_sid, {}).get('nombre', 'J2')
             }
             partida.al_mejor_de = salas[codigo].get('al_mejor_de', 3)
+            # Log v2 (mus_log.py): asientos estables 0 = j1, 1 = j2.
+            partida.activar_log(
+                seats=[{'s': i, 'kind': 'human',
+                        'code': jugadores.get(s_sid, {}).get('username')}
+                       for i, s_sid in enumerate((j1_sid, j2_sid))],
+                rules={'al_mejor_de': salas[codigo].get('al_mejor_de', 3)})
             partida.iniciar_ronda()
             salas[codigo]['motor'] = partida
             
@@ -1261,6 +1375,9 @@ def enviar_estado_a_jugadores(codigo_sala):
             'para_sid': sid,  # Añadimos a quién va dirigido
             'reconexion_token': sala.get('tokens', {}).get(sala['sids'].index(sid)),
             'nombre_rival': partida_actual.nombres_ia.get(rival_sid, jugadores.get(rival_sid, {}).get('nombre', 'Rival')),
+            # Sus cartas se pintan con SU baraja, tanto el dorso como las caras
+            # que se enseñan en el recuento (Roadmap #5).
+            'baraja_rival': _baraja_de_sid(rival_sid),
             'fase': partida_actual.fase,
             'puede_pedrete': puede_pedrete_ahora,
             'es_mi_turno': es_mi_turno,
@@ -1528,6 +1645,9 @@ def handle_disconnect():
         server_mus4.disconnect_4()
     except Exception as e:
         print(f"⚠️ Error en disconnect_4: {e}")
+
+    # La baraja anunciada va con el socket: al reconectar se vuelve a mandar.
+    decks.olvidar_baraja(sid)
 
     if sid in jugadores:
         codigo = jugadores[sid]['sala']

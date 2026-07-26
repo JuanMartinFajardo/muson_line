@@ -14,8 +14,12 @@ function slotDeAsiento4(miAsiento, asiento) {
     return ['bottom', 'left', 'top', 'right'][rel];
 }
 
-function cartaBackHTML4() {
-    return `<div class="carta-4"><img src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;"></div>`;
+// La cara y el dorso salen de la baraja de QUIEN TIENE LA CARTA (Roadmap #5):
+// la tuya para las tuyas, la suya para las de cada uno de los otros tres, que
+// viaja en `seats[].baraja`. `imgCarta`/`imgDorso` viven en app.js y caen a la
+// baraja clásica si decks.js no ha cargado.
+function cartaBackHTML4(baraja) {
+    return `<div class="carta-4"><img src="${imgDorso(baraja)}" draggable="false" oncontextmenu="return false;"></div>`;
 }
 
 function renderChips4(seatInfo, fase) {
@@ -52,8 +56,8 @@ function renderCartasAsiento4(el, seatInfo, next, esYo, animarDeal, animarFlip) 
             const div = document.createElement('div');
             div.className = 'carta-4' + (conSenas ? ' volteable' : '');
             if (animarDeal) div.classList.add('deal-anim');
-            div.innerHTML = `<img class="cara-carta" src="${carta.img}" alt="${carta.texto || ''}" draggable="false" oncontextmenu="return false;">`
-                + (conSenas ? `<img class="dorso-carta" src="/static/img/card_back.webp" draggable="false" oncontextmenu="return false;">` : '');
+            div.innerHTML = `<img class="cara-carta" src="${imgCarta(carta)}" alt="${carta.texto || ''}" draggable="false" oncontextmenu="return false;">`
+                + (conSenas ? `<img class="dorso-carta" src="${imgDorso()}" draggable="false" oncontextmenu="return false;">` : '');
             if (cartasSeleccionadas4.includes(index)) div.classList.add('seleccionada');
             div.onclick = () => {
                 // Si no las estás mirando no las puedes elegir.
@@ -71,12 +75,15 @@ function renderCartasAsiento4(el, seatInfo, next, esYo, animarDeal, animarFlip) 
         return;
     }
 
+    // De aquí abajo, las cartas son de otro: van con la baraja de su dueño.
+    const suBaraja = seatInfo.baraja;
+
     if (next.fase === 'recuento' && seatInfo.cartas) {
         seatInfo.cartas.forEach(c => {
             const div = document.createElement('div');
             div.className = 'carta-4';
             if (animarFlip) div.classList.add('flip-anim');
-            div.innerHTML = `<img src="${c.img}" alt="${c.texto || ''}" draggable="false" oncontextmenu="return false;">`;
+            div.innerHTML = `<img src="${imgCarta(c, suBaraja)}" alt="${c.texto || ''}" draggable="false" oncontextmenu="return false;">`;
             cont.appendChild(div);
         });
         return;
@@ -84,7 +91,7 @@ function renderCartasAsiento4(el, seatInfo, next, esYo, animarDeal, animarFlip) 
 
     if (next.fase === 'espera_reparto') return;   // aún sin repartir
     // Resto de fases: 4 dorsos.
-    cont.innerHTML = cartaBackHTML4().repeat(4);
+    cont.innerHTML = cartaBackHTML4(suBaraja).repeat(4);
 }
 
 function renderSeat4(next, seatInfo, animarDeal, animarFlip) {
@@ -179,6 +186,25 @@ function animarPuntos4(prev, next) {
     });
 }
 
+// Lo que acaba de cantar un jugador, en su propio sitio de la mesa. Con cuatro
+// asientos el resaltado del turno no basta para seguir quién ha hecho qué, así
+// que cada acción deja un rótulo un momento donde corresponde.
+// El texto lo compone app4.js (que es quien tiene el diccionario); aquí sólo se
+// pinta. `clase` marca los cantes que merecen destacar (órdago, no hay mus…).
+function mostrarAccion4(miAsiento, asiento, texto, clase) {
+    const el = document.getElementById('seat-' + slotDeAsiento4(miAsiento, asiento));
+    if (!el || !texto) return;
+    // Una sola por asiento: si canta otra vez, sustituye a la anterior.
+    const previa = el.querySelector('.accion-burbuja');
+    if (previa) previa.remove();
+
+    const burbuja = document.createElement('div');
+    burbuja.className = 'accion-burbuja' + (clase ? ' ' + clase : '');
+    burbuja.innerText = texto;
+    el.appendChild(burbuja);
+    setTimeout(() => burbuja.remove(), 2600);
+}
+
 function animarOrdago4() {
     const mesa = document.getElementById('mesa-4');
     if (mesa) { mesa.classList.remove('ordago-shake'); void mesa.offsetWidth; mesa.classList.add('ordago-shake'); }
@@ -196,6 +222,14 @@ function renderMesa4(prev, next) {
     // Reinicia la selección de descarte al cambiar de fase/reparto.
     if (!prev || prev.fase !== 'descarte' || next.fase !== 'descarte') {
         if (next.fase !== 'descarte' || !next.mis_descartes_listos) cartasSeleccionadas4 = [];
+    }
+
+    // Las barajas de los otros tres, en segundo plano (decks.js baja cada una
+    // una sola vez, aunque esto se llame en cada estado de la mesa).
+    if (window.Barajas) {
+        (next.seats || []).forEach(s => {
+            if (s.asiento !== next.mi_asiento) window.Barajas.precargarAjena(s.baraja);
+        });
     }
 
     (next.seats || []).forEach(seatInfo => renderSeat4(next, seatInfo, animarDeal, animarFlip));

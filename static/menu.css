@@ -895,3 +895,128 @@
     .cm-play, .cm-play::before, .cm-play-arrow, .cm-row .pinta,
     .cm-toast, .cm-icon-btn, .cm-opt, .cm-mode { transition: none; }
 }
+
+/* ============================================================
+   9. Mis barajas (#modal-decks) — Roadmap #5
+   ------------------------------------------------------------
+   Dos zonas: arriba la baraja montada (un as por palo y el
+   dorso, que hacen a la vez de pestañas) y abajo el catálogo
+   de temas del hueco que se está editando. Las cartas se
+   pintan a su proporción real (0.652) para que lo que se elige
+   sea exactamente lo que luego se ve en la mesa.
+   ============================================================ */
+
+.deck-slots {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+    margin: 18px 0 4px;
+}
+.deck-slot {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    padding: 9px 4px 8px;
+    background: var(--cm-ink-3);
+    border: 1px solid var(--cm-hair); border-radius: 2px;
+    color: var(--cm-dim); cursor: pointer;
+    transition: border-color .18s, color .18s;
+}
+.deck-slot img {
+    width: 100%; max-width: 62px; aspect-ratio: 208 / 319;
+    object-fit: cover; border-radius: 3px;
+    background: var(--cm-ink);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+.deck-slot-et {
+    font-family: var(--cm-serif);
+    font-size: 0.64rem; letter-spacing: 0.16em; text-transform: uppercase;
+}
+.deck-slot small {
+    font-size: 0.62rem; color: var(--cm-dim-2);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.deck-slot:hover { border-color: var(--cm-hair-2); color: var(--cm-bone); }
+.deck-slot.is-on {
+    border-color: var(--cm-gold); color: var(--cm-gold-hi);
+    background: rgba(201, 162, 39, 0.06);
+}
+
+.deck-barra {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 18px 0 12px; padding-top: 14px;
+    border-top: 1px solid var(--cm-hair);
+}
+/* El rótulo ocupa su propia línea para que los dos botones caigan juntos en la
+   siguiente en vez de partirse uno a cada lado. */
+.deck-elige {
+    flex: 1 1 100%; margin: 0;
+    font-family: var(--cm-serif); font-size: 0.8rem;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--cm-dim);
+}
+.deck-elige b { color: var(--cm-gold-hi); font-weight: 400; }
+
+.cm-mini {
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid var(--cm-hair-2); border-radius: 1px;
+    color: var(--cm-dim);
+    font-family: inherit; font-size: 0.63rem;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    cursor: pointer; transition: border-color .18s, color .18s;
+}
+.cm-mini:hover { border-color: var(--cm-gold); color: var(--cm-gold-hi); }
+
+.deck-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 10px;
+}
+.deck-opt {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 8px 6px 9px;
+    background: var(--cm-ink-3);
+    border: 1px solid var(--cm-hair); border-radius: 2px;
+    color: var(--cm-bone); cursor: pointer;
+    transition: border-color .18s, transform .18s;
+}
+.deck-opt img {
+    width: 100%; aspect-ratio: 208 / 319; object-fit: cover;
+    border-radius: 3px; background: var(--cm-ink);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+}
+.deck-opt b {
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.72rem; letter-spacing: 0.1em; text-align: center;
+    line-height: 1.25;
+}
+.deck-opt:hover { border-color: var(--cm-hair-2); transform: translateY(-2px); }
+.deck-opt.is-on { border-color: var(--cm-gold); background: rgba(201, 162, 39, 0.07); }
+.deck-opt.is-on b { color: var(--cm-gold-hi); }
+
+/* Bloqueado: se ve, se sabe que existe y se sabe por qué no se puede usar. */
+.deck-opt.is-lock { cursor: not-allowed; }
+.deck-opt.is-lock img { filter: grayscale(1) brightness(0.5); }
+.deck-opt.is-lock b { color: var(--cm-dim); }
+.deck-opt.is-lock:hover { border-color: var(--cm-hair); transform: none; }
+.deck-lock, .deck-opt .deck-tag {
+    font-style: normal; font-size: 0.55rem;
+    letter-spacing: 0.14em; text-transform: uppercase; text-align: center;
+    line-height: 1.3;
+}
+.deck-lock { color: var(--cm-gold); }
+.deck-opt .deck-tag { color: var(--cm-dim-2); }
+
+/* El mensaje de esta ventana es casi siempre bueno ("guardada"), así que el
+   rojo de .cm-msg se reserva para cuando algo falla de verdad. */
+#decks-msg { color: var(--cm-dim); }
+#decks-msg.is-mal { color: var(--cm-red); }
+
+@media (max-width: 460px) {
+    .deck-slots { gap: 5px; }
+    .deck-slot { padding: 6px 2px 6px; }
+    .deck-slot-et { font-size: 0.55rem; letter-spacing: 0.08em; }
+    .deck-slot small { display: none; }
+    .deck-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .deck-opt, .deck-slot, .cm-mini { transition: none; }
+    .deck-opt:hover { transform: none; }
+}

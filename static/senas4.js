@@ -27,7 +27,7 @@
         senas_hecha: 'Has hecho: {sena}',
         senas_denuncia_titulo: '¿Qué le has visto a <b>{nombre}</b>?',
         senas_denuncia_cerrar: 'Cancelar',
-        senas_visto: '¡Te he visto <b>{sena}</b>!',
+        senas_visto: '¡Le he visto <b>{sena}</b> a <b>{nombre}</b>!',
         senas_ayuda: 'Flechas, WASD o desliza para mirar · toca a un rival si le pillas una seña',
         sena_solomillo: 'Solomillo',
         sena_duples: 'Duples',
@@ -46,7 +46,7 @@
         senas_hecha: 'You signed: {sena}',
         senas_denuncia_titulo: 'What did you catch <b>{nombre}</b> signing?',
         senas_denuncia_cerrar: 'Cancel',
-        senas_visto: 'I saw you sign <b>{sena}</b>!',
+        senas_visto: 'I caught <b>{nombre}</b> signing <b>{sena}</b>!',
         senas_ayuda: 'Arrows, WASD or swipe to look · tap a rival if you catch a sign',
         sena_solomillo: 'Solomillo',
         sena_duples: 'Two pairs',
@@ -89,7 +89,17 @@
     let gestoHasta = 0;             // ignora el "click" que deja un deslizamiento
     let intencion = null;           // foco pedido a mano que aún no se ha podido aplicar
     let ayudaVista = false;
-    let nombres = {};               // asiento -> nombre visible
+    let enPausa = false;            // recuento: el juego de mirar se apaga entero
+    let nombres = {};               // asiento -> {nombre, bot, personalidad}
+
+    /** Nombre para enseñar de un asiento. El de un bot lo pone el cliente
+     *  (traducido), igual que en la mesa: el servidor solo manda «Bot 1». */
+    function nombreDe(asiento) {
+        const info = nombres[asiento];
+        if (!info) return '';
+        if (info.bot && typeof etiquetaBot4 === 'function') return etiquetaBot4(info.personalidad, true);
+        return info.nombre || '';
+    }
 
     let ajustes = {
         foco_cooldown_ms: 1000,
@@ -229,7 +239,7 @@
     // 5. Foco
     // ==========================================
     function pedirFoco(nuevaRegion, manual) {
-        if (!activo || clavadoAbajo) return;
+        if (!activo || clavadoAbajo || enPausa) return;
         const t0 = ahora();
         if (nuevaRegion === region) {
             if (manual) { manualHasta = t0 + ajustes.foco_manual_ms; intencion = null; }
@@ -270,7 +280,7 @@
     }
 
     function vagabundear() {
-        if (!activo || clavadoAbajo) return;
+        if (!activo || clavadoAbajo || enPausa) return;
         const t0 = ahora();
         // Lo que pediste tú manda sobre el vagabundeo: se sirve en cuanto se puede.
         if (intencion) {
@@ -292,8 +302,22 @@
     // ==========================================
     // 6. Pintado
     // ==========================================
+    /** Recuento: las cuatro manos están sobre la mesa, así que el juego de mirar
+     *  se apaga entero — ni asiento iluminado, ni caras, ni cartas tapadas. Las
+     *  mías se destapan como las demás: ya no hay nada que esconder. */
+    function pintarReposo() {
+        ['top', 'left', 'right', 'bottom'].forEach(slot => {
+            const el = document.getElementById('seat-' + slot);
+            if (el) el.classList.remove('enfocado', 'enfocado-saliente', 'desenfocado');
+        });
+        const abajo = document.getElementById('seat-bottom');
+        if (abajo) abajo.classList.remove('mano-oculta');
+        pintarBotonSena();
+    }
+
     function pintar() {
         if (!activo || miAsiento === null) return;
+        if (enPausa) { pintarReposo(); return; }
         const t0 = ahora();
         const enSolape = regionPrevia && t0 < previaHasta && regionPrevia !== region;
         const slotActivo = SLOTS[region];
@@ -329,7 +353,7 @@
     function pintarBotonSena() {
         const btn = document.getElementById('btn-sena-4');
         if (!btn) return;
-        const puede = activo && (fase === 'mus' || fase === 'apuestas');
+        const puede = activo && !enPausa && (fase === 'mus' || fase === 'apuestas');
         btn.classList.toggle('visible', puede);
         btn.disabled = !puede || (ahora() - ultimaSenaLocal < ajustes.sena_cooldown_ms);
     }
@@ -421,7 +445,7 @@
         acusado = asiento;
         const panel = document.getElementById('senas-denuncia');
         panel.querySelector('.den-titulo').innerHTML =
-            t_dinamico('senas_denuncia_titulo', { nombre: escHtml(nombres[asiento] || '') });
+            t_dinamico('senas_denuncia_titulo', { nombre: escHtml(nombreDe(asiento)) });
         panel.classList.add('abierta');
         document.getElementById('senas-velo').classList.add('abierto');
     }
@@ -439,7 +463,12 @@
         if (el) {
             const burbuja = document.createElement('div');
             burbuja.className = 'sena-burbuja';
-            burbuja.innerHTML = t_dinamico('senas_visto', { sena: nombreSena(d.sena) });
+            // El aviso nombra al acusado: en una mesa de cuatro, «te he visto»
+            // sin más no dejaba claro a quién se le estaba diciendo.
+            burbuja.innerHTML = t_dinamico('senas_visto', {
+                sena: nombreSena(d.sena),
+                nombre: escHtml(nombreDe(d.a)),
+            });
             el.appendChild(burbuja);
             setTimeout(() => burbuja.remove(), 3400);
         }
@@ -505,7 +534,7 @@
         // Tocar a un RIVAL abre la ventana de denuncia (a la pareja no: no vas a
         // denunciar a quien le haces las señas).
         mesa.addEventListener('click', (e) => {
-            if (!activo || ahora() < gestoHasta) return;
+            if (!activo || enPausa || ahora() < gestoHasta) return;
             const asientoEl = e.target.closest && e.target.closest('.seat-4');
             if (!asientoEl) return;
             const slot = asientoEl.dataset.slot;
@@ -567,8 +596,25 @@
         activo = true;
         miAsiento = d.mi_asiento;
         fase = d.fase;
+        // Con las manos ya enseñadas no hay juego de mirar: se para hasta que se
+        // reparta otra vez. El servidor aplica lo mismo por su cuenta.
+        const pausaAntes = enPausa;
+        enPausa = (d.fase === 'recuento');
+        if (enPausa && !pausaAntes) {
+            intencion = null;
+            regionPrevia = null;
+            cerrarDenuncia();
+        }
+        if (!enPausa && pausaAntes) {
+            // Al reanudar, el foco arranca su cuenta de nuevo: si no, el primer
+            // cambio de la mano nueva se comería el corte de la ronda anterior.
+            regionDesde = ahora();
+            cambioHasta = regionDesde + 1000;
+        }
         if (d.senas_ajustes) ajustes = Object.assign({}, ajustes, d.senas_ajustes);
-        (d.seats || []).forEach(s => { nombres[s.asiento] = s.nombre; });
+        (d.seats || []).forEach(s => {
+            nombres[s.asiento] = { nombre: s.nombre, bot: s.bot, personalidad: s.personalidad };
+        });
 
         document.getElementById('game-screen-4').classList.add('con-senas');
         montar();
@@ -603,6 +649,7 @@
     function salir() {
         activo = false;
         clavadoAbajo = false;
+        enPausa = false;
         miradas = {};
         if (bucle) { clearInterval(bucle); bucle = null; }
         cerrarDenuncia();

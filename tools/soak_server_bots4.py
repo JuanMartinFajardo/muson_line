@@ -61,6 +61,10 @@ class PeticionFalsa:
 
 def preparar(codigo_sid='HUM'):
     sio = SocketioFalso()
+    # Miles de partidas de prueba NO deben acabar en logs/v2: ese corpus es el de
+    # partidas de verdad, la materia prima del entrenamiento (Fase 1.1). Se apaga
+    # ANTES de crear la mesa: `activar_log` escribe la cabecera al abrir.
+    S.LOG_V2 = False
     S.socketio = sio
     S.jugadores = {}
     S.salas = {}
@@ -96,9 +100,6 @@ def jugar_match(sio, n_bots, al_mejor_de, personalidad):
             room['usernames'][seat] = None
     if room['estado'] != 'jugando':
         S._iniciar_partida(codigo)
-    # Miles de partidas de prueba NO deben acabar en logs/: ese corpus es para
-    # partidas de verdad (es la materia prima del entrenamiento de la Fase 1).
-    room['motor'].generate_log = False
 
     humanos = {s: SmartBot4(f'HUM{s}', s, 'equilibrado')
                for s in range(4) if s not in room['bots']}

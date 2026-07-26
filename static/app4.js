@@ -48,6 +48,17 @@ Object.assign(dict.es, {
     pers_musero: 'Musero',
     pers_caotico: 'Caótico',
     bots_no_puntuan: 'Las partidas con bots no cuentan para la clasificación.',
+    // Lo que canta cada jugador, tal cual se diría en la mesa.
+    acc_mus: 'Mus',
+    acc_no_mus: '¡No hay mus!',
+    acc_descartar: 'Descarta {n}',
+    acc_pasar: 'Paso',
+    acc_envidar: 'Envido {n}',
+    acc_subir: 'Subo {n}',
+    acc_ver: 'Quiero',
+    acc_nover: 'No quiero',
+    acc_ordago: '¡ÓRDAGO!',
+    acc_pedrete: '¡Pedrete!',
 });
 Object.assign(dict.en, {
     btn_crear_4: '👥 4-Player Mus',
@@ -91,6 +102,17 @@ Object.assign(dict.en, {
     pers_musero: 'Musero',
     pers_caotico: 'Chaotic',
     bots_no_puntuan: 'Games with bots do not count towards the leaderboard.',
+    // What each player just called, as it would be said at the table.
+    acc_mus: 'Mus',
+    acc_no_mus: 'No mus!',
+    acc_descartar: 'Throws {n}',
+    acc_pasar: 'Pass',
+    acc_envidar: 'Bets {n}',
+    acc_subir: 'Raises {n}',
+    acc_ver: "I'm in",
+    acc_nover: 'I fold',
+    acc_ordago: 'ÓRDAGO!',
+    acc_pedrete: 'Pedrete!',
 });
 aplicarTraduccion();
 
@@ -376,6 +398,39 @@ socket.on('actualizar_mesa_4', (datos) => {
     // Las señas van DESPUÉS de pintar: renderMesa4 rehace las clases de cada
     // asiento y borraría el resaltado del foco.
     if (window.Senas4) Senas4.sincronizar(datos);
+});
+
+// Alguien de la mesa ha cambiado de baraja sin levantarse (Roadmap #5). Se
+// parchea el asiento y se repinta con el mismo estado: no llega uno nuevo, que
+// reiniciaría el reloj del turno.
+socket.on('baraja_mesa_4', (d) => {
+    if (!d || !estadoActual4 || d.asiento === undefined || d.asiento === null) return;
+    const asiento = (estadoActual4.seats || []).find(s => s.asiento === d.asiento);
+    if (!asiento) return;
+    asiento.baraja = d.config;
+    renderMesa4(estadoActual4, estadoActual4);
+    // renderMesa4 rehace las clases de cada asiento: el foco, después.
+    if (window.Senas4) Senas4.sincronizar(estadoActual4);
+});
+
+// ---------- Lo que canta cada jugador ----------
+// El servidor anuncia toda acción de juego a la mesa (`accion_4`); aquí se
+// traduce y table4.js la pinta un momento en el sitio de quien la hizo. Los
+// cantes fuertes se marcan aparte para que salten a la vista.
+const ACCIONES_FUERTES_4 = { ordago: 'fuerte', no_mus: 'corta', pedrete: 'fuerte' };
+
+socket.on('accion_4', (d) => {
+    if (!enPartida4 || !d) return;
+    // El asiento propio se toma del último estado, que es la fuente autorizada
+    // (tras reconectar puedes volver a un asiento distinto del que guardaste).
+    const yo = estadoActual4 ? estadoActual4.mi_asiento : miAsiento4;
+    if (yo === null || yo === undefined) return;
+    const clave = 'acc_' + d.accion;
+    if (!dict[langActual] || !dict[langActual][clave]) return;
+    const texto = (d.cantidad === null || d.cantidad === undefined)
+        ? t(clave)
+        : t_dinamico(clave, { n: d.cantidad });
+    mostrarAccion4(yo, d.asiento, texto, ACCIONES_FUERTES_4[d.accion]);
 });
 
 function actualizarMensajeYBotones4(d) {

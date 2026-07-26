@@ -16,6 +16,7 @@ from flask import request, session
 from flask_socketio import emit, join_room, leave_room
 
 import base_datos
+import decks
 import mus_senas
 from mus_mecanicas_4 import PartidaMus4
 from bot_ml_4 import SmartBot4, PERSONALIDADES, PERSONALIDAD_POR_DEFECTO
@@ -37,6 +38,12 @@ TRANSICION_SEGUNDOS = 3      # auto-avance de mensajes de transición (nadie par
 RECUENTO_TIMEOUT = 60        # auto-"listo" en el recuento para no bloquear a los demás
 ESPERA_REEMPLAZO = 300       # ventana en la que la partida se anuncia buscando sustituto
 
+# Log v2 (mus_log.py). Encendido: cada partida 2v2 deja un JSONL reproducible en
+# logs/v2, que es el corpus de entrenamiento de las fases 2–4. Los soaks lo
+# apagan ANTES de crear la mesa (`S.LOG_V2 = False`) para no ensuciar el corpus
+# con miles de partidas de prueba.
+LOG_V2 = True
+
 # --- Señas (2v2) -----------------------------------------------------------
 # Valores por defecto; todos se pueden ajustar en caliente desde /admin.
 FOCO_COOLDOWN = 1.0          # s mínimos entre dos cambios de foco (anti-barrido)
@@ -46,6 +53,9 @@ DENUNCIA_COOLDOWN = 2.0      # s entre dos denuncias del mismo jugador
 # Fases en las que tiene sentido señalar: ya tienes cartas y aún se juega la mano.
 # En el descarte no: el cliente clava el foco en tus propias cartas y nadie miraría.
 FASES_CON_SENAS = ('mus', 'apuestas')
+# En el recuento las cuatro manos están sobre la mesa: el juego de mirar se apaga
+# entero (ni señas, ni miradas, ni denuncias) hasta que se reparta de nuevo.
+FASES_SIN_FOCO = ('recuento',)
 
 # Regiones que ve el jugador, en su propio marco de referencia. Coincide con la
 # colocación de la mesa (ver slotDeAsiento4 en static/table4.js): la pareja
@@ -81,6 +91,30 @@ def _humanos_sentados(room):
     """Asientos ocupados por personas de verdad. Una sala sin ninguno se cierra:
     no tiene sentido que cuatro bots sigan jugando solos."""
     return [s for s in room['asientos'] if s is not None and not _es_bot(s)]
+
+
+# --- Barajas (Roadmap #5) ---------------------------------------------------
+# Cada asiento se pinta con la baraja de quien lo ocupa, así que la suya viaja
+# con el estado de la mesa. El registro lo lleva decks.py, indexado por sid; lo
+# alimenta el evento `mi_baraja`, que atiende server.py para los dos modos.
+
+def _baraja_de_asiento(room, seat):
+    sid = room['asientos'][seat]
+    if sid is None or _es_bot(sid):
+        return dict(decks.CONFIG_DEFECTO)     # el asiento vacío y el bot, clásica
+    return decks.baraja_en_mesa(sid, room['usernames'].get(seat))
+
+
+def difundir_baraja_4(sid, config):
+    """Alguien ha cambiado de baraja en «Mis barajas»: se avisa a su mesa para
+    que repinte sus cartas al momento. Va suelto y no como estado completo,
+    porque una difusión de estado reinicia el reloj del turno."""
+    for codigo, room in salas4.items():
+        if sid in room['asientos']:
+            socketio.emit('baraja_mesa_4',
+                          {'asiento': room['asientos'].index(sid), 'config': config},
+                          room=codigo)
+            return
 
 
 def _normalizar_bots(datos):
@@ -140,6 +174,13 @@ def _cfg(clave, defecto, minimo, maximo):
     return min(max(valor, minimo), maximo)
 
 
+def _foco_apagado(room):
+    """¿Está el juego de mirar en pausa? En el recuento sí: las manos se enseñan
+    enteras, así que no hay nada que espiar ni nadie a quien mirar."""
+    motor = room.get('motor')
+    return bool(motor) and motor.fase in FASES_SIN_FOCO
+
+
 def _foco_de(room, seat):
     return room.setdefault('foco', {}).get(seat)
 
@@ -186,6 +227,8 @@ def _observadores(room, objetivo, ahora=None):
     Cuenta tanto el foco actual como el anterior mientras dure el solape, que es
     justo lo que hace que una seña hecha "al filo" siga viéndose."""
     ahora = ahora or time.time()
+    if _foco_apagado(room):
+        return []                     # recuento: nadie mira a nadie
     salida = []
     for s in range(4):
         sid = room['asientos'][s]
@@ -231,7 +274,7 @@ def handle_foco_4(datos):
     repartir señas, así que aquí se valida el cooldown y se guarda el solape."""
     sid = request.sid
     codigo, room, seat = _sala_de_sid(sid)
-    if not room or not room.get('senas'):
+    if not room or not room.get('senas') or _foco_apagado(room):
         return
     region = (datos or {}).get('region')
     objetivo = _region_a_objetivo(seat, region)
@@ -302,7 +345,7 @@ def handle_denuncia_sena_4(datos):
     anuncia en la mesa. Se denuncia a un rival (a la pareja no tendría sentido)."""
     sid = request.sid
     codigo, room, seat = _sala_de_sid(sid)
-    if not room or not room.get('senas'):
+    if not room or not room.get('senas') or _foco_apagado(room):
         return
     motor = room.get('motor')
     if not motor:
@@ -340,6 +383,8 @@ def _ticker_miradas():
         ahora = time.time()
         for room in list(salas4.values()):
             if room['estado'] != 'jugando' or not room.get('senas') or not room.get('bots'):
+                continue
+            if _foco_apagado(room):
                 continue
             for seat in list(room.get('bots', {})):
                 foco = _foco_de(room, seat)
@@ -574,6 +619,9 @@ def _sentar_reemplazo_4(codigo, sid, nombre, username, asiento_pedido, token):
     motor = room['motor']
     motor.nombres[asiento_real] = nombre
     motor.usernames[asiento_real] = username
+    # El asiento cambia de dueño a mitad de match: queda en el log para que la
+    # atribución por persona siga siendo exacta al derivar el dataset.
+    motor.log.seat(asiento_real, 'human', code=username)
     jugadores[sid] = {'nombre': nombre, 'sala': codigo, 'username': username, 'modo4': True}
     join_room(codigo)
     room['ultima_actividad'] = time.time()
@@ -628,6 +676,22 @@ def _emitir_estado_espera(codigo):
     }, room=codigo)
 
 
+def _seats_log_4(room):
+    """Identidad por asiento para la cabecera del log v2 (mus_log.py §8.3).
+
+    Nunca nombres para mostrar: `code` es el username registrado (o None para
+    invitados) y los bots se identifican por su personalidad/checkpoint."""
+    seats = []
+    for s in range(4):
+        bot = room.get('bots', {}).get(s)
+        if bot is not None:
+            seats.append({'s': s, 'kind': 'bot', 'pers': bot.personalidad,
+                          'ckpt': getattr(bot, 'checkpoint', None)})
+        else:
+            seats.append({'s': s, 'kind': 'human', 'code': room['usernames'].get(s)})
+    return seats
+
+
 def _iniciar_partida(codigo):
     room = salas4.get(codigo)
     if not room:
@@ -636,6 +700,14 @@ def _iniciar_partida(codigo):
     motor.al_mejor_de = room.get('al_mejor_de', 3)
     motor.nombres = {s: room['nombres'].get(s, f'J{s}') for s in range(4)}
     motor.usernames = {s: room['usernames'].get(s) for s in range(4)}
+    # Log v2: desde este punto TODA partida 2v2 deja rastro reproducible. Es la
+    # materia prima de las fases 2–4 del roadmap de IA, y por eso se enciende
+    # aquí (y no bajo una opción de sala): los datos solo se acumulan una vez.
+    if LOG_V2:
+        motor.activar_log(seats=_seats_log_4(room),
+                          rules={'al_mejor_de': motor.al_mejor_de,
+                                 'senas': bool(room.get('senas')),
+                                 'publico': bool(room.get('publico'))})
     motor.iniciar_ronda()
     room['motor'] = motor
     room['estado'] = 'jugando'
@@ -646,7 +718,18 @@ def _iniciar_partida(codigo):
 
 # ==========================================
 # Acciones de juego
+# ------------------------------------------------------------------
+# Además de aplicar la jugada, cada acción se ANUNCIA a la mesa: en el 2v2 hay
+# cuatro sitios que mirar y con solo el resaltado del turno cuesta seguir quién
+# ha hecho qué. El cliente lo pinta un momento en el sitio de quien la hizo.
+# Todo lo que se anuncia es información pública del mus (lo que se canta en voz
+# alta y el número de cartas que se descartan), así que va a la sala entera.
 # ==========================================
+def _anunciar_accion_4(codigo, seat, accion, cantidad=None):
+    socketio.emit('accion_4', {'asiento': seat, 'accion': accion, 'cantidad': cantidad},
+                  room=codigo)
+
+
 def handle_accion_juego_4(datos):
     sid = request.sid
     for codigo, room in salas4.items():
@@ -666,6 +749,7 @@ def procesar_accion_4(seat, codigo, datos):
 
     if accion == 'pedrete':
         if motor.procesar_pedrete(seat):
+            _anunciar_accion_4(codigo, seat, 'pedrete')
             enviar_estado_4(codigo)
         return
 
@@ -676,20 +760,34 @@ def procesar_accion_4(seat, codigo, datos):
             return
         elif accion == 'mus':
             motor.cantar_mus(seat, True)
+            _anunciar_accion_4(codigo, seat, 'mus')
             enviar_estado_4(codigo)
             return
         elif accion == 'no_mus':
             motor.cantar_mus(seat, False)
+            _anunciar_accion_4(codigo, seat, 'no_mus')
             enviar_estado_4(codigo)
             return
         elif accion in ('pasar', 'envidar', 'subir', 'ver', 'ordago', 'nover') and motor.fase == 'apuestas':
             motor.accion_apuesta(seat, accion, datos.get('cantidad', 0))
+            # La cantidad se lee DESPUÉS de jugar: el motor recorta el envite al
+            # tope legal (lo que falta para 40) y lo convierte en órdago si ya no
+            # cabe, así que lo cantado no siempre es lo que se pidió.
+            if accion in ('envidar', 'subir'):
+                if motor.subida_pendiente == 'ÓRDAGO':
+                    _anunciar_accion_4(codigo, seat, 'ordago')
+                else:
+                    _anunciar_accion_4(codigo, seat, accion, motor.subida_pendiente)
+            else:
+                _anunciar_accion_4(codigo, seat, accion)
             enviar_estado_4(codigo)
             return
 
     if accion == 'descartar' and motor.fase == 'descarte':
         if not motor.estado[seat]['descartes_listos']:
+            n = len(datos.get('indices', []))
             motor.procesar_descarte(seat, datos.get('indices', []))
+            _anunciar_accion_4(codigo, seat, 'descartar', n)
             enviar_estado_4(codigo)
         return
 
@@ -754,6 +852,15 @@ def enviar_estado_4(codigo):
     # (Debe ir antes del registro y del cálculo del ganador.)
     pasos = motor.calcular_recuento() if motor.fase == 'recuento' else None
 
+    # Los bots dan por vista la ronda AL MOMENTO, no cuando les llega su turno de
+    # "pensar": esperar a que tres bots pulsen su botón de uno en uno (bot_delay
+    # cada uno) hacía que la siguiente mano tardara en salir aunque las personas
+    # ya estuvieran listas. Así la ronda arranca en cuanto la pulsan ellas.
+    if motor.fase == 'recuento' and not motor.match_finalizado:
+        for seat in room.get('bots', {}):
+            if seat not in motor.jugadores_listos:
+                motor.jugadores_listos.append(seat)
+
     # Registro del resultado (una sola vez) al terminar el match. Las mesas con
     # bots no puntúan: el 2v2 de la clasificación es entre personas.
     if motor.match_finalizado and not room.get('registrado_4') and not room.get('bots'):
@@ -807,6 +914,9 @@ def enviar_estado_4(codigo):
                 'listo': (s in motor.jugadores_listos),
                 'bot': s in room.get('bots', {}),
                 'personalidad': room['bots'][s].personalidad if s in room.get('bots', {}) else None,
+                # Su baraja: sus cartas se pintan con ella, tanto el dorso como
+                # las caras que se ven en el recuento (Roadmap #5).
+                'baraja': _baraja_de_asiento(room, s),
             }
             if motor.fase == 'recuento':
                 info['cartas'] = motor.estado[s]['cartas']
@@ -1023,6 +1133,7 @@ def _programar_timers(codigo, token):
                     n = len(m.estado[s]['cartas'])
                     indices = random.sample(range(n), random.randint(1, n)) if n else []
                     m.procesar_descarte(s, indices)
+                    _anunciar_accion_4(codigo, s, 'descartar', len(indices))
             enviar_estado_4(codigo)
         elif kind == 'turno':
             acc = _accion_por_defecto(m)
