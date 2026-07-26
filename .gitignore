@@ -1,5 +1,9 @@
 __pycache__
 mus.db
+# Analítica (Roadmap #24): base propia, se crea sola en el primer arranque.
+analitica.db
+analitica.db-wal
+analitica.db-shm
 recycle
 .env
 .muslab

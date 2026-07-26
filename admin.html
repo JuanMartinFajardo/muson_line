@@ -93,6 +93,41 @@ button.b:disabled{opacity:.45;cursor:not-allowed}
 .dos{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media(max-width:820px){.dos{grid-template-columns:1fr}}
 code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.88em;color:var(--amarillo)}
+/* --- Analítica (Roadmap #24) --- */
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:transparent;border:1px solid var(--linea);color:var(--txt2);
+      padding:5px 11px;border-radius:14px;cursor:pointer;font-size:.85em}
+.chip:hover{border-color:var(--azul);color:var(--azul)}
+.chip.activa{background:var(--azul2);border-color:var(--azul2);color:#fff;font-weight:bold}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--bg2);border:1px solid var(--linea);border-radius:8px;padding:13px 14px}
+.kpi .et{font-size:.76em;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px}
+.kpi .n{font-size:1.6em;font-weight:bold;color:var(--amarillo);line-height:1.25}
+.kpi .d{font-size:.78em;font-weight:bold}
+.kpi .d.sube{color:var(--verde)} .kpi .d.baja{color:var(--rojo)} .kpi .d.igual{color:var(--txt2)}
+.kpi .ayuda{font-size:.74em;color:var(--txt2);margin-top:3px;line-height:1.35}
+.grafico{width:100%;height:260px;display:block}
+.grafico .rejilla{stroke:var(--linea);stroke-width:1;opacity:.45}
+.grafico .linea{fill:none;stroke:var(--azul);stroke-width:2}
+.grafico .area{fill:var(--azul);opacity:.12}
+.grafico .punto{fill:var(--azul)}
+.grafico text{fill:var(--txt2);font-size:10px}
+.embudo{display:flex;flex-direction:column;gap:7px}
+.embudo .paso{display:flex;align-items:center;gap:10px}
+.embudo .et{width:150px;font-size:.86em;color:var(--txt2);flex-shrink:0}
+.embudo .barra{flex:1;background:var(--bg);border-radius:4px;height:24px;overflow:hidden;min-width:60px}
+.embudo .relleno{height:100%;background:linear-gradient(90deg,var(--azul2),var(--azul))}
+.embudo .cifra{width:135px;text-align:right;font-size:.85em;flex-shrink:0}
+.embudo .cifra b{color:var(--txt)}
+.cohortes td.c{text-align:center;font-variant-numeric:tabular-nums}
+.cohortes td.c span{display:block;border-radius:4px;padding:4px 0;font-size:.85em;font-weight:bold;color:var(--bg)}
+.vivo{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--verde);
+      margin-right:6px;animation:late 1.6s ease-in-out infinite}
+@keyframes late{0%,100%{opacity:1}50%{opacity:.25}}
+.priv{border-left:3px solid var(--verde);padding-left:12px}
+th.orden{cursor:pointer;user-select:none}
+th.orden:hover{color:var(--azul)}
+th.orden.activa{color:var(--amarillo)}
 </style>
 </head>
 <body>
@@ -104,6 +139,7 @@ code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.88em;colo
 
 <nav>
   <button data-vista="resumen" class="activa">Resumen</button>
+  <button data-vista="analitica">Analítica</button>
   <button data-vista="cuentas">Cuentas</button>
   <button data-vista="salas">Salas</button>
   <button data-vista="soporte">Soporte<span id="badge-soporte" class="badge oculto">0</span></button>
@@ -121,6 +157,170 @@ code{background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.88em;colo
   <section id="v-resumen" class="activa">
     <div class="tarjetas" id="tarjetas-resumen"></div>
     <p class="nota">Se actualiza cada 15 segundos mientras esta pestaña esté abierta.</p>
+  </section>
+
+  <!-- =========================== ANALÍTICA =========================== -->
+  <!-- Roadmap #24. Medición de audiencia propia: sin cookies, sin terceros y
+       sin identificadores persistentes (ver la cabecera de analitica.py). -->
+  <section id="v-analitica">
+
+    <!-- Periodo -->
+    <div class="caja">
+      <div class="fila">
+        <div class="chips" id="chips-periodo">
+          <button class="chip" data-dias="0">Hoy</button>
+          <button class="chip" data-dias="6">7 días</button>
+          <button class="chip activa" data-dias="27">28 días</button>
+          <button class="chip" data-dias="89">90 días</button>
+          <button class="chip" data-dias="364">12 meses</button>
+        </div>
+        <label class="nota">Desde <input type="date" id="an-desde"></label>
+        <label class="nota">Hasta <input type="date" id="an-hasta"></label>
+        <button class="b b-azul" id="an-aplicar">Aplicar</button>
+        <a class="b b-gris" id="an-csv" href="#" style="text-decoration:none">CSV</a>
+        <span class="nota" id="an-rango" style="margin-left:auto"></span>
+      </div>
+    </div>
+
+    <!-- Cifras del periodo, con la variación contra el periodo anterior -->
+    <div class="kpis" id="an-kpis"></div>
+
+    <!-- Evolución -->
+    <div class="caja">
+      <div class="fila">
+        <h3 style="margin:0">Evolución</h3>
+        <div class="chips" id="chips-metrica" style="margin-left:auto">
+          <button class="chip activa" data-m="visitas">Visitas</button>
+          <button class="chip" data-m="visitantes">Visitantes</button>
+          <button class="chip" data-m="activo_medio">Tiempo medio</button>
+          <button class="chip" data-m="jugaron">Visitas que juegan</button>
+          <button class="chip" data-m="tasa_juego">% que juega</button>
+          <button class="chip" data-m="partidas">Partidas</button>
+          <button class="chip" data-m="registros">Altas</button>
+          <button class="chip" data-m="logins">Inicios de sesión</button>
+        </div>
+      </div>
+      <div id="an-grafico"></div>
+    </div>
+
+    <div class="dos">
+      <!-- Embudo -->
+      <div class="caja">
+        <h3>De la visita a la partida</h3>
+        <div class="embudo" id="an-embudo"></div>
+        <p class="nota" style="margin-top:12px">«Interactúan» = hicieron algo más que
+          cargar la página. «Terminan partida» cuenta partidas acabadas, no visitas,
+          así que puede superar al paso anterior si alguien juega varias.</p>
+      </div>
+
+      <!-- En vivo -->
+      <div class="caja">
+        <h3><span class="vivo"></span>Ahora mismo</h3>
+        <div class="kpis" id="an-vivo-kpis" style="margin-bottom:12px"></div>
+        <div class="tabla-scroll" style="max-height:240px">
+          <table>
+            <thead><tr><th>Quién</th><th>Lleva</th><th>País</th><th>Dispositivo</th><th>Origen</th></tr></thead>
+            <tbody id="an-vivo"><tr><td colspan="5" class="nota">Cargando…</td></tr></tbody>
+          </table>
+        </div>
+        <p class="nota">Visitas con actividad en los últimos 2 minutos. Se lee de
+          memoria, no toca disco. Se refresca cada 15 s con la pestaña abierta.</p>
+      </div>
+    </div>
+
+    <!-- Desgloses -->
+    <div class="caja">
+      <div class="fila">
+        <h3 style="margin:0">Desglose</h3>
+        <div class="chips" id="chips-dim" style="margin-left:auto">
+          <button class="chip activa" data-d="fuente">Origen</button>
+          <button class="chip" data-d="medio">Medio</button>
+          <button class="chip" data-d="campana">Campaña</button>
+          <button class="chip" data-d="pais">País</button>
+          <button class="chip" data-d="idioma">Idioma</button>
+          <button class="chip" data-d="dispositivo">Dispositivo</button>
+          <button class="chip" data-d="navegador">Navegador</button>
+          <button class="chip" data-d="so">Sistema</button>
+          <button class="chip" data-d="modo">Modo de juego</button>
+          <button class="chip" data-d="baraja">Baraja</button>
+          <button class="chip" data-d="landing">Página de entrada</button>
+          <button class="chip" data-d="evento">Eventos</button>
+        </div>
+      </div>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th id="an-dim-cab">Valor</th><th>Visitas</th><th>%</th>
+            <th>Tiempo medio</th><th>Rebote</th><th>Juegan</th><th>Partidas</th><th>Altas</th></tr></thead>
+          <tbody id="an-dim"><tr><td colspan="8" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="nota" id="an-dim-nota"></p>
+    </div>
+
+    <!-- Retención -->
+    <div class="caja">
+      <h3>Retención por cohorte de alta</h3>
+      <div class="tabla-scroll">
+        <table class="cohortes">
+          <thead><tr id="an-coh-cab"><th>Semana del alta</th><th>Altas</th></tr></thead>
+          <tbody id="an-cohortes"><tr><td colspan="2" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="nota">De las cuentas creadas cada semana, qué porcentaje volvió a
+        aparecer en las semanas siguientes. <b>Solo cuentas:</b> un visitante sin
+        cuenta no es seguible de un día para otro — es el precio (buscado) de medir
+        sin identificadores persistentes.</p>
+    </div>
+
+    <!-- Por usuario -->
+    <div class="caja">
+      <div class="fila">
+        <h3 style="margin:0">Por usuario</h3>
+        <input id="an-q-usuario" placeholder="Filtrar por nombre" style="width:220px">
+        <span class="nota" style="margin-left:auto">Pulsa una columna para ordenar</span>
+      </div>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr>
+            <th>Usuario</th>
+            <th class="orden" data-o="dias">Días activo</th>
+            <th class="orden" data-o="visitas">Visitas</th>
+            <th class="orden activa" data-o="activo_total">Tiempo total</th>
+            <th>Tiempo medio</th>
+            <th class="orden" data-o="partidas">Partidas</th>
+            <th class="orden" data-o="partidas_fin">Terminadas</th>
+            <th class="orden" data-o="segundos_juego">Tiempo jugando</th>
+            <th class="orden" data-o="ultima">Última visita</th>
+          </tr></thead>
+          <tbody id="an-usuarios"><tr><td colspan="9" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="an-detalle-usuario"></div>
+    </div>
+
+    <!-- Privacidad -->
+    <div class="caja priv">
+      <h3>Qué se guarda (y qué no)</h3>
+      <p class="nota">
+        No se guarda <b>nada</b> en el dispositivo del visitante para medir: ni cookie
+        de analítica, ni <code>localStorage</code>, ni huella. La visita se agrupa con un
+        hash de (sal + IP + navegador) donde <b>la sal se genera al azar en memoria y
+        rota cada día</b>: no se escribe en disco, así que ni tú puedes recomponer
+        después qué IP fue qué visita. <b>La IP en crudo nunca se almacena.</b>
+        Todo es de primera parte —nada sale de este servidor— y los datos crudos se
+        borran solos a los <b id="an-retencion">90</b> días; solo quedan los agregados
+        diarios.<br>
+        Por eso el juego <b>no necesita banner de cookies</b>: este es el perfil de
+        «medición de audiencia» que la guía de la AEPD y la CNIL dejan fuera del
+        consentimiento previo. Lo único obligatorio es contarlo en la política de
+        privacidad, y está en el punto «Medición de audiencia» de la ventana de
+        privacidad del juego (ES y EN).
+      </p>
+      <div class="fila">
+        <button class="b b-mal" id="an-borrar">Borrar toda la analítica</button>
+        <span class="nota">Irreversible. Queda anotado en la auditoría.</span>
+      </div>
+    </div>
   </section>
 
   <!-- ============================ CUENTAS ============================ -->
@@ -504,6 +704,440 @@ function pintarBadgeSoporte(n) {
   b.textContent = n;
   b.classList.toggle('oculto', !n);
 }
+
+// ==========================================================================
+// Analítica (Roadmap #24)
+// --------------------------------------------------------------------------
+// Todo se dibuja a mano: el panel no carga librerías (ni las podría cargar sin
+// romper la regla de "sin dependencias externas" del proyecto). El gráfico es
+// un SVG construido con createElementNS, igual que las señas del 2v2.
+// ==========================================================================
+const AN = {
+  desde: null, hasta: null,
+  metrica: 'visitas',
+  dim: 'fuente',
+  orden: 'activo_total',
+  serie: []
+};
+
+function isoDia(d) { return d.toISOString().slice(0, 10); }
+
+function fijarPeriodo(dias) {
+  const hasta = new Date();
+  const desde = new Date(hasta.getTime() - dias * 86400000);
+  AN.desde = isoDia(desde);
+  AN.hasta = isoDia(hasta);
+  $('an-desde').value = AN.desde;
+  $('an-hasta').value = AN.hasta;
+}
+
+function qs() { return `desde=${AN.desde}&hasta=${AN.hasta}`; }
+
+// Las cifras del periodo. `ayuda` explica lo que NO es obvio: un panel de
+// métricas que no dice cómo se cuenta cada cosa se acaba leyendo mal.
+const KPIS = [
+  ['visitas', 'Visitas', null, 'Sesiones de visita. Se cierra tras 30 min sin actividad.'],
+  ['visitantes', 'Visitantes', null, 'Únicos por día, sumados. Sin identificador persistente no se pueden deduplicar entre días.'],
+  ['activo_medio', 'Tiempo medio', 'dur', 'Solo cuenta con la pestaña visible: una pestaña olvidada no infla el dato.'],
+  ['tasa_rebote', 'Rebote', 'pct', 'Visitas que cargaron la página y no hicieron nada más.'],
+  ['jugaron', 'Visitas que juegan', null, 'Visitas en las que se empezó al menos una partida.'],
+  ['tasa_juego', 'Entran y juegan', 'pct', 'El número que mide de verdad si la portada convierte.'],
+  ['partidas', 'Partidas empezadas', null, 'Contando 1v1, contra el bot y 2v2.'],
+  ['partidas_fin', 'Partidas terminadas', null, 'Llegaron a 40 (o al mejor de N) sin abandono.'],
+  ['segundos_juego', 'Tiempo jugado', 'dur_total', 'Suma del tiempo dentro de una mesa.'],
+  ['registros', 'Altas', null, 'Cuentas creadas durante la visita.'],
+  ['logins', 'Inicios de sesión', null, 'Sin contar las sesiones que ya venían abiertas por cookie.'],
+  ['cuentas', 'Cuentas activas', null, 'Cuentas distintas con al menos una visita en el periodo.']
+];
+
+function formatoKpi(v, tipo) {
+  if (tipo === 'pct') return (v || 0) + ' %';
+  if (tipo === 'dur') return duracion(Math.round(v || 0));
+  if (tipo === 'dur_total') {
+    const h = (v || 0) / 3600;
+    return h >= 1 ? h.toFixed(1) + ' h' : Math.round((v || 0) / 60) + ' min';
+  }
+  return (v || 0).toLocaleString('es-ES');
+}
+
+function delta(actual, previo, tipo) {
+  const d = document.createElement('div');
+  if (!previo) { d.className = 'd igual'; d.textContent = previo === 0 && actual ? 'nuevo' : '—'; return d; }
+  const pct = ((actual - previo) / previo) * 100;
+  const signo = pct > 0 ? '▲' : (pct < 0 ? '▼' : '=');
+  // En rebote, subir es malo: el color se invierte a propósito.
+  const bueno = tipo === 'rebote' ? pct < 0 : pct > 0;
+  d.className = 'd ' + (Math.abs(pct) < 0.05 ? 'igual' : (bueno ? 'sube' : 'baja'));
+  d.textContent = `${signo} ${Math.abs(pct).toFixed(1)} % vs. periodo anterior`;
+  return d;
+}
+
+function pintarKpis(actual, previo) {
+  const caja = $('an-kpis');
+  caja.replaceChildren();
+  KPIS.forEach(([clave, etiqueta, tipo, ayuda]) => {
+    const t = document.createElement('div');
+    t.className = 'kpi';
+    const et = document.createElement('div'); et.className = 'et'; et.textContent = etiqueta;
+    const n = document.createElement('div'); n.className = 'n';
+    n.textContent = formatoKpi(actual[clave], tipo);
+    t.append(et, n, delta(actual[clave] || 0, previo[clave] || 0,
+                          clave === 'tasa_rebote' ? 'rebote' : null));
+    const a = document.createElement('div'); a.className = 'ayuda'; a.textContent = ayuda;
+    t.appendChild(a);
+    caja.appendChild(t);
+  });
+}
+
+// -------------------- Gráfico (SVG a mano) --------------------
+const SVGNS = 'http://www.w3.org/2000/svg';
+function svg(tag, attrs) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function pintarGrafico(serie, metrica) {
+  const caja = $('an-grafico');
+  caja.replaceChildren();
+  if (!serie.length) {
+    const p = document.createElement('p');
+    p.className = 'nota'; p.textContent = 'Sin datos en este periodo.';
+    caja.appendChild(p); return;
+  }
+  const W = 1000, H = 260, ml = 48, mr = 12, mt = 14, mb = 26;
+  const ancho = W - ml - mr, alto = H - mt - mb;
+  const vals = serie.map(d => d[metrica] || 0);
+  const max = Math.max(1, ...vals);
+  const x = i => ml + (serie.length === 1 ? ancho / 2 : (i * ancho) / (serie.length - 1));
+  const y = v => mt + alto - (v / max) * alto;
+
+  const g = svg('svg', { class: 'grafico', viewBox: `0 0 ${W} ${H}`,
+                         preserveAspectRatio: 'none' });
+
+  // Rejilla y escala vertical (5 marcas).
+  for (let k = 0; k <= 4; k++) {
+    const v = (max / 4) * k, yy = y(v);
+    g.appendChild(svg('line', { class: 'rejilla', x1: ml, x2: W - mr, y1: yy, y2: yy }));
+    const t = svg('text', { x: ml - 6, y: yy + 3, 'text-anchor': 'end' });
+    t.textContent = max >= 20 ? Math.round(v) : v.toFixed(1);
+    g.appendChild(t);
+  }
+
+  const puntos = serie.map((d, i) => `${x(i)},${y(d[metrica] || 0)}`).join(' ');
+  g.appendChild(svg('polygon', { class: 'area',
+    points: `${ml},${mt + alto} ${puntos} ${x(serie.length - 1)},${mt + alto}` }));
+  g.appendChild(svg('polyline', { class: 'linea', points: puntos }));
+
+  // Un punto por día, con tooltip nativo (title): sin JS de hover.
+  serie.forEach((d, i) => {
+    const c = svg('circle', { class: 'punto', cx: x(i), cy: y(d[metrica] || 0),
+                              r: serie.length > 120 ? 0 : 2.5 });
+    const tt = svg('title');
+    tt.textContent = `${d.dia}: ${d[metrica]}`;
+    c.appendChild(tt);
+    g.appendChild(c);
+  });
+
+  // Etiquetas del eje X: como mucho 8, para que no se solapen.
+  const paso = Math.max(1, Math.ceil(serie.length / 8));
+  serie.forEach((d, i) => {
+    if (i % paso && i !== serie.length - 1) return;
+    const t = svg('text', { x: x(i), y: H - 8, 'text-anchor': 'middle' });
+    t.textContent = d.dia.slice(5);
+    g.appendChild(t);
+  });
+  caja.appendChild(g);
+}
+
+// -------------------- Embudo --------------------
+function pintarEmbudo(pasos) {
+  const caja = $('an-embudo');
+  caja.replaceChildren();
+  const base = Math.max(1, pasos[0] ? pasos[0].n : 1);
+  pasos.forEach(p => {
+    const fila = document.createElement('div'); fila.className = 'paso';
+    const et = document.createElement('div'); et.className = 'et'; et.textContent = p.paso;
+    const barra = document.createElement('div'); barra.className = 'barra';
+    const relleno = document.createElement('div');
+    relleno.className = 'relleno';
+    relleno.style.width = Math.min(100, (p.n / base) * 100) + '%';
+    barra.appendChild(relleno);
+    const cifra = document.createElement('div'); cifra.className = 'cifra';
+    const b = document.createElement('b'); b.textContent = p.n.toLocaleString('es-ES');
+    cifra.append(b, document.createTextNode(`  ${p.pct_total} %`));
+    fila.append(et, barra, cifra);
+    caja.appendChild(fila);
+  });
+}
+
+// -------------------- Desglose por dimensión --------------------
+const NOMBRE_DIM = {
+  fuente: 'Origen', medio: 'Medio', campana: 'Campaña', pais: 'País', idioma: 'Idioma',
+  dispositivo: 'Dispositivo', navegador: 'Navegador', so: 'Sistema', modo: 'Modo',
+  baraja: 'Baraja', landing: 'Página de entrada', evento: 'Evento'
+};
+const NOTA_DIM = {
+  pais: 'El país llega en la cabecera CF-IPCountry: solo hay dato con Cloudflare delante (Roadmap #16). Sin proxy sale «desconocido», y a propósito no se consulta ningún servicio externo de geolocalización.',
+  modo: 'Una visita puede aparecer en varios modos si jugó contra el bot y online.',
+  evento: 'Cuenta eventos, no visitas: la columna «Visitas» es aquí el número de veces que ocurrió.',
+  campana: 'Solo se rellena con enlaces que traigan utm_campaign.',
+  fuente: 'utm_source si viene en el enlace; si no, el dominio del referer. «directo» = sin referer (marcadores, apps, enlaces pegados).'
+};
+
+async function cargarDimension() {
+  $('an-dim-cab').textContent = NOMBRE_DIM[AN.dim] || 'Valor';
+  $('an-dim-nota').textContent = NOTA_DIM[AN.dim] || '';
+  const d = await api(`/admin/api/analitica/dimension?dim=${AN.dim}&${qs()}`);
+  const cuerpo = $('an-dim');
+  cuerpo.replaceChildren();
+  if (!d || !d.exito || !d.filas.length) {
+    const f = document.createElement('tr');
+    f.appendChild(td('Sin datos en este periodo.', 'nota')).colSpan = 8;
+    cuerpo.appendChild(f); return;
+  }
+  const total = d.filas.reduce((a, f) => a + f.visitas, 0) || 1;
+  d.filas.forEach(f => {
+    const fila = document.createElement('tr');
+    fila.append(
+      td(f.valor),
+      td(f.visitas.toLocaleString('es-ES')),
+      td(((f.visitas / total) * 100).toFixed(1) + ' %'),
+      td(AN.dim === 'evento' ? '—' : duracion(Math.round(f.activo_medio))),
+      td(AN.dim === 'evento' ? '—' : f.tasa_rebote + ' %'),
+      td(AN.dim === 'evento' ? '—' : f.jugaron),
+      td(AN.dim === 'evento' ? '—' : f.partidas),
+      td(AN.dim === 'evento' ? '—' : f.registros));
+    cuerpo.appendChild(fila);
+  });
+}
+
+// -------------------- Retención --------------------
+function colorRetencion(pct) {
+  // Una sola tinta (el azul de la paleta) con opacidad creciente: legible en
+  // escala de grises y sin inventar una escala de colores nueva.
+  const a = Math.max(0.08, Math.min(1, pct / 100));
+  return `rgba(136,192,208,${a.toFixed(2)})`;
+}
+
+async function cargarRetencion() {
+  const d = await api('/admin/api/analitica/retencion?semanas=8');
+  const cab = $('an-coh-cab'), cuerpo = $('an-cohortes');
+  cuerpo.replaceChildren();
+  while (cab.children.length > 2) cab.removeChild(cab.lastChild);
+  if (!d || !d.exito || !d.cohortes.length) {
+    const f = document.createElement('tr');
+    f.appendChild(td('Todavía no hay altas suficientes.', 'nota')).colSpan = 2;
+    cuerpo.appendChild(f); return;
+  }
+  const maxK = Math.max(...d.cohortes.map(c => c.semanas.length));
+  for (let k = 0; k < maxK; k++) {
+    const th = document.createElement('th');
+    th.textContent = k === 0 ? 'Semana 0' : '+' + k;
+    cab.appendChild(th);
+  }
+  d.cohortes.forEach(c => {
+    const fila = document.createElement('tr');
+    fila.append(td(c.cohorte), td(c.altas));
+    for (let k = 0; k < maxK; k++) {
+      const celda = document.createElement('td');
+      celda.className = 'c';
+      const s = c.semanas[k];
+      if (s) {
+        const caja = document.createElement('span');
+        caja.style.background = colorRetencion(s.pct);
+        caja.textContent = s.pct + ' %';
+        caja.title = `${s.n} de ${c.altas} cuentas`;
+        celda.appendChild(caja);
+      } else { celda.textContent = ''; }
+      fila.appendChild(celda);
+    }
+    cuerpo.appendChild(fila);
+  });
+}
+
+// -------------------- Por usuario --------------------
+async function cargarUsuariosAnalitica() {
+  const q = encodeURIComponent($('an-q-usuario').value.trim());
+  const d = await api(`/admin/api/analitica/usuarios?${qs()}&orden=${AN.orden}&q=${q}`);
+  const cuerpo = $('an-usuarios');
+  cuerpo.replaceChildren();
+  if (!d || !d.exito || !d.usuarios.length) {
+    const f = document.createElement('tr');
+    f.appendChild(td('Sin actividad de cuentas en este periodo.', 'nota')).colSpan = 9;
+    cuerpo.appendChild(f); return;
+  }
+  d.usuarios.forEach(u => {
+    const fila = document.createElement('tr');
+    fila.style.cursor = 'pointer';
+    fila.append(
+      td(u.username || `#${u.user_id}`),
+      td(u.dias),
+      td(u.visitas),
+      td(duracion(u.activo_total)),
+      td(duracion(Math.round(u.activo_medio))),
+      td(u.partidas),
+      td(u.partidas_fin),
+      td(duracion(u.segundos_juego)),
+      td(u.ultima));
+    fila.addEventListener('click', () => verUsuarioAnalitica(u));
+    cuerpo.appendChild(fila);
+  });
+}
+
+async function verUsuarioAnalitica(u) {
+  const caja = $('an-detalle-usuario');
+  caja.replaceChildren();
+  const d = await api(`/admin/api/analitica/usuarios/${u.user_id}`);
+  if (!d || !d.exito) return;
+  const sub = document.createElement('div');
+  sub.className = 'caja';
+  sub.style.marginTop = '14px';
+  const h = document.createElement('h3');
+  h.textContent = `${u.username || '#' + u.user_id} · últimos 90 días`;
+  sub.appendChild(h);
+
+  if (!d.detalle.serie.length) {
+    const p = document.createElement('p'); p.className = 'nota';
+    p.textContent = 'Sin días registrados.'; sub.appendChild(p);
+  } else {
+    const tabla = document.createElement('table');
+    const thead = document.createElement('thead');
+    thead.innerHTML = '<tr><th>Día</th><th>Visitas</th><th>Tiempo</th>' +
+                      '<th>Partidas</th><th>Terminadas</th><th>Jugando</th></tr>';
+    const tb = document.createElement('tbody');
+    d.detalle.serie.slice().reverse().forEach(r => {
+      const f = document.createElement('tr');
+      f.append(td(r.dia), td(r.visitas), td(duracion(r.activo_total)),
+               td(r.partidas), td(r.partidas_fin), td(duracion(r.segundos_juego)));
+      tb.appendChild(f);
+    });
+    tabla.append(thead, tb);
+    const scroll = document.createElement('div');
+    scroll.className = 'tabla-scroll'; scroll.style.maxHeight = '260px';
+    scroll.appendChild(tabla);
+    sub.appendChild(scroll);
+  }
+
+  if (d.detalle.eventos.length) {
+    const p = document.createElement('p');
+    p.className = 'nota'; p.style.marginTop = '10px';
+    p.textContent = 'Eventos: ' +
+      d.detalle.eventos.map(e => `${e.tipo} (${e.n})`).join(' · ');
+    sub.appendChild(p);
+  }
+  const cerrar = boton('Cerrar', 'b-gris', () => caja.replaceChildren());
+  cerrar.style.marginTop = '10px';
+  sub.appendChild(cerrar);
+  caja.appendChild(sub);
+}
+
+// -------------------- En vivo --------------------
+async function cargarEnVivo() {
+  const d = await api('/admin/api/analitica/en_vivo');
+  if (!d || !d.exito) return;
+  const k = $('an-vivo-kpis');
+  k.replaceChildren();
+  [['Visitas', d.vivo.visitas], ['Con cuenta', d.vivo.con_cuenta],
+   ['Jugando', d.vivo.jugando]].forEach(([et, n]) => {
+    const t = document.createElement('div'); t.className = 'kpi';
+    const e = document.createElement('div'); e.className = 'et'; e.textContent = et;
+    const v = document.createElement('div'); v.className = 'n'; v.textContent = n;
+    t.append(e, v); k.appendChild(t);
+  });
+  const cuerpo = $('an-vivo');
+  cuerpo.replaceChildren();
+  if (!d.vivo.detalle.length) {
+    const f = document.createElement('tr');
+    f.appendChild(td('Nadie por aquí ahora mismo.', 'nota')).colSpan = 5;
+    cuerpo.appendChild(f); return;
+  }
+  d.vivo.detalle.forEach(v => {
+    const fila = document.createElement('tr');
+    const quien = document.createElement('td');
+    if (v.username) quien.textContent = v.username;
+    else { quien.appendChild(pill('invitado', 'p-del')); }
+    if (v.jugo) quien.appendChild(pill(' jugando', 'p-ok'));
+    fila.append(quien, td(v.minutos + ' min'), td(v.pais),
+                td(v.dispositivo), td(v.fuente));
+    cuerpo.appendChild(fila);
+  });
+}
+
+// -------------------- Carga completa de la vista --------------------
+cargadores.analitica = async function () {
+  if (!AN.desde) fijarPeriodo(27);
+  $('an-rango').textContent = `${AN.desde} → ${AN.hasta}`;
+  $('an-csv').href = `/admin/api/analitica/csv?${qs()}`;
+
+  const d = await api(`/admin/api/analitica/resumen?${qs()}`);
+  if (d && d.exito) {
+    AN.serie = d.actual.serie;
+    $('an-retencion').textContent = d.retencion_dias;
+    pintarKpis(d.actual.totales, d.previo.totales);
+    pintarGrafico(AN.serie, AN.metrica);
+    pintarEmbudo(d.embudo);
+  }
+  await Promise.all([cargarDimension(), cargarRetencion(),
+                     cargarUsuariosAnalitica(), cargarEnVivo()]);
+};
+
+// -------------------- Controles --------------------
+function activarChip(contenedor, boton) {
+  contenedor.querySelectorAll('.chip').forEach(c => c.classList.remove('activa'));
+  boton.classList.add('activa');
+}
+
+$('chips-periodo').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  activarChip($('chips-periodo'), b);
+  fijarPeriodo(parseInt(b.dataset.dias, 10));
+  cargadores.analitica();
+});
+
+$('an-aplicar').addEventListener('click', () => {
+  const desde = $('an-desde').value, hasta = $('an-hasta').value;
+  if (!desde || !hasta) return aviso('Elige las dos fechas.', true);
+  AN.desde = desde; AN.hasta = hasta;
+  activarChip($('chips-periodo'), document.createElement('span')); // ninguno activo
+  cargadores.analitica();
+});
+
+$('chips-metrica').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  activarChip($('chips-metrica'), b);
+  AN.metrica = b.dataset.m;
+  pintarGrafico(AN.serie, AN.metrica);
+});
+
+$('chips-dim').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  activarChip($('chips-dim'), b);
+  AN.dim = b.dataset.d;
+  cargarDimension();
+});
+
+document.querySelectorAll('#v-analitica th.orden').forEach(th => {
+  th.addEventListener('click', () => {
+    document.querySelectorAll('#v-analitica th.orden').forEach(x => x.classList.remove('activa'));
+    th.classList.add('activa');
+    AN.orden = th.dataset.o;
+    cargarUsuariosAnalitica();
+  });
+});
+
+let anTiempoBusqueda;
+$('an-q-usuario').addEventListener('input', () => {
+  clearTimeout(anTiempoBusqueda);
+  anTiempoBusqueda = setTimeout(cargarUsuariosAnalitica, 300);
+});
+
+$('an-borrar').addEventListener('click', async () => {
+  if (!confirm('¿Borrar TODA la analítica (visitas, eventos y agregados)?\n' +
+               'No se puede deshacer.')) return;
+  const d = await api('/admin/api/analitica/borrar', 'POST', {});
+  if (d && d.exito) { aviso('Analítica borrada.'); cargadores.analitica(); }
+});
 
 // ==========================================================================
 // Cuentas
@@ -1183,6 +1817,9 @@ cargadores.cuentas();
 setInterval(() => {
   if (vistaActual === 'resumen') cargadores.resumen();
   if (vistaActual === 'salas' && $('auto-salas').checked) cargadores.salas();
+  // El «ahora mismo» de la analítica se lee de memoria, así que refrescarlo a
+  // menudo no cuesta nada; el resto del panel solo se recarga al pedirlo.
+  if (vistaActual === 'analitica') cargarEnVivo();
 }, 10000);
 </script>
 </body>

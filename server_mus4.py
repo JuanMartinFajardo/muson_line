@@ -18,6 +18,7 @@ from flask_socketio import emit, join_room, leave_room
 import base_datos
 import decks
 import mus_senas
+import analitica          # medición de audiencia (Roadmap #24); nunca lanza
 from mus_mecanicas_4 import PartidaMus4
 from bot_ml_4 import SmartBot4, PERSONALIDADES, PERSONALIDAD_POR_DEFECTO
 
@@ -712,6 +713,15 @@ def _iniciar_partida(codigo):
     room['motor'] = motor
     room['estado'] = 'jugando'
     room['ultima_actividad'] = time.time()
+    room['empezada_en'] = time.time()
+    # Analítica (#24): una partida empezada por asiento con cuenta. Se atribuye
+    # por nombre y no por la petición en curso, porque a la mesa la arranca uno
+    # solo y los cuatro empiezan a jugar.
+    for _s in range(4):
+        _u = room['usernames'].get(_s)
+        if _u:
+            analitica.evento('partida_inicio', modo='online4',
+                             username=_u, por_usuario=True)
     socketio.emit('iniciar_partida_4', {'codigo': codigo}, room=codigo)
     enviar_estado_4(codigo)
 
@@ -1086,6 +1096,12 @@ def _registrar_resultado_4(motor, room):
             motor.match_id, motor.al_mejor_de)
     except Exception as e:
         print(f"⚠️ Error registrando partida 4p {motor.match_id}: {e}")
+
+    duracion = int(time.time() - (room.get('empezada_en') or time.time()))
+    for username in (g_users + p_users):
+        if username:
+            analitica.evento('partida_fin', modo='online4', valor=duracion,
+                             username=username, por_usuario=True)
 
 
 # ==========================================

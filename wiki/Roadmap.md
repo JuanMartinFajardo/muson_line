@@ -803,3 +803,75 @@ adding a friend by lower-case code while a deleted account's code is rejected. �
 lists (usernames are unique among live accounts, so there is nothing to disambiguate
 there); there is no match-history screen yet to flag past players in — `#19` is where
 that lands, and `obtener_jugador_publico()` is the hook it should use.
+
+---
+
+## 24. Usage analytics in the admin panel — ✅ DONE (2026-07-26)
+
+**Goal:** a Search Console-style view of how the site is actually used — visits, time
+spent, how many people arrive and end up *playing*, signups, logins — sliceable by
+period, source, country, device and user. Full details in [Analytics](Analytics.md).
+
+**Answer to the cookie question: no banner is needed, because nothing is stored on the
+visitor's device.** The consent trigger in ePrivacy/GDPR is *storing or reading on the
+device*, not the word "analytics". A cookie or `localStorage` id would have forced a
+banner; instead a visit is grouped by `sha256(daily_salt + IP + User-Agent)` where the
+salt is **random, memory-only and rotated daily** — so the raw IP is never stored and
+the mapping cannot be reconstructed afterwards by anyone, including the owner. That is
+the audience-measurement profile the AEPD and CNIL both exempt from prior consent.
+What *is* required — and was done — is declaring it in the privacy policy: `privacy_p3`
+in `static/app.js` gained an *Audience measurement* bullet in ES and EN, and its Cookies
+bullet now reads "no tracking **or analytics** cookies".
+The accepted cost: a visitor without an account is only recognisable within one day, so
+cross-day retention is exact for accounts only, and "unique visitors" over a range is
+the sum of daily uniques. The panel states this next to the figure.
+
+**What was done:**
+1. ✅ **`analitica.py`** — additive module (`init_analitica(app, socketio, ctx)`, the
+   `admin.py` pattern), its own `analitica.db` in WAL so page views never contend with
+   gameplay writes nor bloat the panel's `mus.db` backup.
+2. ✅ **Collection.** `before_request` counts page loads (statics, `/api/**`,
+   `/socket.io/**` and `/admin` excluded); [static/analitica.js](../static/analitica.js)
+   beats every 30 s **only while the tab is visible** (plus a `sendBeacon` on unload),
+   so a forgotten tab cannot inflate time on site; UI events come from a delegated
+   listener over existing button ids, so `app.js` was not touched at all. Game events
+   (`partida_inicio/fin`, `sala_creada`, `registro`, `login`, `logout`, `baraja`) are
+   emitted **server-side**, so they cannot be faked from a patched client.
+3. ✅ **Never in the way.** Live visits are held in memory and flushed by a greenlet
+   every 5 s; `analitica.evento()` swallows every exception by design. The panel reads
+   **only daily aggregates** (`Dia` / `DiaDim` / `DiaUsuario`, kept forever), with the
+   current day re-consolidated on the fly, so a 12-month query costs the same as a
+   1-week one. Raw rows are pruned at 90 days.
+4. ✅ **The panel** (`/admin` → Analítica): period bar with CSV export; 12 KPI cards
+   each with the change vs. the previous period *and* a line explaining how it is
+   counted; an inline-SVG evolution chart with switchable metric (no chart library);
+   the visit→interact→play→finish→account funnel; a live "ahora mismo" read from
+   memory; breakdowns by source/medium/campaign/country/language/device/browser/OS/
+   game mode/deck/landing/event; weekly signup-cohort retention; and a sortable,
+   searchable per-user table with a per-day drill-down.
+5. ✅ **Erasure.** `olvidar_usuario()` is wired into *both* account-deletion paths (the
+   player's own and the panel's), so a GDPR request needs no extra step; plus a
+   "wipe all analytics" button, audited like every other admin action.
+
+**Attribution subtlety worth remembering:** an event is normally charged to the visit
+making the request, which is wrong when one player's click starts something for someone
+else (joining a room starts the game for *both* seats). `evento(..., por_usuario=True)`
+looks the visit up by account instead. Without it both games would be charged to
+whoever clicked; there is a regression check for exactly that.
+
+**Known limits (deliberate):** country comes from the `CF-IPCountry` header, so it reads
+`desconocido` until Cloudflare is in front (#16) — shipping a GeoIP database or calling
+an external service would undo the privacy argument above. And after 90 days the raw
+rows are gone, so every number the panel shows survives but *new* cross-filters
+(country × device, say) cannot be invented retroactively.
+
+**Acceptance:** ✅ 30 scripted checks covering visit counting (crawlers and static
+requests excluded), bounce/play rates, all nine dimension breakdowns, the funnel, the
+live view, account attribution and its erasure, cross-attribution, retention, CSV,
+maintenance, aggregate-only reads of a 200-day-old day, and rejection of forged client
+events and absurd heartbeats — plus explicit assertions that **no IP and no user-agent
+string ever reaches the database**. ✅ Verified in the browser against a seeded 57-day
+dataset: KPIs with deltas, chart, funnel, breakdowns, cohorts, per-user sorting and the
+live table all render, and every control (period, metric, dimension, sort) re-queries
+correctly. ✅ Verified against the real running server that a page load, a referrer, a
+heartbeat and a socket-side event all land in `analitica.db`.

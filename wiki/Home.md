@@ -16,6 +16,7 @@
 | [Game Engine](Game-Engine.md) | `mus_mecanicas.py` — the `PartidaMus` state machine |
 | [Backend Server](Backend-Server.md) | `server.py` — HTTP routes, Socket.IO events, room management |
 | [Database](Database.md) | `base_datos.py` — SQLite schema, ELO math |
+| [Analytics](Analytics.md) | `analitica.py` — cookieless audience measurement, the panel's Analítica tab, and why no cookie banner is needed |
 | [Authentication](Authentication.md) | Account system: register/verify/login/Google OAuth (partially implemented) |
 | [Frontend](Frontend.md) | `index.html`, `static/app.js`, `static/auth.js`, `static/tutorial.js`, i18n |
 | [Bot and AI](Bot-AI.md) | `bot_ml.py`, Deep CFR training pipeline, `learn/` folder, and the §4 training infrastructure (log v2, encoder, benchmark, measurement harness) |

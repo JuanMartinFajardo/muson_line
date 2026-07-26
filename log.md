@@ -4,6 +4,72 @@ Historial cronológico de cambios relevantes del proyecto. El más reciente arri
 
 ---
 
+## 2026-07-26 — Analítica de uso en el panel (Roadmap #24)
+
+Un «Search Console» propio dentro de `/admin`: cuánta gente entra, de dónde viene,
+cuánto se queda, cuántos llegan a jugar y cuántos se quedan. Documentado en
+[Analytics](wiki/Analytics.md).
+
+- **Sin banner de cookies, y por diseño.** Lo que obliga a pedir consentimiento no es
+  la palabra «analítica», es *guardar o leer algo en el dispositivo*. Así que no se
+  guarda nada: ni cookie de analítica, ni `localStorage`, ni huella. La visita se
+  agrupa con `sha256(sal + IP + user-agent)` donde **la sal es aleatoria, vive solo en
+  memoria y rota cada día** — la IP en crudo no se almacena nunca y el mapeo no lo
+  puede recomponer después nadie, tampoco el dueño. Ese es el perfil de «medición de
+  audiencia» que la AEPD y la CNIL dejan fuera del consentimiento previo. Lo único
+  obligatorio sí se ha hecho: `privacy_p3` de `static/app.js` tiene un punto nuevo de
+  *Medición de audiencia* en ES y EN, y el de cookies ahora dice «ni de analítica».
+  El precio aceptado: un visitante sin cuenta solo es reconocible dentro del mismo día,
+  así que la retención entre días es exacta solo para cuentas — y el panel lo dice al
+  lado del número en vez de disimularlo.
+- **`analitica.py` + `analitica.db` (nuevos).** Módulo aditivo (patrón `admin.py`) con
+  base propia en WAL: es el mayor volumen de escritura del proyecto y no debe competir
+  con las partidas ni engordar la copia de `mus.db` que se descarga del panel.
+- **Nunca estorba.** Las visitas vivas están en memoria y un greenlet vuelca cada 5 s;
+  `analitica.evento()` se traga cualquier excepción a propósito — una métrica rota no
+  puede tumbar una mano. Y el panel **solo lee agregados diarios** (el día en curso se
+  reconsolida al vuelo), así que una consulta de 12 meses cuesta lo mismo que una de
+  una semana. Lo crudo se purga a los 90 días.
+- **Recogida.** `before_request` cuenta las cargas de página (fuera estáticos, `/api`,
+  `/socket.io` y `/admin`); `static/analitica.js` late cada 30 s **solo con la pestaña
+  visible** (más un `sendBeacon` al cerrar), así que una pestaña olvidada no infla el
+  tiempo de permanencia. Los eventos de interfaz se instrumentan por delegación sobre
+  los ids que ya existían: **`app.js` no se ha tocado**. Los eventos de juego los emite
+  el servidor, no el cliente, así que un cliente parcheado no los puede falsear.
+- **El panel** (`/admin` → Analítica): barra de periodo con export CSV; 12 tarjetas con
+  la variación contra el periodo anterior *y* una línea explicando cómo se cuenta cada
+  una; gráfico de evolución en SVG a mano con métrica conmutable (sin librerías);
+  embudo visita→interacción→juego→partida terminada→cuenta; «ahora mismo» leído de
+  memoria; desgloses por origen, medio, campaña, país, idioma, dispositivo, navegador,
+  sistema, modo de juego, baraja, página de entrada y evento; retención por cohortes
+  semanales de alta; y tabla por usuario ordenable, buscable y con detalle por día.
+- **Borrado.** `olvidar_usuario()` está enganchado en **los dos** caminos de borrado de
+  cuenta (el del jugador y el del panel), así que una petición de supresión no necesita
+  ningún paso extra; más un botón de «borrar toda la analítica», auditado.
+- **Sutileza de atribución que conviene recordar:** un evento se apunta a la visita que
+  hace la petición, y eso es falso cuando el clic de uno arranca algo para otro (quien
+  se une a una sala arranca la partida de los dos asientos). Para eso está
+  `evento(..., por_usuario=True)`, que busca la visita por cuenta en vez de por
+  petición. Sin ello las dos partidas se le cargaban a quien pulsó; hay una prueba de
+  regresión justo de eso.
+- **Límites asumidos:** el país sale de la cabecera `CF-IPCountry`, así que pone
+  `desconocido` hasta que haya Cloudflare delante (#16) — meter una base GeoIP o llamar
+  a un servicio externo tiraría por tierra todo el argumento de privacidad. Y pasados
+  90 días se pueden seguir viendo todas las cifras, pero ya no se pueden inventar
+  cruces nuevos (país × dispositivo, por ejemplo).
+- **Verificación:** 30 comprobaciones automáticas (conteo de visitas con crawlers y
+  estáticos fuera, rebote y tasa de juego, las nueve dimensiones, embudo, en vivo,
+  atribución a cuenta y su borrado, atribución cruzada, retención, CSV, mantenimiento,
+  lectura de un día de hace 200 días solo desde agregados, y rechazo de eventos
+  falsificados y latidos absurdos), incluyendo la afirmación explícita de que **ninguna
+  IP ni ningún user-agent llegan a la base de datos**. En navegador, contra un juego de
+  datos sembrado de 57 días, se comprobó que todo pinta y que cada control (periodo,
+  métrica, dimensión, orden) vuelve a consultar bien. Y contra el servidor real, que
+  una carga de página, un referer, un latido y un evento de socket acaban en
+  `analitica.db`.
+
+---
+
 ## 2026-07-26 — Fase 1 del bot 2v2: log v2, motor rápido y arnés de medición
 
 Infraestructura de la que dependen todas las fases de entrenamiento siguientes

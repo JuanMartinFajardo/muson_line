@@ -18,6 +18,7 @@ from flask import (Flask, render_template, request, session, jsonify,
 import base_datos
 import decks
 import social
+import analitica          # medición de audiencia (Roadmap #24); nunca lanza
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from mus_mecanicas import PartidaMus
 from bot_ml import SmartBot
@@ -506,6 +507,7 @@ def auth_registro():
         solicitudes_por_email.pop(email, None)
         session.permanent = True
         session['username'] = username
+        analitica.evento('registro', username=username)
 
     return jsonify({'exito': exito, 'mensaje': msg})
 
@@ -528,6 +530,7 @@ def auth_login():
                                        (f' Motivo: {motivo}' if motivo else '')})
         session.permanent = bool(datos.get('remember', False))
         session['username'] = username
+        analitica.evento('login', etiqueta='password', username=username)
         return jsonify({'exito': True})
 
     return jsonify({'exito': False, 'mensaje': 'Usuario/correo o contraseña incorrectos'})
@@ -626,6 +629,13 @@ def google_callback():
 
     session.permanent = True
     session['username'] = username
+    # "Registrarse con Google" también vale para vincular una cuenta que ya
+    # existía, así que el alta se decide por la fecha real de la fila, no por el
+    # botón que se pulsó: si no, el panel contaría altas que no lo son.
+    _ficha = base_datos.obtener_usuario(username) or {}
+    _recien = (_ficha.get('fecha_registro') or '')[:10] == time.strftime('%Y-%m-%d')
+    analitica.evento('registro' if (intent == 'signup' and _recien) else 'login',
+                     etiqueta='google', username=username)
     return redirect('/')
 
 
@@ -649,6 +659,7 @@ def auth_sesion():
 
 @app.route('/auth/logout', methods=['POST'])
 def auth_logout():
+    analitica.evento('logout', username=session.get('username'))
     session.pop('username', None)
     return jsonify({'exito': True})
 
@@ -872,8 +883,13 @@ def auth_cuenta_eliminar():
     if not ok:
         return _respuesta(False, cod_error, msg_error)
 
+    # Antes de anonimizar, porque después ya no hay forma de resolver el id.
+    _uid_borrado = base_datos.obtener_id_usuario(username)
     exito, codigo, _anonimo = base_datos.anonimizar_usuario(username)
     if exito:
+        # El borrado de cuenta también borra su rastro en la analítica: las
+        # visitas siguen contando en los totales, pero ya sin dueño.
+        analitica.olvidar_usuario(_uid_borrado)
         # La sesión se cierra aquí; el cliente recarga y su socket vuelve a
         # conectarse como invitado, soltando cualquier sala en la que estuviera.
         session.pop('username', None)
@@ -962,6 +978,12 @@ def handle_mi_baraja(datos):
     username = session.get('username')
     config = decks.recordar_baraja(sid, (datos or {}).get('config'),
                                    username, base_datos.es_admin(username))
+    # Analítica (#24): qué temas se llevan a la mesa. La config tiene un tema por
+    # palo, así que la etiqueta es el conjunto de temas usados; si coincide con
+    # el reparto clásico se anota como 'clásica'.
+    _temas = sorted({v for k, v in (config or {}).items() if k != 'dorso'})
+    analitica.evento('baraja', etiqueta=('clásica' if _temas == sorted(decks.HUECOS)
+                                         else '+'.join(_temas)))
 
     # A los demás se les manda un aviso suelto, no el estado entero de la mesa:
     # una difusión de estado reinicia el reloj del turno, y cambiar de baraja no
@@ -1011,6 +1033,7 @@ def handle_crear_sala(datos):
                      'creada_en': time.time(), 'ultima_actividad': time.time()}
 
     print(f"👉 {nombre} ha creado la sala {codigo} (Pública: {es_publico})")
+    analitica.evento('sala_creada', modo='online2', username=real_username)
     emit('sala_creada', {'codigo': codigo, 'token': token}, room=sid)
     emitir_lista_publicas()
 
@@ -1063,6 +1086,7 @@ def handle_crear_partida_bot(datos):
     salas[codigo]['motor'] = partida
     
     print(f"🤖 {nombre} ha creado la sala {codigo} contra la IA")
+    analitica.evento('partida_inicio', modo='bot', username=real_username)
     emit('sala_creada', {'codigo': codigo, 'token': token}, room=sid)
     emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
     enviar_estado_a_jugadores(codigo)
@@ -1178,7 +1202,18 @@ def handle_unirse_sala(datos):
                 rules={'al_mejor_de': salas[codigo].get('al_mejor_de', 3)})
             partida.iniciar_ronda()
             salas[codigo]['motor'] = partida
-            
+            salas[codigo]['empezada_en'] = time.time()
+
+            # Una partida por asiento: la del que acaba de entrar se apunta a su
+            # visita (estamos en su petición) y la del creador a la suya.
+            analitica.evento('partida_inicio', modo='online2',
+                             username=jugadores.get(sid, {}).get('username'))
+            _otro = j1_sid if sids[1] == sid else j2_sid
+            _otro_user = jugadores.get(_otro, {}).get('username')
+            if _otro_user:
+                analitica.evento('partida_inicio', modo='online2',
+                                 username=_otro_user, por_usuario=True)
+
             emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
             enviar_estado_a_jugadores(codigo)
             emitir_lista_publicas()
@@ -1357,6 +1392,29 @@ def enviar_estado_a_jugadores(codigo_sala):
                 u_perdedor = jugadores.get(perdedor_sid, {}).get('username')
                 if u_ganador or u_perdedor:
                     base_datos.registrar_partida_completa(u_ganador, u_perdedor)
+
+                # Analítica (#24): una partida terminada por asiento humano, con
+                # lo que ha durado. Va aquí y no en el bucle de arriba porque
+                # `db_registrada` garantiza que esto pasa UNA sola vez por match.
+                # Con cuenta se atribuye por nombre; un invitado solo se puede
+                # atribuir si es justo quien ha provocado esta llamada (si el
+                # disparo viene del bot no hay petición y queda como global).
+                _modo = 'bot' if sala.get('bot') else 'online2'
+                _dur = int(time.time() - (sala.get('empezada_en') or
+                                          sala.get('creada_en') or time.time()))
+                try:
+                    _sid_actual = request.sid
+                except Exception:
+                    _sid_actual = None
+                for _asiento in (ganador_sid, perdedor_sid):
+                    if not _asiento or _asiento.startswith('BOT_'):
+                        continue
+                    _u = jugadores.get(_asiento, {}).get('username')
+                    if _u:
+                        analitica.evento('partida_fin', modo=_modo, valor=_dur,
+                                         username=_u, por_usuario=True)
+                    elif _asiento == _sid_actual:
+                        analitica.evento('partida_fin', modo=_modo, valor=_dur)
 
             datos_recuento = []
             for paso in pasos_crudos:
@@ -1867,6 +1925,17 @@ admin.init_admin(app, socketio, {
     'enviar_correo': enviar_correo,
     'generar_codigo_verificacion': generar_codigo_verificacion,
     'codigos_pendientes': codigos_pendientes,
+})
+
+# ==========================================
+# ANALÍTICA DE USO (Roadmap #24): mide visitas, permanencia, embudo visita→juego
+# y retención, sin guardar nada en el dispositivo del visitante (por eso el sitio
+# NO necesita banner de cookies; ver la cabecera de analitica.py). Va después de
+# admin.py porque reutiliza su decorador de permisos para las rutas del panel.
+# ==========================================
+analitica.init_analitica(app, socketio, {
+    'admin_requerido': admin.admin_requerido,
+    'auditar': admin._auditar,
 })
 
 # El barredor de salas 2p arranca aquí (después de que exista el registro 4p, que

@@ -26,6 +26,8 @@ Flask app served with **eventlet** (`eventlet.monkey_patch()` at the very top) a
 | `/api/anuncios`, `/api/anuncios/<id>/leido` | GET/POST | Admin announcements the caller must see: pinned messages, unread one-shot notifications and the maintenance banner. Works **without** a session (guests get the public pinned ones) |
 | `/admin` | GET | The admin panel page (`admin.html`); 403 without the `is_admin` flag |
 | `/admin/api/**` | GET/POST | Panel API: `resumen`, `usuarios[/<id>/{ban,estadisticas,admin,reset_password,eliminar}]`, `salas[/<code>/cerrar]`, `descargas/{db,logs}`, `config`, `tickets`, `anuncios`, `auditoria`. All behind `admin_requerido`, all mutations written to `AdminAudit` (Roadmap #13) |
+| `/api/a/latido`, `/api/a/evento` | POST | Audience measurement (Roadmap #24): visible-tab time and a fixed whitelist of UI events. Public, sessionless and cookieless — nothing is stored on the device, so no consent banner is needed. See [Analytics](Analytics.md) |
+| `/admin/api/analitica/**` | GET/POST | Analytics panel API: `resumen`, `dimension`, `usuarios[/<id>]`, `retencion`, `en_vivo`, `csv`, `borrar`. Behind the same `admin_requerido` |
 | `/auth/google/login`, `/auth/google/callback` | GET | Google OAuth via Authlib — active when `GOOGLE_CLIENT_ID`/`SECRET` are set (503 otherwise). `login` takes `?intent=login\|signup` (kept in the session): only `signup` may create an account; `login` with no match redirects to `/?auth_error=google_sin_cuenta`. See [Authentication](Authentication.md) |
 
 An `after_request` hook sets 1-year immutable cache headers on `/static/img/*`, and

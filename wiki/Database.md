@@ -113,6 +113,13 @@ is released without ever colliding.
 | `crear_anuncio / desactivar_anuncio / listar_anuncios / destinatarios_de / anuncios_para / marcar_anuncio_leido` | Announcements; `anuncios_para(None)` returns the public pinned ones for guests |
 | `estadisticas_globales()` | The counters on the panel's front page |
 
+### What is *not* here
+
+Usage analytics (visits, time on site, funnel, retention) lives in its **own** SQLite
+file, `analitica.db`, managed by `analitica.py` — see [Analytics](Analytics.md). It is
+kept out of `mus.db` on purpose: it is the highest write volume in the project, and the
+panel's "download mus.db" backup should not grow with page views.
+
 ## ELO system
 
 Standard Elo with **K = 16**, starting rating **1200**:

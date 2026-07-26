@@ -34,6 +34,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [mus_senas.py](../mus_senas.py) | Pure: which sign a hand makes, with an admin-editable priority order ([Señas](Senas-2v2.md)) |
 | [mus_log.py](../mus_log.py) | Log v2: event-sourced match logger shared by both engines, plus the replay-side card source ([Bot-AI](Bot-AI.md) §4.1) |
 | [admin.py](../admin.py) | Admin panel (`init_admin`): accounts, live rooms, downloads, `Config` variables, audit, plus the player-facing support and announcement endpoints |
+| [analitica.py](../analitica.py) | Usage analytics (`init_analitica`): cookieless audience measurement into its own `analitica.db`, and the panel's Analítica tab ([Analytics](Analytics.md)) |
 
 ### Training / offline (not needed to run the server)
 
@@ -47,7 +48,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [bench_env.py](../bench_env.py) | Simulator throughput benchmark (`fork()` vs `deepcopy`) — the Phase 1 performance gate |
 | [arena.py](../arena.py) | Pits two model checkpoints against each other over thousands of games to measure progress |
 | [global_trainer.py](../global_trainer.py) | Legacy pipeline: compiles `logs/` into a CSV and trains the old random-forest models |
-| `tools/` | `log_verify.py` (replay integrity), `selftest_log.py` (log round trip, CI-style), `logs2dataset.py` (v2 → Parquet), `fuzz_env4.py`, `arena4.py` (2v2 arena, seat-permuted), `lbr_probe.py` (2p exploitability bound), `soak_bots4.py`, `soak_server_bots4.py`, `decks/` |
+| `tools/` | `log_verify.py` (replay integrity), `selftest_log.py` (log round trip, CI-style), `logs2dataset.py` (v2 → Parquet), `fuzz_env4.py`, `arena4.py` (2v2 arena, seat-permuted), `lbr_probe.py` (2p exploitability bound), `soak_bots4.py`, `soak_server_bots4.py`, `test_analitica.py` (30 checks over `analitica.py`, incl. "no IP ever hits disk"), `decks/` |
 | `learn/` | Training assets: `probability_calculator.py`, `dataset_generator.py`, `procesar_carpeta.py`, `entrenar_*.py`, CFR checkpoints (`learn/cfr/*.pth`), precomputed tables (`learn/global_variables/mus_data.json`), datasets, old models |
 
 ### Frontend
@@ -62,6 +63,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [static/social.js](../static/social.js) | Friends, chats, groups and game invites |
 | [static/soporte.js](../static/soporte.js) | Support inbox inside Settings + admin announcements (pinned banner and popups) |
 | [admin.html](../admin.html) | Server-rendered admin panel (`/admin`), self-contained CSS/JS, Spanish only |
+| [static/analitica.js](../static/analitica.js) | Audience measurement beacon: visible-tab time and menu events. Stores nothing on the device ([Analytics](Analytics.md)) |
 | [static/senas4.js](../static/senas4.js) | Señas (2v2): focus state machine, controls, SVG faces, sign and report UI (`window.Senas4`) |
 | [static/senas.css](../static/senas.css) | Señas: the face, the lit seat and the ten sign animations |
 | [static/style.css](../static/style.css) | Nord-palette styling |
@@ -72,6 +74,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | Item | Role |
 | :--- | :--- |
 | `mus.db` | SQLite database (`Usuarios` table) |
+| `analitica.db` | Separate SQLite database for usage analytics — deliberately not in `mus.db` ([Analytics](Analytics.md)) |
 | `logs/v2/*.jsonl` | **Current format.** One file per match, event-sourced and exactly replayable ([Bot-AI](Bot-AI.md) §4.1) |
 | `logs/*.jsonl` | Legacy v1, **frozen** (nothing writes there any more): one row per turn with the features frozen at write time, so matches cannot be replayed |
 | `learn/global_variables/mus_data.json` | Precomputed win probabilities and expected values for all 330 possible hands (mano/postre) |
@@ -111,5 +114,5 @@ still leaves all its completed hands on disk — which is the common case in pro
 
 - **All rooms are lost on server restart** (in-memory only); games vs bot cannot be resumed after disconnect.
 - **A room with every player disconnected survives until its timer fires** (grace or replacement window): it stops being advertised because the public lists skip rooms with no live player, but it stays in memory for up to 5 minutes so a refresh can reclaim the seat.
-- `server.py` still mixes concerns (auth, rooms, game relay, bot orchestration) in one file. The features added since then live in their own additive modules hooked in at the bottom of `server.py` (`social.init_social`, `server_mus4.init_mus4`, `admin.init_admin`), all sharing the same Flask app, Socket.IO instance and session; tournaments (#4) should follow the same pattern.
+- `server.py` still mixes concerns (auth, rooms, game relay, bot orchestration) in one file. The features added since then live in their own additive modules hooked in at the bottom of `server.py` (`social.init_social`, `server_mus4.init_mus4`, `admin.init_admin`), all sharing the same Flask app, Socket.IO instance and session; tournaments (#4) should follow the same pattern. `analitica.init_analitica` is hooked in after `admin` (it reuses the panel's permission decorator) and is the one module with its own database.
 - Only **one** handler per Socket.IO event is allowed (Flask-SocketIO 5.x): `connect` lives in `social.py` (presence + ban check) and `disconnect` in `server.py`, which calls into the other modules.

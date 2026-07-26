@@ -337,6 +337,13 @@ def init_admin(app, socketio, ctx):
         if not exito:
             return jsonify({'exito': False, 'mensaje': codigo})
         _auditar('eliminar_cuenta', objetivo['username'], anonimo)
+        # El rastro de analítica también se desliga (Roadmap #24): las visitas
+        # siguen contando en los totales, pero dejan de tener dueño.
+        try:
+            import analitica
+            analitica.olvidar_usuario(user_id)
+        except Exception as e:
+            print(f"⚠️ No se pudo limpiar la analítica de {user_id}: {e}")
         _expulsar_de_todo(objetivo['username'])
         return jsonify({'exito': True, 'anonimo': anonimo})
 
