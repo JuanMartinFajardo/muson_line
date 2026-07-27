@@ -1,0 +1,2 @@
+{"v":2,"t":"hdr","match":"3IKNOD","mode":"4p","ts":"2026-07-27T20:22:01.622Z","rules":{"objetivo":40,"al_mejor_de":3,"team_response":"companero","senas":true,"engine":"mus4","publico":false},"seats":[{"s":0,"kind":"human","code":null},{"s":1,"kind":"bot","pers":"equilibrado","ckpt":null},{"s":2,"kind":"bot","pers":"equilibrado","ckpt":null},{"s":3,"kind":"bot","pers":"equilibrado","ckpt":null}],"teams":[[0,2],[1,3]]}
+{"t":"deal","r":1,"mano":0,"hands":[[7,2,1,1],[7,4,11,3],[11,3,12,10],[6,6,4,5]]}

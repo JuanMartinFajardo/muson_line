@@ -7,6 +7,37 @@
 var cartasSeleccionadas4 = [];
 var TURNO_SEGUNDOS_4 = 30;   // debe coincidir con server_mus4.TURNO_SEGUNDOS
 
+// Único sitio donde se decide qué dicen y si están activos los dos botones de
+// descarte de la mesa de 4, para que el contador y el rótulo Todas/Ninguna no
+// se desincronicen entre el clic en una carta y el repintado de la mesa.
+function sincronizarBotonesDescarte4() {
+    const total = document.querySelectorAll('#seat-bottom .carta-4').length;
+    const btn = document.getElementById('btn-descartar-4');
+    const btnTodas = document.getElementById('btn-todas-4');
+    if (btn) {
+        btn.innerText = `${t('btn_descartar')} (${cartasSeleccionadas4.length})`;
+        btn.disabled = cartasSeleccionadas4.length === 0;
+    }
+    if (btnTodas) {
+        btnTodas.innerText = t(total > 0 && cartasSeleccionadas4.length === total ? 'btn_ninguna' : 'btn_todas');
+        btnTodas.disabled = total === 0;
+    }
+}
+
+// Descartarse la mano entera es la jugada más repetida del mus: con este botón
+// son dos toques (Todas → Descartar) en vez de cinco. Alterna: si ya están las
+// cuatro marcadas, las desmarca. A diferencia del clic carta a carta funciona
+// aunque la mano esté tapada por las señas: en el descarte tus cartas ya las
+// has visto y no hace falta destaparlas para tirarlas.
+function seleccionarTodas4() {
+    const cartas = [...document.querySelectorAll('#seat-bottom .carta-4')];
+    if (!cartas.length) return;
+    const yaTodas = cartasSeleccionadas4.length === cartas.length;
+    cartasSeleccionadas4 = yaTodas ? [] : cartas.map((_, i) => i);
+    cartas.forEach(c => c.classList.toggle('seleccionada', !yaTodas));
+    sincronizarBotonesDescarte4();
+}
+
 // Asigna a cada asiento su hueco visual, relativo al espectador:
 //   bottom = yo, top = compañero (+2), left = (+1), right = (+3).
 function slotDeAsiento4(miAsiento, asiento) {
@@ -66,8 +97,7 @@ function renderCartasAsiento4(el, seatInfo, next, esYo, animarDeal, animarFlip) 
                     const pos = cartasSeleccionadas4.indexOf(index);
                     if (pos === -1) { cartasSeleccionadas4.push(index); div.classList.add('seleccionada'); }
                     else { cartasSeleccionadas4.splice(pos, 1); div.classList.remove('seleccionada'); }
-                    const btn = document.getElementById('btn-descartar-4');
-                    if (btn) { btn.innerText = `${t('btn_descartar')} (${cartasSeleccionadas4.length})`; btn.disabled = cartasSeleccionadas4.length === 0; }
+                    sincronizarBotonesDescarte4();
                 }
             };
             cont.appendChild(div);

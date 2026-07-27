@@ -437,6 +437,22 @@ html.modo-mesa .cm-corner { margin-right: env(safe-area-inset-right); }
     color: var(--cm-ink);
 }
 
+/* "Todas" acompaña a Descartar, no compite con él: el oro macizo se lo queda la
+   acción que cierra la jugada y ésta va en oro perfilado. Es más estrecha
+   porque su rótulo es una palabra y así el par entra en una línea en móvil. */
+#game-screen #btn-todas,
+#center-table-4 #btn-todas-4 {
+    padding-left: 14px; padding-right: 14px;
+    background: rgba(201, 162, 39, 0.07);
+    border-color: rgba(201, 162, 39, 0.45);
+    color: var(--cm-gold-hi);
+}
+#game-screen #btn-todas:hover,
+#center-table-4 #btn-todas-4:hover {
+    background: rgba(201, 162, 39, 0.18);
+    border-color: var(--cm-gold);
+}
+
 /* El órdago es lo único rojo de la mesa: se juega la partida entera. */
 #game-screen :is(#btn-ordago, #btn-ordago-resp),
 #center-table-4 :is(#btn-ordago-4, #btn-ordago-resp-4) {
@@ -847,4 +863,131 @@ html.modo-mesa .cm-corner { margin-right: env(safe-area-inset-right); }
 @media (prefers-reduced-motion: reduce) {
     #game-screen .turno-indicador { animation: none; opacity: 1; }
     .overlay-partida .spinner-reconexion, .cm-pausa-spinner { animation: none; }
+}
+
+/* ============================================================
+   12. El sorteo de la Mano (sorteo.js)
+   ------------------------------------------------------------
+   Telón opaco sobre la mesa mientras se echa a suertes quién es
+   Mano: cada jugador con su(s) pinta(s) en su sitio y, en el
+   centro, el oro corriendo por las cuatro pintas como en el
+   adorno del menú (menu.css) hasta pararse en una.
+   ============================================================ */
+
+.sorteo {
+    position: fixed; inset: 0; z-index: 3000;
+    background: var(--cm-ink);
+    color: var(--cm-bone);
+    /* Mientras dure, la mesa no se toca: el telón se come los clics. */
+    pointer-events: auto;
+    opacity: 1;
+    transition: opacity 380ms ease;
+    padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
+             max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+}
+.sorteo.telon { opacity: 0; }
+
+.sorteo-centro {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(92%, 420px);
+    text-align: center;
+}
+
+.sorteo-titulo {
+    margin: 0 0 18px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-variant: small-caps;
+    letter-spacing: 0.14em;
+    font-size: 0.95rem;
+    color: var(--cm-dim);
+}
+
+.sorteo-ruleta {
+    display: flex; justify-content: center; align-items: center;
+    gap: clamp(14px, 6vw, 34px);
+}
+.sorteo-ruleta .sorteo-pinta {
+    width: clamp(34px, 12vw, 58px);
+    height: clamp(34px, 12vw, 58px);
+    color: var(--cm-dim-2);
+    opacity: 0.45;
+    transition: opacity 90ms linear, transform 90ms linear;
+}
+.sorteo-ruleta .sorteo-pinta.encendida {
+    color: var(--cm-gold-hi);
+    opacity: 1;
+    transform: scale(1.16);
+}
+/* La pinta donde se ha parado: se queda encendida y respira una vez. */
+.sorteo-ruleta .sorteo-pinta.parada {
+    color: var(--cm-gold-hi);
+    opacity: 1;
+    filter: drop-shadow(0 0 12px rgba(227, 190, 69, 0.55));
+    animation: sorteo-parada 620ms ease-out;
+}
+@keyframes sorteo-parada {
+    0%   { transform: scale(1.16); }
+    45%  { transform: scale(1.5); }
+    100% { transform: scale(1.28); }
+}
+
+.sorteo-resultado {
+    margin: 20px 0 0;
+    min-height: 1.5em;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-variant: small-caps;
+    letter-spacing: 0.1em;
+    font-size: 1.15rem;
+    color: var(--cm-gold);
+    opacity: 0;
+    transition: opacity 260ms ease;
+}
+.sorteo-resultado.visible { opacity: 1; }
+
+/* El sitio de cada jugador: lo único que hay en su área es su pinta y su
+   nombre, colocados como se sienta en la mesa (uno mismo, siempre abajo). */
+.sorteo-sitio {
+    position: absolute;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    color: var(--cm-dim);
+    text-align: center;
+}
+.sorteo-sitio[data-slot="top"]    { top: 6%; left: 50%; transform: translateX(-50%); }
+.sorteo-sitio[data-slot="bottom"] { bottom: 6%; left: 50%; transform: translateX(-50%); }
+.sorteo-sitio[data-slot="left"]   { left: 4%; top: 50%; transform: translateY(-50%); }
+.sorteo-sitio[data-slot="right"]  { right: 4%; top: 50%; transform: translateY(-50%); }
+
+.sorteo-palos { display: flex; gap: 10px; }
+.sorteo-palos .sorteo-palo {
+    width: 22px; height: 22px;
+    color: var(--cm-dim-2);
+    transition: color 200ms ease;
+}
+.sorteo-nombre {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-variant: small-caps;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    max-width: 30vw;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Al parar, se ilumina el dueño de la pinta ganadora. */
+.sorteo-sitio.ganador { color: var(--cm-gold); }
+.sorteo-sitio.ganador .sorteo-palo { color: var(--cm-gold-hi); }
+
+/* En pantalla estrecha la ruleta ocupa casi todo el ancho y se comería a los
+   jugadores de los costados: se encoge un poco y ellos suben por encima de la
+   fila de pintas, sin dejar de estar cada uno en su lado. */
+@media screen and (max-width: 560px) {
+    .sorteo-ruleta { gap: 12px; }
+    .sorteo-ruleta .sorteo-pinta { width: 36px; height: 36px; }
+    .sorteo-sitio[data-slot="left"],
+    .sorteo-sitio[data-slot="right"] { top: 30%; transform: none; }
+    .sorteo-nombre { max-width: 34vw; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sorteo-ruleta .sorteo-pinta { transition: none; }
+    .sorteo-ruleta .sorteo-pinta.parada { animation: none; }
 }

@@ -440,6 +440,12 @@ document.getElementById('btn-cancelar-4').addEventListener('click', volverMenu4)
 socket.on('iniciar_partida_4', (d) => {
     if (d.codigo && d.codigo !== miCodigo4) return;
     entrarPantalla4();
+    // Sorteo de la Mano (sorteo.js): telón opaco con la pinta de cada asiento y
+    // la ruleta en el centro. Sólo llega al empezar la mesa; quien entra a una
+    // partida ya en curso no lo ve.
+    if (d.sorteo && typeof SorteoMano !== 'undefined') {
+        SorteoMano.jugar4p(d.sorteo, miAsiento4);
+    }
 });
 
 socket.on('reanudado_4', (d) => {
@@ -564,10 +570,8 @@ function actualizarMensajeYBotones4(d) {
 
     if (d.fase === 'descarte') {
         if (!d.mis_descartes_listos) {
-            botones.push('btn-descartar-4');
-            const b = document.getElementById('btn-descartar-4');
-            b.innerText = `${t('btn_descartar')} (${cartasSeleccionadas4.length})`;
-            b.disabled = cartasSeleccionadas4.length === 0;
+            botones.push('btn-todas-4', 'btn-descartar-4');
+            sincronizarBotonesDescarte4();
         }
     } else if (d.es_mi_turno) {
         if (d.fase === 'espera_reparto') botones.push('btn-deal-4');
@@ -637,7 +641,7 @@ function ocultarPanelesApuesta4() {
 
 function mostrarBotones4(ids) {
     const cont = document.getElementById('action-buttons-4');
-    const all = ['btn-deal-4', 'btn-pedrete-4', 'btn-mus-4', 'btn-nomus-4', 'btn-descartar-4', 'btn-next-round-4', 'btn-volver-menu-4'];
+    const all = ['btn-deal-4', 'btn-pedrete-4', 'btn-mus-4', 'btn-nomus-4', 'btn-todas-4', 'btn-descartar-4', 'btn-next-round-4', 'btn-volver-menu-4'];
     all.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
     const mostrarPaneles = !document.getElementById('apuesta-iniciar-4').classList.contains('hidden') ||
                            !document.getElementById('apuesta-responder-4').classList.contains('hidden');
@@ -740,6 +744,7 @@ document.getElementById('btn-pedrete-4').addEventListener('click', () => emit4('
 document.getElementById('btn-mus-4').addEventListener('click', () => emit4('mus'));
 document.getElementById('btn-nomus-4').addEventListener('click', () => emit4('no_mus'));
 document.getElementById('btn-descartar-4').addEventListener('click', () => emit4('descartar', { indices: cartasSeleccionadas4 }));
+document.getElementById('btn-todas-4').addEventListener('click', seleccionarTodas4);
 document.getElementById('btn-pasar-4').addEventListener('click', () => emit4('pasar'));
 document.getElementById('btn-ver-4').addEventListener('click', () => emit4('ver'));
 document.getElementById('btn-nover-4').addEventListener('click', () => emit4('nover'));

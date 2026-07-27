@@ -1,8 +1,6 @@
-#para consola importar pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+#para consola importar pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 import random
-import pandas as pd
-import joblib
 import os
 from learn.probability_calculator import (
     calcular_probabilidad_grande,
@@ -19,6 +17,12 @@ from redes_mus import StrategyNetwork, estado_a_vector
 from mus_mecanicas import tiene_pares, tiene_juego
 import json
 
+# La red de apuestas es de juguete (18 -> 128 -> 128 -> 128 -> 6): una inferencia
+# suelta cada varios segundos. Por defecto torch levanta un pool de hilos del
+# tamaño del número de núcleos, y repartir una matriz así entre hilos cuesta más
+# de lo que ahorra, sobre todo en una máquina de núcleo compartido. Un solo hilo
+# va igual de rápido y no compite con el bucle de eventlet.
+torch.set_num_threads(1)
 
 
 ACTION_MAP = {'pasar': 0, 'envidar': 1, 'ver': 2, 'nover': 3, 'subir': 4, 'ordago': 5}
@@ -93,6 +97,33 @@ def obtener_modelo_apuestas():
     return _modelo_cache
 
 
+# La tabla de Expected Values es de solo lectura y sale igual para todos, así
+# que se lee del disco una vez por proceso y se comparte, como el modelo de
+# arriba y como hace bot_ml_4.cargar_tablas(). Antes cada SmartBot reparseaba
+# el JSON al crearse, es decir en cada partida contra la IA.
+RUTA_TABLAS = os.path.join('learn', 'global_variables', 'mus_data.json')
+
+_expected_values = None
+
+
+def obtener_expected_values():
+    """{clave_mano: [ev_mano, ev_postre]} cacheado. {} si falta el archivo."""
+    global _expected_values
+    if _expected_values is None:
+        if os.path.exists(RUTA_TABLAS):
+            try:
+                with open(RUTA_TABLAS, 'r', encoding='utf-8') as f:
+                    _expected_values = json.load(f).get('expected_values', {})
+                print("🧠 [BOT] Tabla de Expected Values cargada para decisión de Mus.")
+            except Exception as e:
+                print(f"⚠️ [BOT] No se pudo leer {RUTA_TABLAS}: {e}")
+                _expected_values = {}
+        else:
+            print("⚠️ [BOT] No se encontró mus_data.json.")
+            _expected_values = {}
+    return _expected_values
+
+
 class SmartBot:
     def __init__(self, sid="BOT_ML"):
         self.sid = sid
@@ -104,16 +135,9 @@ class SmartBot:
         self.modelo_apuestas_cfr = obtener_modelo_apuestas()
 
 
-        self.expected_values_mus = {}
-        ruta_json = 'learn/global_variables/mus_data.json' # Ajusta la ruta si está en otra carpeta
-        if os.path.exists(ruta_json):
-            with open(ruta_json, 'r') as f:
-                datos = json.load(f)
-                self.expected_values_mus = datos.get('expected_values', {})
-            print("🧠 [BOT] Tabla de Expected Values cargada para decisión de Mus.")
-        else:
-            print("⚠️ [BOT] No se encontró mus_data.json.")
-            
+        # 2. Tabla de Expected Values para el mus (compartida, solo lectura)
+        self.expected_values_mus = obtener_expected_values()
+
 
     def update_meta_variables(self, show = False):
         """Actualiza las meta-variables de la IA al final de cada mano para introducir variabilidad en su comportamiento.

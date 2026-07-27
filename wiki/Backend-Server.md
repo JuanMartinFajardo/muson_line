@@ -28,6 +28,7 @@ Flask app served with **eventlet** (`eventlet.monkey_patch()` at the very top) a
 | `/admin/api/**` | GET/POST | Panel API: `resumen`, `usuarios[/<id>/{ban,estadisticas,admin,reset_password,eliminar}]`, `salas[/<code>/cerrar]`, `descargas/{db,logs}`, `config`, `tickets`, `anuncios`, `auditoria`. All behind `admin_requerido`, all mutations written to `AdminAudit` (Roadmap #13) |
 | `/api/a/latido`, `/api/a/evento` | POST | Audience measurement (Roadmap #24): visible-tab time and a fixed whitelist of UI events. Public, sessionless and cookieless — nothing is stored on the device, so no consent banner is needed. See [Analytics](Analytics.md) |
 | `/admin/api/analitica/**` | GET/POST | Analytics panel API: `resumen`, `dimension`, `usuarios[/<id>]`, `retencion`, `en_vivo`, `csv`, `borrar`. Behind the same `admin_requerido` |
+| `/admin/api/sistema`, `/admin/api/sistema/historico` | GET | Machine health for the *Servidor* tab: live RAM/swap/disk/network snapshot with threshold states, and the time series (`?horas=`). Behind `admin_requerido`. See [Server health](#server-health-sistemapy) |
 | `/auth/google/login`, `/auth/google/callback` | GET | Google OAuth via Authlib — active when `GOOGLE_CLIENT_ID`/`SECRET` are set (503 otherwise). `login` takes `?intent=login\|signup` (kept in the session): only `signup` may create an account; `login` with no match redirects to `/?auth_error=google_sin_cuenta`. See [Authentication](Authentication.md) |
 
 An `after_request` hook sets 1-year immutable cache headers on `/static/img/*`, and
@@ -123,6 +124,65 @@ This function also has two side effects:
 
 1. **Result persistence:** on recuento, if the game was just won and not yet recorded, calls `base_datos.registrar_partida_completa(winner, loser)` (only affects ELO when both are registered users).
 2. **Bot turn:** if the room has a bot, asks `SmartBot.obtener_accion(partida)`; if there is a move, spawns a background task that sleeps the `bot_delay` `Config` variable (default 1.5 s, clamped to 0–10, editable from `/admin`) and re-enters `procesar_accion_interna` as the bot. The task body is wrapped in `try/except` so a bot error cannot kill the greenlet and strand the table.
+
+## `Config` reads are cached (eventlet + SQLite)
+
+`base_datos.config_get` keeps an in-memory cache (`_config_cache`, 30 s TTL) and
+`config_set` / `config_delete` — the only writers, both in `admin.py` — call
+`config_invalidar_cache()`, so a change made in `/admin` still takes effect
+**instantly**; the TTL only covers someone editing the table outside the panel.
+
+This is not a micro-optimization. Several `Config` variables are read from the
+hot loop — `bot_delay` on *every* bot turn ([server.py](../server.py) `enviar_estado_a_jugadores`,
+[server_mus4.py](../server_mus4.py) `_programar_bots`), `senas_orden` on every seña, `senas_foco_*` on
+every mirada — and each read used to open a fresh `sqlite3.connect()`. `sqlite3`
+is a C extension that **eventlet cannot monkey-patch**, so that call blocks the
+single worker thread: it stalls *every* game in the process, not just the one
+that asked. With four tables playing at once the reads were the busiest source of
+blocking I/O in the server. A synthetic 800-read burst went from 800 opens to 4.
+
+Corollary for future code: never call `base_datos` from a per-event path without
+checking whether the value can be cached. The rest of the module (users, ELO,
+tickets) is fine — those are genuinely per-action and rare.
+
+## Server health (`sistema.py`)
+
+The *Servidor* tab answers the question the game itself cannot: **is the machine
+about to fall over?** On a 1 GB e2-micro the four failure modes are RAM exhaustion
+(the OOM killer takes every in-memory room with it), swap thrashing (each page
+fault freezes the single eventlet thread, so *all* games stall at once), a full
+disk (SQLite stops writing) and blowing past the free monthly egress allowance.
+
+Everything comes from **stdlib only** — `/proc/meminfo`, `/proc/self/status`,
+`/proc/vmstat`, `/proc/net/dev` and `os.statvfs`. Adding `psutil` would mean
+spending RAM on the box where we are measuring RAM. On macOS there is no `/proc`,
+so the readers return `None` and the tab shows disk and load with the rest marked
+unavailable; production is Linux, which is what matters.
+
+| Piece | Where |
+| :--- | :--- |
+| Sampling | Every 60 s into a `deque(maxlen=1440)` — 24 h at 1-minute resolution, in memory |
+| History | Hourly **min/avg/max** rolled up into `SistemaHora` in `analitica.db`; survives restarts, which is exactly what you want to inspect after a crash |
+| Egress | `SistemaRed` accumulates monthly totals. `/proc/net/dev` counters reset on reboot, so a *decrease* is treated as "the current reading is the delta" rather than a negative |
+| Retention | `SISTEMA_RETENCION_DIAS` (default 180) prunes `SistemaHora` |
+| Thresholds | `sis_umbral_ram` / `_swap` / `_disco` and `sis_egreso_gb` `Config` variables, editable live from *Variables y bot*. They only tint cards — they gate nothing |
+
+Two instrumentation points, both wrappers that increment an int and delegate:
+
+- **HTTP** wraps `app.wsgi_app`. A Flask `before_request` does **not** work here:
+  Flask-SocketIO replaces `app.wsgi_app` with the engineio middleware, which serves
+  `/socket.io/` itself and never hands it to Flask — so the polling traffic, which
+  is most of this server's load, would have silently counted as zero. `init_sistema`
+  runs last in `server.py`, so the wrapper sits *outside* the middleware and sees
+  everything.
+- **Socket.IO** wraps `socketio.server.emit` (public API) and
+  `socketio.server._trigger_event` (internal, so it has its own `try`: if a future
+  version renames it, the panel loses the inbound counter and the game is unaffected).
+
+Note the swap card has two independent alarms: percentage *occupied* (tolerable —
+it stays high long after the pressure passed) and whether swap is **moving right
+now**, which turns the card red regardless of the percentage. The second is the
+one that predicts a frozen table.
 
 ## Known issues / hardcoded values
 

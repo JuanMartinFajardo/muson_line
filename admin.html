@@ -38,6 +38,30 @@ section.activa{display:block}
 .tarjeta .et{font-size:.82em;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px}
 .caja{background:var(--bg2);border:1px solid var(--linea);border-radius:8px;padding:16px;margin-bottom:18px}
 .caja h3{color:var(--azul);font-size:1.05em}
+/* Servidor: la tarjeta cambia de color al pasar el umbral, para que un vistazo
+   de dos segundos baste. 'est-nd' = la máquina no da ese dato (macOS sin /proc).
+   Van prefijadas con est- a propósito: `.aviso` y `.ok` ya son las clases del
+   cartelito de mensajes de arriba (.aviso lleva display:none), y una tarjeta que
+   se llamara igual desaparecería sin más. */
+.tarjeta.est-ok .n{color:var(--verde)}
+.tarjeta.est-aviso{border-color:var(--amarillo)}
+.tarjeta.est-aviso .n{color:var(--amarillo)}
+.tarjeta.est-critico{border-color:var(--rojo);background:color-mix(in srgb,var(--rojo) 12%,var(--bg2))}
+.tarjeta.est-critico .n{color:var(--rojo)}
+.tarjeta.est-nd .n{color:var(--txt2);opacity:.5}
+.tarjeta .sub{font-size:.78em;color:var(--txt2);margin-top:4px}
+/* Ocho tarjetas con el ancho de Resumen dejaban una sola huérfana en la segunda
+   fila. Solo se ensancha esta rejilla; la de Resumen se queda como estaba. */
+#sv-tarjetas{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.barra-uso{height:6px;border-radius:3px;background:var(--bg3);margin-top:8px;overflow:hidden}
+.barra-uso i{display:block;height:100%;background:var(--azul);transition:width .3s}
+.tarjeta.est-aviso .barra-uso i{background:var(--amarillo)}
+.tarjeta.est-critico .barra-uso i{background:var(--rojo)}
+.grafico .linea2{fill:none;stroke:var(--morado);stroke-width:2}
+.grafico .umbral{stroke:var(--rojo);stroke-width:1;stroke-dasharray:4 4;opacity:.7}
+.leyenda{display:flex;gap:16px;flex-wrap:wrap;font-size:.82em;color:var(--txt2);margin-top:8px}
+.leyenda span{display:flex;align-items:center;gap:6px}
+.leyenda i{width:14px;height:3px;border-radius:2px;display:block}
 table{width:100%;border-collapse:collapse;font-size:.9em}
 th,td{padding:8px 10px;border-bottom:1px solid var(--linea);text-align:left;vertical-align:middle}
 th{background:var(--bg3);color:var(--txt2);font-size:.82em;text-transform:uppercase;letter-spacing:.4px}
@@ -142,6 +166,7 @@ th.orden.activa{color:var(--amarillo)}
   <button data-vista="analitica">Analítica</button>
   <button data-vista="cuentas">Cuentas</button>
   <button data-vista="salas">Salas</button>
+  <button data-vista="servidor">Servidor<span id="badge-servidor" class="badge oculto">!</span></button>
   <button data-vista="soporte">Soporte<span id="badge-soporte" class="badge oculto">0</span></button>
   <button data-vista="anuncios">Anuncios</button>
   <button data-vista="barajas">Barajas</button>
@@ -398,6 +423,63 @@ th.orden.activa{color:var(--amarillo)}
       <p class="nota">Cerrar una sala avisa a quien esté dentro y la borra de memoria.
         Es el arreglo manual para una partida atascada.</p>
     </div>
+  </section>
+
+  <!-- =========================== SERVIDOR ============================ -->
+  <!-- Salud de la e2-micro: RAM, swap, disco y tráfico. Todo sale de /proc y
+       de statvfs (ver la cabecera de sistema.py); en macOS solo hay disco. -->
+  <section id="v-servidor">
+
+    <div id="sv-nodisponible" class="caja oculto">
+      <h3>⚠ Métricas del sistema no disponibles</h3>
+      <p class="nota">Esta máquina no tiene <code>/proc</code> (típicamente, macOS en
+        desarrollo). El disco y la carga sí se miden; la RAM, el swap y la red solo
+        salen en el servidor de producción, que es Linux.</p>
+    </div>
+
+    <div class="tarjetas" id="sv-tarjetas"></div>
+
+    <div class="caja">
+      <div class="fila">
+        <div class="chips" id="sv-chips-rango">
+          <button class="chip" data-horas="1">1 hora</button>
+          <button class="chip" data-horas="6">6 horas</button>
+          <button class="chip activa" data-horas="24">24 horas</button>
+          <button class="chip" data-horas="168">7 días</button>
+          <button class="chip" data-horas="720">30 días</button>
+        </div>
+        <span style="margin-left:auto" class="nota" id="sv-fuente"></span>
+      </div>
+      <div class="fila">
+        <div class="chips" id="sv-chips-metrica">
+          <button class="chip activa" data-m="memoria">Memoria</button>
+          <button class="chip" data-m="red">Red</button>
+          <button class="chip" data-m="carga">Peticiones</button>
+          <button class="chip" data-m="juego">Salas y jugadores</button>
+          <button class="chip" data-m="disco">Disco</button>
+        </div>
+      </div>
+      <div id="sv-grafico"></div>
+      <div class="leyenda" id="sv-leyenda"></div>
+      <p class="nota" id="sv-nota-metrica"></p>
+    </div>
+
+    <div class="caja">
+      <h3>Tráfico ahora</h3>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>Concepto</th><th>Valor</th><th>Qué indica</th></tr></thead>
+          <tbody id="sv-tbody-trafico"><tr><td colspan="3" class="nota">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="nota">Se muestrea cada minuto. Las últimas 24 h están en memoria a esa
+      resolución; más atrás se guarda un resumen por hora en <code>analitica.db</code>
+      (media y máximo), que es lo que sobrevive a un reinicio — justo lo que hace falta
+      mirar cuando el servidor se ha caído. Los umbrales se cambian en
+      <b>Variables y bot</b> (<code>sis_umbral_ram</code>, <code>sis_umbral_swap</code>,
+      <code>sis_umbral_disco</code>, <code>sis_egreso_gb</code>).</p>
   </section>
 
   <!-- ============================ SOPORTE ============================ -->
@@ -1828,10 +1910,290 @@ cargadores.auditoria = async function () {
 $('btn-refrescar-auditoria').addEventListener('click', cargadores.auditoria);
 
 // ==========================================================================
+// Servidor (salud de la máquina)
+// --------------------------------------------------------------------------
+// Mismo estilo que la analítica: SVG a mano, sin librerías. La diferencia es
+// que aquí las tarjetas llevan color de estado, porque el objetivo no es
+// estudiar una tendencia sino ver en dos segundos si algo va mal.
+// ==========================================================================
+const SV = { horas: 24, metrica: 'memoria', serie: [], fuente: 'memoria', snap: null };
+
+function bytesLegibles(b) {
+  if (b === null || b === undefined) return '—';
+  const u = ['B', 'kB', 'MB', 'GB', 'TB'];
+  let i = 0, v = Math.abs(b);
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return (v < 10 && i > 0 ? v.toFixed(2) : Math.round(v)) + ' ' + u[i];
+}
+
+function tarjetaSistema(etiqueta, valor, estado, sub, pct) {
+  const t = document.createElement('div');
+  // Prefijo est-: ver el comentario de la hoja de estilos. Sin él, «aviso»
+  // choca con la clase del cartelito de mensajes y la tarjeta no se ve.
+  t.className = 'tarjeta est-' + (estado || 'nd');
+  const n = document.createElement('div');
+  n.className = 'n'; n.textContent = valor;
+  const e = document.createElement('div');
+  e.className = 'et'; e.textContent = etiqueta;
+  t.append(n, e);
+  if (sub) {
+    const s = document.createElement('div');
+    s.className = 'sub'; s.textContent = sub;
+    t.appendChild(s);
+  }
+  if (pct !== null && pct !== undefined) {
+    const barra = document.createElement('div');
+    barra.className = 'barra-uso';
+    const i = document.createElement('i');
+    i.style.width = Math.max(0, Math.min(100, pct)) + '%';
+    barra.appendChild(i);
+    t.appendChild(barra);
+  }
+  return t;
+}
+
+function pintarTarjetasSistema(s) {
+  const caja = $('sv-tarjetas');
+  caja.replaceChildren();
+  const est = s.estado || {};
+
+  if (s.memoria) {
+    caja.appendChild(tarjetaSistema('RAM usada', s.memoria.pct + ' %', est.ram,
+      `${s.memoria.usada_mb} de ${s.memoria.total_mb} MB`, s.memoria.pct));
+    caja.appendChild(tarjetaSistema('Swap', s.memoria.swap_pct + ' %', est.swap,
+      `${s.memoria.swap_usada_mb} de ${s.memoria.swap_total_mb} MB`, s.memoria.swap_pct));
+  } else {
+    caja.appendChild(tarjetaSistema('RAM usada', '—', 'nd', 'sin /proc'));
+    caja.appendChild(tarjetaSistema('Swap', '—', 'nd', 'sin /proc'));
+  }
+
+  // El RSS es el número accionable: cuánto se está comiendo CallMus.
+  const rssPct = (s.rss_mb && s.memoria) ? (s.rss_mb * 100 / s.memoria.total_mb) : null;
+  caja.appendChild(tarjetaSistema('CallMus en RAM',
+    s.rss_mb ? s.rss_mb + ' MB' : '—', s.rss_mb ? 'ok' : 'nd',
+    rssPct ? rssPct.toFixed(0) + ' % de la máquina' : 'sin /proc', rssPct));
+
+  if (s.disco) {
+    caja.appendChild(tarjetaSistema('Disco', s.disco.pct + ' %', est.disco,
+      `${s.disco.libre_gb} GB libres de ${s.disco.total_gb}`, s.disco.pct));
+  }
+
+  const r = s.red || {};
+  caja.appendChild(tarjetaSistema('Egreso del mes',
+    r.mes_tx_gb !== null && r.mes_tx_gb !== undefined ? r.mes_tx_gb + ' GB' : '—',
+    est.egreso,
+    `de ${r.presupuesto_gb} GB gratis · ${r.mes || ''}`, r.pct_presupuesto));
+
+  const t = s.trafico || {};
+  caja.appendChild(tarjetaSistema('Salida ahora',
+    r.tx_bps !== null && r.tx_bps !== undefined ? bytesLegibles(r.tx_bps) + '/s' : '—',
+    'ok', r.rx_bps !== null && r.rx_bps !== undefined ? 'entrada ' + bytesLegibles(r.rx_bps) + '/s' : ''));
+
+  caja.appendChild(tarjetaSistema('Carga (1 min)',
+    s.carga ? s.carga['1m'] : '—', s.carga && s.carga['1m'] >= 1 ? 'aviso' : (s.carga ? 'ok' : 'nd'),
+    s.carga ? `5 min: ${s.carga['5m']} · 15 min: ${s.carga['15m']}` : ''));
+
+  const j = s.juego || {};
+  caja.appendChild(tarjetaSistema('Salas abiertas', j.salas ?? '—', 'ok',
+    `${j.jugando || 0} jugando · ${j.conexiones || 0} conexiones`));
+
+  // Badge en la pestaña: si algo está en crítico, se ve sin entrar.
+  const critico = Object.values(est).some(v => v === 'critico');
+  const avisa = critico || Object.values(est).some(v => v === 'aviso');
+  const badge = $('badge-servidor');
+  badge.textContent = critico ? '!' : '·';
+  badge.classList.toggle('oculto', !avisa);
+  badge.style.background = critico ? 'var(--rojo)' : 'var(--amarillo)';
+}
+
+// Series que sabe pintar el gráfico. `campos` son claves de la serie; la
+// segunda (si la hay) se dibuja en morado sobre la misma escala.
+const SV_METRICAS = {
+  memoria: { campos: ['ram_pct', 'swap_pct'], nombres: ['RAM %', 'Swap %'], unidad: '%', max: 100,
+             nota: 'El % de swap ocupado se queda alto mucho después de que el apuro pase. Lo que de verdad congela el servidor es el trasiego (páginas entrando y saliendo), que se ve en la tarjeta de Swap cuando se pone en rojo.' },
+  red:     { campos: ['tx_bps', 'rx_bps'], nombres: ['Salida B/s', 'Entrada B/s'], unidad: 'B/s',
+             nota: 'Bytes por segundo de todas las interfaces reales (se excluyen lo, docker y veth). La salida es la que cuenta para la factura: el nivel gratuito de Google Cloud incluye ~1 GB de egreso al mes desde Norteamérica.' },
+  carga:   { campos: ['http_rpm', 'sock_rpm'], nombres: ['Peticiones HTTP/min', 'Eventos Socket.IO/min'], unidad: '/min',
+             nota: 'Lo que llega al servidor. Como eventlet corre en un solo hilo, aquí es donde se ve si el bucle se está quedando corto: si las peticiones suben y la carga de la máquina sube con ellas, el cuello está en el proceso, no en la red.' },
+  juego:   { campos: ['salas', 'conexiones'], nombres: ['Salas', 'Conexiones'], unidad: '',
+             nota: 'Va en la misma serie temporal que la RAM a propósito: sirve para cruzar «subió la memoria» con «había ocho salas abiertas» sin tener que adivinarlo.' },
+  disco:   { campos: ['disco_pct'], nombres: ['Disco %'], unidad: '%', max: 100,
+             nota: 'Crece despacio: lo que lo llena son los logs por partida (logs/v2) y las dos bases de datos. Si la pendiente se empina, mirar ahí.' },
+};
+
+function pintarGraficoSistema() {
+  const caja = $('sv-grafico');
+  caja.replaceChildren();
+  const cfg = SV_METRICAS[SV.metrica];
+  const serie = SV.serie;
+  $('sv-nota-metrica').textContent = cfg.nota;
+
+  if (!serie.length) {
+    const p = document.createElement('p');
+    p.className = 'nota';
+    p.textContent = 'Todavía no hay muestras en este periodo. La primera llega al minuto de arrancar el servidor.';
+    caja.appendChild(p);
+    $('sv-leyenda').replaceChildren();
+    return;
+  }
+
+  const W = 1000, H = 260, ml = 56, mr = 12, mt = 14, mb = 26;
+  const ancho = W - ml - mr, alto = H - mt - mb;
+  const todos = [];
+  cfg.campos.forEach(c => serie.forEach(d => {
+    if (d[c] !== null && d[c] !== undefined) todos.push(d[c]);
+  }));
+  const max = cfg.max || Math.max(1, ...todos);
+  const x = i => ml + (serie.length === 1 ? ancho / 2 : (i * ancho) / (serie.length - 1));
+  const y = v => mt + alto - (Math.min(v, max) / max) * alto;
+
+  const g = svg('svg', { class: 'grafico', viewBox: `0 0 ${W} ${H}`,
+                         preserveAspectRatio: 'none' });
+
+  for (let k = 0; k <= 4; k++) {
+    const v = (max / 4) * k, yy = y(v);
+    g.appendChild(svg('line', { class: 'rejilla', x1: ml, x2: W - mr, y1: yy, y2: yy }));
+    const t = svg('text', { x: ml - 6, y: yy + 3, 'text-anchor': 'end' });
+    t.textContent = cfg.unidad === 'B/s' ? bytesLegibles(v) : (max >= 20 ? Math.round(v) : v.toFixed(1));
+    g.appendChild(t);
+  }
+
+  // Línea de umbral, donde tenga sentido: convierte el gráfico en un semáforo.
+  const umbrales = (SV.snap && SV.snap.umbrales) || {};
+  const umbral = SV.metrica === 'memoria' ? umbrales.sis_umbral_ram
+               : SV.metrica === 'disco' ? umbrales.sis_umbral_disco : null;
+  if (umbral && umbral <= max) {
+    g.appendChild(svg('line', { class: 'umbral', x1: ml, x2: W - mr,
+                                y1: y(umbral), y2: y(umbral) }));
+  }
+
+  cfg.campos.forEach((campo, idx) => {
+    const puntos = [];
+    serie.forEach((d, i) => {
+      const v = d[campo];
+      if (v !== null && v !== undefined) puntos.push(`${x(i)},${y(v)}`);
+    });
+    if (!puntos.length) return;
+    g.appendChild(svg('polyline', { class: idx === 0 ? 'linea' : 'linea2',
+                                    points: puntos.join(' ') }));
+  });
+
+  // Puntos con tooltip nativo solo si no son demasiados (igual que en analítica).
+  if (serie.length <= 120) {
+    serie.forEach((d, i) => {
+      const v = d[cfg.campos[0]];
+      if (v === null || v === undefined) return;
+      const c = svg('circle', { class: 'punto', cx: x(i), cy: y(v), r: 2.5 });
+      const tt = svg('title');
+      tt.textContent = cfg.campos
+        .map((campo, k) => `${cfg.nombres[k]}: ${cfg.unidad === 'B/s' ? bytesLegibles(d[campo]) : d[campo]}`)
+        .join(' · ') + `  (${horaCorta(d.t)})`;
+      c.appendChild(tt);
+      g.appendChild(c);
+    });
+  }
+
+  const paso = Math.max(1, Math.ceil(serie.length / 8));
+  serie.forEach((d, i) => {
+    if (i % paso && i !== serie.length - 1) return;
+    const t = svg('text', { x: x(i), y: H - 8, 'text-anchor': 'middle' });
+    t.textContent = horaCorta(d.t);
+    g.appendChild(t);
+  });
+  caja.appendChild(g);
+
+  const ley = $('sv-leyenda');
+  ley.replaceChildren();
+  cfg.campos.forEach((campo, idx) => {
+    const s = document.createElement('span');
+    const i = document.createElement('i');
+    i.style.background = idx === 0 ? 'var(--azul)' : 'var(--morado)';
+    s.append(i, document.createTextNode(cfg.nombres[idx]));
+    ley.appendChild(s);
+  });
+}
+
+function horaCorta(t) {
+  const d = new Date(t * 1000);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return SV.horas > 24 ? `${dd}/${d.getMonth() + 1} ${hh}h` : `${hh}:${mm}`;
+}
+
+function pintarTraficoSistema(s) {
+  const t = s.trafico || {}, r = s.red || {}, sw = s.swap_actividad || {};
+  const num = v => (v === null || v === undefined) ? '—' : v;
+  const filas = [
+    ['Peticiones HTTP', num(t.http_rpm) + ' /min', 'Todo lo que entra por el puerto, sondeo de Socket.IO incluido.'],
+    ['— de ellas, sondeo de Socket.IO', num(t.http_sio_rpm) + ' /min', 'Transporte del juego. Sube con cada jugador conectado aunque nadie mueva ficha.'],
+    ['— de ellas, API y auth', num(t.http_api_rpm) + ' /min', 'Login, leaderboard, analítica, anuncios.'],
+    ['Eventos Socket.IO entrantes', num(t.sock_rpm) + ' /min', 'Acciones de juego reales que procesa el bucle de eventlet.'],
+    ['Emisiones Socket.IO', num(t.sock_tx_rpm) + ' /min', 'Cada actualizar_mesa se emite a la sala entera: sube rápido con el número de mesas.'],
+    ['Entrada de red', r.rx_bps !== null && r.rx_bps !== undefined ? bytesLegibles(r.rx_bps) + '/s' : '—', 'No se factura.'],
+    ['Salida de red', r.tx_bps !== null && r.tx_bps !== undefined ? bytesLegibles(r.tx_bps) + '/s' : '—', 'Esta es la que cuenta para el gigabyte gratuito del mes.'],
+    ['Swap: páginas entrando', num(sw.in) + ' /s', 'Cualquier valor sostenido por encima de cero significa que el proceso está esperando al disco.'],
+    ['Swap: páginas saliendo', num(sw.out) + ' /s', 'Lo mismo. Es la señal más temprana de que falta RAM.'],
+  ];
+  const cuerpo = $('sv-tbody-trafico');
+  cuerpo.replaceChildren();
+  filas.forEach(f => {
+    const fila = document.createElement('tr');
+    fila.append(td(f[0]), td(f[1]), td(f[2], 'nota'));
+    cuerpo.appendChild(fila);
+  });
+}
+
+async function cargarHistoricoSistema() {
+  const d = await api('/admin/api/sistema/historico?horas=' + SV.horas);
+  if (!d || !d.exito) return;
+  SV.serie = d.serie || [];
+  SV.fuente = d.fuente;
+  $('sv-fuente').textContent = d.fuente === 'memoria'
+    ? `${SV.serie.length} muestras · 1 por minuto (memoria)`
+    : `${SV.serie.length} horas · máximo por hora (disco)`;
+  pintarGraficoSistema();
+}
+
+cargadores.servidor = async function () {
+  const d = await api('/admin/api/sistema');
+  if (!d || !d.exito) return;
+  SV.snap = d.sistema;
+  $('sv-nodisponible').classList.toggle('oculto', d.sistema.disponible);
+  pintarTarjetasSistema(d.sistema);
+  pintarTraficoSistema(d.sistema);
+  await cargarHistoricoSistema();
+};
+
+$('sv-chips-rango').querySelectorAll('.chip').forEach(b => {
+  b.addEventListener('click', () => {
+    activarChip($('sv-chips-rango'), b);
+    SV.horas = parseInt(b.dataset.horas, 10);
+    cargarHistoricoSistema();
+  });
+});
+
+$('sv-chips-metrica').querySelectorAll('.chip').forEach(b => {
+  b.addEventListener('click', () => {
+    activarChip($('sv-chips-metrica'), b);
+    SV.metrica = b.dataset.m;
+    pintarGraficoSistema();
+  });
+});
+
+// ==========================================================================
 // Arranque + refrescos automáticos
 // ==========================================================================
 cargadores.resumen();
 cargadores.cuentas();
+
+// El estado del servidor se mira desde el arranque aunque la pestaña esté
+// cerrada: así el badge de «Servidor» avisa de un problema estando en cualquier
+// otra pestaña, que es lo normal cuando algo se tuerce.
+(async function vigilarSistema() {
+  const d = await api('/admin/api/sistema');
+  if (d && d.exito) { SV.snap = d.sistema; pintarTarjetasSistema(d.sistema); }
+})();
 
 setInterval(() => {
   if (vistaActual === 'resumen') cargadores.resumen();
@@ -1839,7 +2201,16 @@ setInterval(() => {
   // El «ahora mismo» de la analítica se lee de memoria, así que refrescarlo a
   // menudo no cuesta nada; el resto del panel solo se recarga al pedirlo.
   if (vistaActual === 'analitica') cargarEnVivo();
+  if (vistaActual === 'servidor') cargadores.servidor();
 }, 10000);
+
+// El badge se refresca aunque no estemos mirando la pestaña, pero mucho más
+// despacio: una muestra se toma cada minuto, así que pedirlo más no aporta.
+setInterval(async () => {
+  if (vistaActual === 'servidor') return;
+  const d = await api('/admin/api/sistema');
+  if (d && d.exito) { SV.snap = d.sistema; pintarTarjetasSistema(d.sistema); }
+}, 60000);
 </script>
 </body>
 </html>

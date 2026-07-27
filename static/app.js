@@ -94,6 +94,8 @@ const dict = {
         btn_deal: "Repartir Cartas",
         btn_nomus: "Corto",
         btn_descartar: "Descartar",
+        btn_todas: "Todas",
+        btn_ninguna: "Ninguna",
         btn_next_round: "Siguiente ronda",
         btn_volver_menu: "Volver al Menú",
         btn_envidar: "Envidar",
@@ -431,6 +433,8 @@ const dict = {
         btn_deal: "Deal Cards",
         btn_nomus: "Cut",
         btn_descartar: "Discard",
+        btn_todas: "All",
+        btn_ninguna: "None",
         btn_next_round: "Next round",
         btn_volver_menu: "Return to Menu",
         btn_envidar: "Bid",
@@ -771,6 +775,8 @@ const dict = {
         btn_deal: "Kartak banatu",
         btn_nomus: "Mus ez",
         btn_descartar: "Bota",
+        btn_todas: "Denak",
+        btn_ninguna: "Bat ere ez",
         btn_next_round: "Hurrengo eskua",
         btn_volver_menu: "Menura itzuli",
         btn_envidar: "Envido",
@@ -1546,6 +1552,14 @@ socket.on('iniciar_partida', (datos) => {
     menuScreen.classList.add('hidden');
     gameScreen.classList.remove('hidden');
     enPartida = true;
+
+    // El sorteo de la Mano (sorteo.js): un telón opaco sobre la mesa recién
+    // abierta mientras gira la ruleta de pintas. La mesa arranca en "espera de
+    // reparto", así que no se pierde nada de la partida por debajo. Sólo viene
+    // al empezar un match: al reincorporarse a uno en curso no hay `sorteo`.
+    if (datos && datos.sorteo && typeof SorteoMano !== 'undefined') {
+        SorteoMano.jugar2p(datos.sorteo);
+    }
 });
 
 
@@ -1661,6 +1675,34 @@ document.getElementById('btn-descartar').addEventListener('click', () => {
     mostrarBotones([]);
     socket.emit('accion_juego', { accion: 'descartar', indices: cartasSeleccionadas });
 });
+
+// Descartarse la mano entera es la jugada más repetida del mus: con este botón
+// son dos toques (Todas → Descartar) en vez de cinco. Alterna: si ya están las
+// cuatro marcadas, las desmarca, para deshacer sin ir carta a carta.
+document.getElementById('btn-todas').addEventListener('click', () => {
+    const cartas = [...document.getElementById('my-cards').children];
+    if (!cartas.length) return;
+    const yaTodas = cartasSeleccionadas.length === cartas.length;
+    cartasSeleccionadas = yaTodas ? [] : cartas.map((_, i) => i);
+    cartas.forEach(c => c.classList.toggle('seleccionada', !yaTodas));
+    sincronizarBotonesDescarte();
+});
+
+// Único sitio donde se decide qué dicen y si están activos los dos botones de
+// descarte, para que el contador y el rótulo Todas/Ninguna no se desincronicen.
+function sincronizarBotonesDescarte() {
+    const total = document.getElementById('my-cards').children.length;
+    const btnDescartar = document.getElementById('btn-descartar');
+    const btnTodas = document.getElementById('btn-todas');
+    if (btnDescartar) {
+        btnDescartar.innerText = `${t('btn_descartar')} (${cartasSeleccionadas.length})`;
+        btnDescartar.disabled = cartasSeleccionadas.length === 0;
+    }
+    if (btnTodas) {
+        btnTodas.innerText = t(total > 0 && cartasSeleccionadas.length === total ? 'btn_ninguna' : 'btn_todas');
+        btnTodas.disabled = total === 0;
+    }
+}
 
 ['pasar', 'ver', 'nover', 'ordago', 'ordago-resp'].forEach(id => {
     let el = document.getElementById('btn-' + id);
@@ -1884,19 +1926,16 @@ socket.on('actualizar_mesa', (datos) => {
                         cartasSeleccionadas.splice(pos, 1);
                         div.classList.remove('seleccionada');
                     }
-                    btnDescartar.innerText = `${t('btn_descartar')} (${cartasSeleccionadas.length})`;
-                    btnDescartar.disabled = cartasSeleccionadas.length === 0;
+                    sincronizarBotonesDescarte();
                 }
             };
             contenedorCartas.appendChild(div);
         });
-        
-        if (btnDescartar && cartasSeleccionadas.length > 0) {
-            btnDescartar.innerText = `${t('btn_descartar')} (${cartasSeleccionadas.length})`;
-        }
     } else {
         contenedorCartas.innerHTML = `${t('info_tus_cartas')}`;
     }
+
+    sincronizarBotonesDescarte();
 
     document.getElementById('puntos-mios').innerText = datos.mis_puntos;
     document.getElementById('puntos-rival').innerText = datos.puntos_rival;
@@ -1964,8 +2003,8 @@ socket.on('actualizar_mesa', (datos) => {
     // 2. Lógica normal del resto de fases
     if (datos.fase === 'descarte') {
         if (!datos.descartes_listos) {
-            botonesActivos.push('btn-descartar');
-            document.getElementById('btn-descartar').disabled = cartasSeleccionadas.length === 0;
+            botonesActivos.push('btn-todas', 'btn-descartar');
+            sincronizarBotonesDescarte();
         } else {
             document.getElementById('btn-descartar').disabled = true;
         }
@@ -2086,7 +2125,7 @@ function pintarPiedras(el, ganadas, alMejorDe) {
 
 function mostrarBotones(ids) {
     const contenedor = document.getElementById('action-buttons');
-    const allIds = ['btn-deal', 'btn-pedrete', 'btn-mus', 'btn-nomus', 'btn-descartar', 'btn-next-round','btn-volver-menu'];
+    const allIds = ['btn-deal', 'btn-pedrete', 'btn-mus', 'btn-nomus', 'btn-todas', 'btn-descartar', 'btn-next-round','btn-volver-menu'];
     allIds.forEach(id => {
         let el = document.getElementById(id);
         if(el) el.classList.add('hidden');

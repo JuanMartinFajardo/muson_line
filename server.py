@@ -312,6 +312,39 @@ def generar_codigo():
     letras = string.ascii_uppercase + string.digits
     return ''.join(random.choice(letras) for _ in range(4))
 
+
+# --- El sorteo de la Mano (static/sorteo.js) ---------------------------------
+# Al empezar una partida, el cliente enseña una ruleta de pintas antes de decir
+# quién es Mano. Quién es Mano lo decidió YA el motor (random.shuffle en
+# PartidaMus.__init__): aquí sólo se inventa un reparto de pintas compatible con
+# esa decisión, de modo que la ruleta siempre para en una pinta de la Mano. Va
+# desde el servidor y no desde el cliente para que ambos vean el mismo sorteo.
+PINTAS_SORTEO = ['oros', 'copas', 'espadas', 'bastos']
+
+
+def emitir_inicio_con_sorteo(codigo, motor, sids, mensaje='¡La partida comienza!'):
+    """Emite `iniciar_partida` a cada jugador con SU vista del sorteo (dos
+    pintas para él, dos para el rival, y la pinta donde para la ruleta)."""
+    palos = PINTAS_SORTEO[:]
+    random.shuffle(palos)
+    reparto = {motor.id_mano: palos[:2], motor.id_postre: palos[2:]}
+    parada = random.choice(reparto[motor.id_mano])
+    nombres = getattr(motor, 'nombres_ia', {}) or {}
+
+    for sid in sids:
+        rival = motor.j2 if sid == motor.j1 else motor.j1
+        socketio.emit('iniciar_partida', {
+            'mensaje': mensaje,
+            'sorteo': {
+                'palos_yo': reparto[sid],
+                'palos_rival': reparto[rival],
+                'nombre_rival': nombres.get(rival, 'Rival'),
+                'parada': parada,
+                'soy_mano': motor.id_mano == sid,
+                'nombre_mano': nombres.get(motor.id_mano, ''),
+            },
+        }, room=sid)
+
 @app.route('/')
 def index():
     # El oro que recorre las cuatro pintas del menú late al ritmo que fije el
@@ -1096,7 +1129,8 @@ def handle_crear_partida_bot(datos):
     print(f"🤖 {nombre} ha creado la sala {codigo} contra la IA")
     analitica.evento('partida_inicio', modo='bot', username=real_username)
     emit('sala_creada', {'codigo': codigo, 'token': token}, room=sid)
-    emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
+    # Sólo el humano ve el sorteo; el bot no tiene pantalla.
+    emitir_inicio_con_sorteo(codigo, partida, [sid])
     enviar_estado_a_jugadores(codigo)
 
 
@@ -1222,7 +1256,7 @@ def handle_unirse_sala(datos):
                 analitica.evento('partida_inicio', modo='online2',
                                  username=_otro_user, por_usuario=True)
 
-            emit('iniciar_partida', {'mensaje': '¡La partida comienza!'}, room=codigo)
+            emitir_inicio_con_sorteo(codigo, partida, [j1_sid, j2_sid])
             enviar_estado_a_jugadores(codigo)
             emitir_lista_publicas()
         else:
@@ -1953,6 +1987,21 @@ admin.init_admin(app, socketio, {
 analitica.init_analitica(app, socketio, {
     'admin_requerido': admin.admin_requerido,
     'auditar': admin._auditar,
+})
+
+# ==========================================
+# SALUD DE LA MÁQUINA: RAM, swap, disco y tráfico de la e2-micro, muestreados
+# cada minuto para poder ver los picos DESPUÉS de que pasen (que es cuando uno
+# se entera de que ha habido uno). Como analitica, va después de admin porque
+# reutiliza su decorador de permisos. Ver la cabecera de sistema.py.
+# ==========================================
+import sistema  # noqa: E402
+sistema.init_sistema(app, socketio, {
+    'admin_requerido': admin.admin_requerido,
+    'salas': salas,
+    'salas4': server_mus4.salas4,
+    'jugadores': jugadores,
+    'usuarios_conectados': social.usuarios_conectados,
 })
 
 # El barredor de salas 2p arranca aquí (después de que exista el registro 4p, que

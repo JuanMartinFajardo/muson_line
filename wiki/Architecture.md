@@ -35,6 +35,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [mus_log.py](../mus_log.py) | Log v2: event-sourced match logger shared by both engines, plus the replay-side card source ([Bot-AI](Bot-AI.md) §4.1) |
 | [admin.py](../admin.py) | Admin panel (`init_admin`): accounts, live rooms, downloads, `Config` variables, audit, plus the player-facing support and announcement endpoints |
 | [analitica.py](../analitica.py) | Usage analytics (`init_analitica`): cookieless audience measurement into its own `analitica.db`, and the panel's Analítica tab ([Analytics](Analytics.md)) |
+| [sistema.py](../sistema.py) | Machine health (`init_sistema`): RAM, swap, disk, network and request rates sampled every minute, and the panel's Servidor tab. Stdlib only (`/proc` + `statvfs`) |
 
 ### Training / offline (not needed to run the server)
 
@@ -66,6 +67,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [static/analitica.js](../static/analitica.js) | Audience measurement beacon: visible-tab time and menu events. Stores nothing on the device ([Analytics](Analytics.md)) |
 | [static/senas4.js](../static/senas4.js) | Señas (2v2): focus state machine, controls, SVG faces, sign and report UI (`window.Senas4`) |
 | [static/senas.css](../static/senas.css) | Señas: the face, the lit seat and the ten sign animations |
+| [static/sorteo.js](../static/sorteo.js) | The draw for the Mano: the suit roulette shown over the table when a match starts, in both 1v1 and 2v2 ([Frontend](Frontend.md)) |
 | [static/pantalla.js](../static/pantalla.js) | Fullscreen (with prefixes, auto-entry on the start click) and "table mode": the page freezes while a table is on screen so a swipe is a game control, not a browser gesture ([Frontend](Frontend.md)) |
 | [static/style.css](../static/style.css) | Nord-palette styling |
 | `static/img/` | Card images (`card_<suit>_<value>.webp`), logo, favicon |

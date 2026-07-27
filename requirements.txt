@@ -1,14 +1,22 @@
+# Dependencias del SERVIDOR: lo único que hace falta en la máquina que sirve
+# callmus.com. Lo de entrenar está en requirements-train.txt, que producción NO
+# necesita — ni un solo módulo del servidor importa pandas, scikit-learn,
+# joblib, matplotlib ni tensorboard.
+
 Flask
 Flask-SocketIO
 eventlet
 gunicorn
 Authlib
 requests
-pandas
-scikit-learn
-joblib
---no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-matplotlib
-tensorboard
-# pyarrow  # opcional, solo para tools/logs2dataset.py: sin él exporta CSV
-Authlib
+
+# --- torch: se instala APARTE, no desde este archivo -------------------------
+# Lo usa la red de apuestas del bot de 2 jugadores (bot_ml.py). En Linux, un
+# `pip install torch` a secas se trae las ruedas de CUDA (varios GB) que aquí no
+# pintan nada. Hay que pedir el índice de CPU explícitamente:
+#
+#   pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+#
+# torchvision y torchaudio NO se usan en ninguna parte del proyecto: no los
+# instales. No se pone aquí con --index-url porque esa opción sustituye a PyPI
+# para TODO el archivo, y Flask y compañía no están en el índice de torch.

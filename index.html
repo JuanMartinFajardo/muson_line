@@ -19,7 +19,7 @@
     <!-- Menú y ventana de Jugar: se carga al final para poder redefinir la paleta -->
     <link rel="stylesheet" href="/static/menu.css?=v4">
     <!-- El tapete (1v1 y 2v2) con el mismo lenguaje visual que el menú -->
-    <link rel="stylesheet" href="/static/game.css?=v5">
+    <link rel="stylesheet" href="/static/game.css?=v7">
     <!-- Señas del 2v2: caras, foco e iluminación. Después de game.css, que es
          quien fija el aspecto de los asientos. -->
     <link rel="stylesheet" href="/static/senas.css?=v3">
@@ -233,6 +233,7 @@
                 <button id="btn-pedrete" class="hidden">¡Pedrete!</button>
                 <button id="btn-mus" class="hidden">Mus</button>
                 <button id="btn-nomus" data-i18n="btn_nomus" class="hidden">Corto</button>
+                <button id="btn-todas" data-i18n="btn_todas" class="hidden btn-todas">Todas</button>
                 <button id="btn-descartar"  data-i18n="btn_descartar" class="hidden">Descartar (0)</button>
                 <button id="btn-next-round" data-i18n="btn_next_round" class="hidden">Siguiente ronda</button>
                 <button id="btn-volver-menu" data-i18n="btn_volver_menu" class="hidden" style="background-color: #bf616a;">Volver al Menú</button>
@@ -330,6 +331,7 @@
                     <button id="btn-pedrete-4" class="hidden">¡Pedrete!</button>
                     <button id="btn-mus-4" class="hidden">Mus</button>
                     <button id="btn-nomus-4" data-i18n="btn_nomus" class="hidden">Corto</button>
+                    <button id="btn-todas-4" data-i18n="btn_todas" class="hidden btn-todas">Todas</button>
                     <button id="btn-descartar-4" data-i18n="btn_descartar" class="hidden">Descartar (0)</button>
                     <button id="btn-next-round-4" data-i18n="btn_next_round" class="hidden">Siguiente ronda</button>
                     <button id="btn-volver-menu-4" data-i18n="btn_volver_menu" class="hidden" style="background-color: #bf616a;">Volver al Menú</button>
@@ -1058,9 +1060,12 @@
         </div>
     </div>
 
-    <script src="/static/app.js?=v14"></script>
+    <script src="/static/app.js?=v16"></script>
     <!-- Barajas temáticas (Roadmap #5). Antes que auth.js: éste le pide que
          recargue el catálogo en cuanto se confirma la sesión. -->
+    <!-- El sorteo de la Mano (la ruleta de pintas al empezar la partida). Tras
+         app.js: usa dict/t/escHtml; lo llaman app.js (1v1) y app4.js (2v2). -->
+    <script src="/static/sorteo.js?=v1"></script>
     <script src="/static/decks.js?=v2"></script>
     <script src="/static/auth.js?=v5"></script>
     <!-- Ventana de ajustes (idioma, cuenta). Carga tras auth.js: usa usuarioActual. -->
@@ -1071,8 +1076,8 @@
     <script src="/static/soporte.js?=v1"></script>
     <script src="/static/tutorial.js?=v3"></script>
     <!-- Mus 4 jugadores (Roadmap #6): app4 (lógica) + table4 (render). Cargan tras app.js para reusar socket/dict/t. -->
-    <script src="/static/table4.js?=v5"></script>
-    <script src="/static/app4.js?=v7"></script>
+    <script src="/static/table4.js?=v6"></script>
+    <script src="/static/app4.js?=v9"></script>
     <!-- Señas del 2v2: foco, caras y denuncias. Tras app4.js, que es quien le
          pasa cada estado de la mesa (Senas4.sincronizar). -->
     <script src="/static/senas4.js?=v4"></script>

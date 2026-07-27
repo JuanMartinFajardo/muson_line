@@ -232,6 +232,32 @@ board), and `mostrarBotones()` calls `scrollIntoView({block:'nearest'})` so the 
 cannot end up below the fold on short windows. The top band for the corner buttons is only
 reserved under 830 px wide, where the plate would actually reach them.
 
+## `static/sorteo.js` — the draw for the Mano
+
+Before the first hand of a match, the table is covered by an opaque curtain while the
+four suits are drawn in the centre: the gold runs through them fast (oros → copas →
+espadas → bastos, the same cycle as the menu ornament in `menu.css`) and slows down
+until it stops on one. **Where it stops is the Mano.** The spin always takes exactly
+2 s — the per-step durations are generated with a cubic ease-out and then rescaled to
+2000 ms, so the number of steps does not change the duration — then the result is held
+for 1.1 s and the curtain fades. With `prefers-reduced-motion` it goes straight to the
+result.
+
+Each player only has their suit(s) and their name in their area, placed as they sit
+(yourself always at the bottom, the other seats via the same mapping as
+`slotDeAsiento4`). In the 1v1 each player gets **two** suits; in the 2v2, one each,
+handed out **anticlockwise as seen on screen** (`seat + 1` is drawn to the left, i.e.
+clockwise, so the server subtracts) starting from a random seat.
+
+The draw is decided by the **server** and travels inside the `sorteo` of
+`iniciar_partida` / `iniciar_partida_4`, so every client sees the same one. The Mano
+itself was already drawn by the engine (`random.shuffle` in `PartidaMus.__init__`,
+`random.randint` in `PartidaMus4.__init__`): the server only invents a suit deal
+*compatible* with that decision, which is why the wheel always stops on a suit of the
+Mano. It is sent **only when a match starts** — someone joining a game already in play
+gets no `sorteo` and no curtain. Since both engines start in `espera_reparto`, nothing
+is dealt behind the curtain: it is blocking in practice.
+
 ## `static/style.css`
 
 Shared skeleton: the responsive layout of both screens, the card fan, the `parpadeo`

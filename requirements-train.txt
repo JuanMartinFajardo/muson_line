@@ -1,0 +1,13 @@
+# Dependencias SOLO de entrenamiento y análisis offline (train_cfr.py, arena.py,
+# global_trainer.py, learn/, tools/). El servidor no importa nada de aquí, así
+# que la máquina de producción no tiene por qué instalarlo.
+#
+#   pip install -r requirements.txt -r requirements-train.txt
+
+pandas
+scikit-learn
+joblib
+matplotlib
+tensorboard
+
+# pyarrow  # opcional, solo para tools/logs2dataset.py: sin él exporta CSV

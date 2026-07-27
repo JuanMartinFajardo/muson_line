@@ -731,8 +731,33 @@ def _iniciar_partida(codigo):
         if _u:
             analitica.evento('partida_inicio', modo='online4',
                              username=_u, por_usuario=True)
-    socketio.emit('iniciar_partida_4', {'codigo': codigo}, room=codigo)
+    socketio.emit('iniciar_partida_4', {'codigo': codigo, 'sorteo': _sorteo_mano_4(motor)},
+                  room=codigo)
     enviar_estado_4(codigo)
+
+
+# --- El sorteo de la Mano (static/sorteo.js) ---------------------------------
+# La ruleta de pintas que ve la mesa antes de saber quién es Mano. El asiento de
+# la Mano ya lo echó a suertes el motor (PartidaMus4.__init__): aquí sólo se
+# reparten las cuatro pintas —una por jugador, en sentido antihorario según se
+# ve la mesa, empezando por un asiento cualquiera— y se dice en cuál para la
+# ruleta, que es forzosamente la de la Mano. Lo decide el servidor para que los
+# cuatro clientes vean exactamente el mismo sorteo.
+PINTAS_SORTEO = ['oros', 'copas', 'espadas', 'bastos']
+
+
+def _sorteo_mano_4(motor):
+    # En pantalla, el asiento siguiente se pinta a la izquierda (table4.js,
+    # `slotDeAsiento4`), o sea que asiento+1 va en sentido horario: para repartir
+    # las pintas al revés se resta.
+    inicio = random.randint(0, 3)
+    palos = {s: PINTAS_SORTEO[(inicio - s) % 4] for s in range(4)}
+    return {
+        'palos': palos,
+        'nombres': {s: motor.nombres.get(s, f'J{s}') for s in range(4)},
+        'mano': motor.mano,
+        'parada': palos[motor.mano],
+    }
 
 
 # ==========================================

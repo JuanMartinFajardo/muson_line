@@ -104,6 +104,31 @@ CONFIG_CONOCIDA = {
         'defecto': '1',
         'ayuda': '1 = los bots también hacen su seña (una por mano). 0 = los bots nunca señalan.',
     },
+    # --- Umbrales de la pestaña «Servidor» (sistema.py) ---
+    # Solo cambian el color de las tarjetas y la línea de aviso del gráfico: no
+    # limitan nada ni apagan nada, así que tocarlos no puede romper el juego.
+    'sis_umbral_ram': {
+        'defecto': '85',
+        'ayuda': ('% de RAM usada a partir del cual la tarjeta se pone en amarillo '
+                  '(y en rojo 10 puntos más arriba). En una máquina de 1 GB, pasar '
+                  'del 85 % deja poco margen antes de que empiece el swap.'),
+    },
+    'sis_umbral_swap': {
+        'defecto': '25',
+        'ayuda': ('% de swap ocupado que enciende el aviso. Ojo: si el swap está '
+                  'MOVIÉNDOSE la tarjeta se pone roja aunque el porcentaje sea bajo, '
+                  'porque el trasiego es lo que congela el bucle de eventlet.'),
+    },
+    'sis_umbral_disco': {
+        'defecto': '85',
+        'ayuda': '% de disco usado a partir del cual avisa. Con el disco lleno SQLite deja de escribir.',
+    },
+    'sis_egreso_gb': {
+        'defecto': '1',
+        'ayuda': ('GB de salida de red gratis al mes. El nivel gratuito de Google Cloud '
+                  'da ~1 GB de egreso desde Norteamérica; pasarse se factura. La tarjeta '
+                  'avisa al 70 % y se pone roja al 100 %.'),
+    },
 }
 
 # --- Rate limiting en memoria (mismo patrón que social.py) ------------------
@@ -522,6 +547,22 @@ def init_admin(app, socketio, ctx):
             except (TypeError, ValueError):
                 return jsonify({'exito': False, 'mensaje': 'valor_invalido'})
             if not (0 <= v <= 60):
+                return jsonify({'exito': False, 'mensaje': 'fuera_de_rango'})
+
+        if clave in ('sis_umbral_ram', 'sis_umbral_swap', 'sis_umbral_disco'):
+            try:
+                v = float(valor)
+            except (TypeError, ValueError):
+                return jsonify({'exito': False, 'mensaje': 'valor_invalido'})
+            if not (1 <= v <= 100):
+                return jsonify({'exito': False, 'mensaje': 'fuera_de_rango'})
+
+        if clave == 'sis_egreso_gb':
+            try:
+                v = float(valor)
+            except (TypeError, ValueError):
+                return jsonify({'exito': False, 'mensaje': 'valor_invalido'})
+            if not (0 < v <= 10000):
                 return jsonify({'exito': False, 'mensaje': 'fuera_de_rango'})
 
         base_datos.config_set(clave, valor, session.get('username'))

@@ -1,5 +1,6 @@
 import sqlite3
 import secrets
+import time
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
@@ -1547,11 +1548,42 @@ def admin_editar_estadisticas(user_id, elo=None, victorias=None, derrotas=None):
 
 
 # --- 3. Variables globales (tabla Config) -----------------------------------
+#
+# Estas variables se leen EN CALIENTE desde el bucle de juego: `bot_delay` en
+# cada turno de bot (server.py, server_mus4.py), `senas_orden` en cada seña y
+# `senas_foco_*` en cada mirada (server_mus4.py). Cada lectura abría un
+# sqlite3.connect() nuevo, y sqlite3 es una extensión en C que eventlet NO puede
+# parchear: esa llamada bloquea el hilo entero, es decir TODAS las partidas del
+# proceso, no solo la que la pidió. Con varias mesas a la vez eso se nota.
+#
+# La tabla la toca un administrador de uvas a peras, así que se cachea en
+# memoria. Como solo hay un worker eventlet (ver Setup-and-Deployment), basta
+# con que config_set/config_delete invaliden el caché al escribir: el panel
+# sigue viéndose "en caliente", instantáneo, sin reiniciar. El TTL es solo una
+# red de seguridad por si alguien edita la tabla por fuera del panel.
+
+_CONFIG_TTL = 30.0
+_config_cache = {}          # clave -> (valor_crudo, momento_de_lectura)
+
+
+def config_invalidar_cache():
+    """Suelta el caché de Config. Lo llaman config_set y config_delete."""
+    _config_cache.clear()
+
 
 def config_get(clave, defecto=None):
-    with _conn() as c:
-        r = c.execute("SELECT value FROM Config WHERE key = ?", (clave,)).fetchone()
-    return r['value'] if r and r['value'] is not None else defecto
+    ahora = time.time()
+    guardado = _config_cache.get(clave)
+    if guardado is not None and (ahora - guardado[1]) < _CONFIG_TTL:
+        crudo = guardado[0]
+    else:
+        with _conn() as c:
+            r = c.execute("SELECT value FROM Config WHERE key = ?", (clave,)).fetchone()
+        # Se cachea el valor CRUDO (None incluido), nunca el ya sustituido por
+        # el defecto: cada llamante pasa el suyo y no tienen por qué coincidir.
+        crudo = r['value'] if r else None
+        _config_cache[clave] = (crudo, ahora)
+    return crudo if crudo is not None else defecto
 
 
 def config_get_float(clave, defecto):
@@ -1569,6 +1601,7 @@ def config_set(clave, valor, por=None):
                   (clave, None if valor is None else str(valor),
                    datetime.now().isoformat(), por))
         c.commit()
+    config_invalidar_cache()
     return True
 
 
@@ -1576,6 +1609,7 @@ def config_delete(clave):
     with _conn() as c:
         c.execute("DELETE FROM Config WHERE key = ?", (clave,))
         c.commit()
+    config_invalidar_cache()
     return True
 
 

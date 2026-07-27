@@ -3,10 +3,13 @@
 ## Requirements
 
 - Python 3.12 (`runtime.txt` pins the version for PaaS deploys)
-- Dependencies ([requirements.txt](../requirements.txt)): Flask, Flask-SocketIO, eventlet, gunicorn, pandas, scikit-learn, joblib, **torch (CPU wheels)**, matplotlib, tensorboard, **Authlib**, **requests**.
+- **Runtime** ([requirements.txt](../requirements.txt)): Flask, Flask-SocketIO, eventlet, gunicorn, **Authlib**, **requests**, plus **torch (CPU wheels)**, installed separately.
+- **Training only** ([requirements-train.txt](../requirements-train.txt)): pandas, scikit-learn, joblib, matplotlib, tensorboard. **The server imports none of these** — a production box that does not train models should not install them.
 
-> Torch is required at server startup because `SmartBot` loads the CFR checkpoint on room creation. Use the CPU index URL to avoid huge CUDA wheels:
-> `pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu`
+> Torch is required at server startup because `SmartBot` loads the CFR checkpoint on room creation. Install it from the CPU index or `pip` will pull multi-gigabyte CUDA wheels that are never used:
+> `pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu`
+>
+> `torchvision` and `torchaudio` are **not** used anywhere in the project; they used to be in the install line and were pure waste. The CPU index URL is deliberately *not* inside `requirements.txt`: as a requirements-file option it replaces PyPI for the whole file, and Flask and friends are not published on the torch index.
 
 ## Local development
 
@@ -16,6 +19,7 @@ cd muson_line
 virtualenv .musenv
 source .musenv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-train.txt   # only if you train models here
 cp .env.example .env         # then fill in the secrets (see below)
 python3 server.py            # → http://localhost:5001
 ```
@@ -51,6 +55,7 @@ root (loaded by a tiny built-in parser — python-dotenv is **not** required). C
 | `DEBUG_TOKEN` | Optional: enables `GET /api/debug/salas?token=…` (404 without it). `/admin` → *Salas* shows the same thing with a real login | any random string |
 | `ANALYTICS_DB` | Optional: path of the analytics database ([Analytics](Analytics.md)). Created on first start; needs no setup | `analitica.db` |
 | `ANALYTICS_RETENCION_DIAS` | Optional: days of **raw** analytics rows kept before pruning. Daily aggregates never expire, so long-range charts survive | `90` |
+| `SISTEMA_RETENCION_DIAS` | Optional: days of hourly server-health history kept (`SistemaHora`, stored in the analytics DB). Nothing to set up; see [Backend-Server](Backend-Server.md#server-health-sistemapy) | `180` |
 
 The CFR checkpoint the bot uses is **no longer hardcoded**: it is the `bot_checkpoint` row
 of the `Config` table, chosen from `/admin` → *Variables y bot*, with the value in
