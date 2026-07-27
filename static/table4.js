@@ -101,7 +101,11 @@ function renderSeat4(next, seatInfo, animarDeal, animarFlip) {
     const esYo = (seatInfo.asiento === next.mi_asiento);
 
     el.className = 'seat-4 equipo-' + seatInfo.equipo;
-    if (seatInfo.asiento === next.turno_de && next.fase !== 'recuento') el.classList.add('turno-activo');
+    // Durante la vuelta de cantes el turno todavía no es de nadie (ni se sabe de
+    // quién será): resaltar un asiento ahí engañaría.
+    if (seatInfo.asiento === next.turno_de && next.fase !== 'recuento' && !next.declarando) {
+        el.classList.add('turno-activo');
+    }
     if (!seatInfo.presente) el.classList.add('ausente');
 
     let etiqueta = '';

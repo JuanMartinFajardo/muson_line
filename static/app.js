@@ -60,7 +60,9 @@ let apuestaVistaActual = 0; // CORREGIDO: V mayúscula
 let enPartida = false;
 // Partida contra la IA: al salir no hay a quién avisar ni hueco que ofrecer, así
 // que el texto de confirmación es distinto (se pierde la partida sin más).
-let esPartidaContraBot = false;
+// Sobrevive al refresco (como la sala y el token): tras recargar seguimos en la
+// misma partida y el texto de salida tiene que seguir siendo el suyo.
+let esPartidaContraBot = localStorage.getItem('callmus_vs_bot') === '1';
 let recuentoTimeout;
 // Al mejor de N: lo guardamos para poder pintar las piedras (los amarrakos) en
 // el recuento, donde el paquete del servidor no siempre lo repite.
@@ -202,6 +204,7 @@ const dict = {
         espera_reemplazo_salir: "Dejarlo y volver al menú",
         espera_reemplazo_fin: "Nadie se ha unido a tiempo. Volviendo al menú principal.",
         reemplazo_encontrado: "{nombre} se une a la partida. ¡Mano nueva!",
+        msg_baraja_agotada: "¡Se ha acabado la baraja! Se barajan los descartes.",
         txt_en_curso: "En curso",
         txt_hueco_libre: "Hueco libre",
         txt_marcador: "Marcador",
@@ -538,6 +541,7 @@ const dict = {
         espera_reemplazo_salir: "Give up and go back to the menu",
         espera_reemplazo_fin: "Nobody joined in time. Going back to the main menu.",
         reemplazo_encontrado: "{nombre} joins the game. New hand!",
+        msg_baraja_agotada: "The deck ran out! Reshuffling the discards.",
         txt_en_curso: "Ongoing",
         txt_hueco_libre: "Seat free",
         txt_marcador: "Score",
@@ -752,6 +756,346 @@ const dict = {
         ajustes_soporte: "Support & contact",
         ajustes_panel_admin: "🛠 Admin panel",
         recon_jugador_caido: "A player dropped. Waiting for them to return…"
+    },
+    // EUSKERA. El mus es un juego vasco, así que los nombres de los lances van
+    // en su forma euskérica (HANDIA, TXIKIA, PAREAK, JOKOA, PUNTUA) y los
+    // cantos conservan la voz de la mesa: «Paso», «Envido», «Hordago».
+    eu: {
+        btn_login: "Saioa hasi",
+        btn_signup: "Izena eman",
+        btn_logout: "Saioa itxi",
+        btn_crear: "Partida berria sortu",
+        btn_unirse: "Kodearekin sartu",
+        btn_show_leaderboard: "Sailkapena ikusi",
+        btn_tutorial: "🎓 Nola jokatu (Tutoriala)",
+        btn_deal: "Kartak banatu",
+        btn_nomus: "Mus ez",
+        btn_descartar: "Bota",
+        btn_next_round: "Hurrengo eskua",
+        btn_volver_menu: "Menura itzuli",
+        btn_envidar: "Envido",
+        btn_pasar: "Paso",
+        btn_ordago: "Hordago",
+        btn_ver: "Ikusi",
+        btn_subir: "Igo",
+        btn_nover: "Ez ikusi",
+        btn_ordago_resp: "Hordago",
+        al_mejor_de: "Zenbatetik onena:",
+        al_mejor_de_colname: "Onena",
+        user_colname: "Erabiltzailea",
+        action_colname: "Ekintza",
+        public_games: "🌐 Partida publikoak",
+        esperando_rival: "Aurkaria sartu zain...",
+        in_publico: "Publiko egin (denek ikusteko)",
+        partidas: "partida",
+        mi_turno: "Zure txanda",
+        my_cards: "Zure kartak hemen agertuko dira",
+        watermark: "Juan Martín Fajardok egina",
+        login_remember: "Saioa hasita mantendu",
+        leaderboard_title: "🏆 Munduko sailkapena",
+        elo_colname: "ELO 🔽",
+        wins_colname: "Garaipenak ↕️",
+        winrate_colname: "Garaipen-tasa ↕️",
+        loading_players: "Jokalariak kargatzen…",
+        codigo_sala: "Zure gelaren kodea:",
+        tu_nombre: "Zure izena...",
+        password: "Pasahitza",
+        signup_birth: "Jaiotze-data:",
+        user_name: "Erabiltzaile-izena",
+        pais_nacimiento: "Jaiotze-herrialdea",
+        btn_cuenta: "Kontua sortu",
+        opponent_speaks: "Aurkariaren txanda",
+        cartas_rival_ocultas: "[Aurkariaren kartak ezkutuan]",
+        txt_tu: "Zu",
+        txt_pts: "Pnt:",
+        txt_partidas: "Partidak:",
+        txt_rival: "Aurkaria",
+        codigo_placeholder: "Gelaren kodea...",
+        btn_next_game: "Hurrengo partida",
+        info_tus_cartas: "Zure kartak hemen agertuko dira",
+        info_esperando_rival_descarte: "Aurkariak kartak bota zain...",
+        rival_siguiente_partida: "Aurkariaren zain hurrengo partidarako...",
+        info_esperando_rival_listo: "Aurkaria prest egon zain...",
+        info_rival_cambio: "Aurkariak aldatu ditu ",
+        cartas: " karta",
+        has_ganado_partida: "🏆 PARTIDA HAU IRABAZI DUZU!",
+        el_rival_ganado_partida: "💀 PARTIDA HAU GALDU DUZU!",
+        has_ganado_match: "🏆 NORGEHIAGOKA IRABAZI DUZU!",
+        el_rival_ganado_match: "💀 NORGEHIAGOKA GALDU DUZU!",
+        info_apuesta_vista: "Ikusitako apustua:",
+        cartas_sin_repartir: "[Banatu gabeko kartak]",
+        te_suben: "Igo egin dizute: ",
+        has_subido: "Igo egin duzu: ",
+        eres_mano: "(Zu zara eskua)",
+        eres_postre: "(Zu zara postrea)",
+        resultados_ronda: "Eskuaren emaitzak:",
+        txt_mano: "Eskua",
+        txt_postre: "Postrea",
+        fase_grande: "HANDIA",
+        fase_chica: "TXIKIA",
+        fase_pares: "PAREAK",
+        fase_juego: "JOKOA",
+        fase_punto: "PUNTUA",
+        fase_mus: "MUS",
+        msg_nadie_pares: "Inork ez du parerik.",
+        msg_no_pares: "{rol}k ez du parerik.",
+        msg_juego_a_punto: "Inork ez du jokorik. Puntura jokatzen da.",
+        msg_no_juego: "{rol}k ez du jokorik.",
+        msg_fase_descarte: "Fasea: DESKARTEA. Aukeratu zein karta bota nahi dituzun.",
+        msg_fase_apuestas: "{fase} fasea. Txanda: {jugador}",
+        msg_fase_recuento: "ZENBAKETA fasea...",
+        msg_fase_general: "Fasea: {fase}. Txanda: {jugador}",
+        msg_resultados: "Eskuaren emaitzak:",
+        msg_recuento_nover: "(Norbaitek ez zuen ikusi nahi izan {fase}n)",
+        msg_recuento_gana_yo: "<b>Zuk</b> {puntos} irabazi dituzu {fase}n.",
+        msg_recuento_gana_rival: "<b>Aurkariak</b> {puntos} puntu irabazi ditu {fase}n.",
+        msg_recuento_pedrete_win_yo: "<b>Zuk</b> partida irabazi duzu Pedrete batekin!",
+        msg_recuento_pedrete_win_rival: "<b>Aurkariak</b> partida irabazi du Pedrete batekin!",
+        msg_recuento_ordago_yo: "<b>Zuk</b> {fase}ko hordagoa irabazi duzu.",
+        msg_recuento_ordago_rival: "<b>Aurkariak</b> {fase}ko hordagoa irabazi du.",
+        msg_error_ronda: "<em>(Erroreren bat egon da edo eskuak ez du apustu baliodunik izan)</em>",
+        msg_gana_partida_yo: "🏆 PARTIDA HAU IRABAZI DUZU!",
+        msg_gana_partida_rival: "💀 AURKARIAK PARTIDA HAU IRABAZI DU!",
+        msg_gana_match_yo: "🏆 NORGEHIAGOKA IRABAZI DUZU!",
+        msg_gana_match_rival: "💀 AURKARIAK NORGEHIAGOKA IRABAZI DU!",
+        msg_fase_espera_reparto: "Banaketaren zain...",
+        txt_tu_sala: "Zure gela",
+        btn_unirse_publica: "Sartu",
+        msg_no_publicas: "Ez dago partida publikorik orain. Sortu zuk bat!",
+        txt_cartas_sin_repartir: "[Banatu gabeko kartak]",
+        txt_hola: "Kaixo",
+        // --- Partidatik irtetea eta ordezkapenak ---
+        btn_salir_title: "Partidatik irten",
+        salir_titulo: "Partidatik irten?",
+        salir_texto: "Menu nagusira itzuliko zara. Gainerako jokalariek beste norbaitek zure lekua hartu arte itxaron dezakete.",
+        salir_texto_bot: "Menu nagusira itzuliko zara eta IAren aurkako partida hau galduko da.",
+        salir_confirmar: "Bai, irten",
+        salir_cancelar: "Jokatzen jarraitu",
+        abandono_titulo: "Jokalari batek partida utzi du",
+        abandono_texto: "{nombre}k partida utzi du. Beste norbaitek bere lekua hartu arte itxaron nahi duzu, ala irten nahiago duzu?",
+        abandono_texto_timeout: "{nombre} deskonektatu egin da eta ez da garaiz itzuli. Beste norbaitek bere lekua hartu arte itxaron nahi duzu, ala irten nahiago duzu?",
+        abandono_esperar: "Beste jokalari baten zain egon",
+        abandono_salir: "Ni ere irten",
+        espera_reemplazo_titulo: "Jokalari bat bilatzen…",
+        espera_reemplazo_texto: "Zure partida abian dauden partiden zerrendan agertzen da: edonor sartu eta hutsunea bete dezake. Markagailua gorde egiten da eta esku berri bat banatuko da.",
+        espera_reemplazo_salir: "Utzi eta menura itzuli",
+        espera_reemplazo_fin: "Inor ez da garaiz sartu. Menu nagusira itzultzen.",
+        reemplazo_encontrado: "{nombre} partidara sartu da. Esku berria!",
+        msg_baraja_agotada: "Karta-sorta amaitu da! Botatakoak berriro nahasten dira.",
+        txt_en_curso: "Abian",
+        txt_hueco_libre: "Toki librea",
+        txt_marcador: "Markagailua",
+        // --- Autentifikazioa (auth.js) ---
+        user_or_email: "Erabiltzailea edo posta",
+        email_label: "Helbide elektronikoa",
+        password_min: "Pasahitza (gutxienez 6)",
+        forgot_password: "Pasahitza ahaztu duzu?",
+        o_bien: "edo",
+        continue_google: "Googlerekin jarraitu",
+        verify_title: "Egiaztatu zure posta",
+        verify_intro: "6 digituko kode bat bidali dizugu. Sartu ezazu izen-ematea amaitzeko.",
+        btn_verify: "Egiaztatu eta kontua sortu",
+        forgot_title: "Pasahitza berreskuratu",
+        forgot_intro: "Sartu zure kontuko posta eta pasahitza berrezartzeko kode bat bidaliko dizugu.",
+        btn_send_code: "Kodea bidali",
+        reset_title: "Pasahitz berria",
+        reset_intro: "Sartu bidali dizugun kodea eta zure pasahitz berria.",
+        btn_reset: "Pasahitza aldatu",
+        fill_all_fields: "Bete eremu guztiak.",
+        invalid_username: "Erabiltzaileak 3-20 karaktere izan behar ditu (letrak, zenbakiak edo _).",
+        invalid_email: "Sartu baliozko helbide elektroniko bat.",
+        invalid_password: "Pasahitzak gutxienez 6 karaktere izan behar ditu.",
+        sending_code: "Kodea bidaltzen",
+        code_sent: "Kodea bidalita!",
+        enter_full_code: "Sartu kode osoa.",
+        session_expired: "Saioa iraungi da, hasi berriro izen-ematea.",
+        verifying: "Egiaztatzen",
+        account_created: "Kontua sortuta! Saioa hasten...",
+        enter_user_pass: "Sartu erabiltzailea/posta eta pasahitza.",
+        checking: "Egiaztatzen",
+        saving: "Gordetzen",
+        password_changed: "Pasahitza aldatuta. Orain saioa has dezakezu.",
+        network_error: "Konexio-errorea. Saiatu berriro.",
+        google_error: "Ezin izan da Googlerekin saioa hasi. Saiatu berriro.",
+        google_sin_cuenta: "Ez dago Google horri lotutako konturik. Eman izena bat sortzeko.",
+        btn_jugar_bot: "Botaren aurka jokatu",
+        txt_creando_partida_bot: "Botaren aurkako partida sortzen...",
+        fase_espera_reparto: "Banaketaren zain...",
+        msg_inserta_nombre: "Mesedez, sartu izen bat jokatzeko.",
+        btn_privacy: "CallMus-i buruz",
+        privacy_title: "CallMus-i buruz (v0.1)",
+        privacy_p1: "<strong>Informazio orokorra</strong><br>CallMus mus karta-joko tradizionalean jokatzeko diseinatutako web aplikazio bat da. Plataformak beste pertsona batzuen aurkako partida multijokalariez gozatzeko aukera ematen die erabiltzaileei, edo Deep CFR ikaskuntza sakoneko algoritmoarekin trebatutako bot aurreratu baten aurka aritzekoa.",
+        privacy_p2: "<strong>Garapena</strong><br>Proiektu hau osorik Juan Martín Fajardok garatu du. Iturburu-kodea kode irekikoa da eta AGPL-3.0 lizentziapean banatzen da. Biltegi ofiziala GitHuben ikus dezakezu esteka honen bidez: https://github.com/JuanMartinFajardo/muson_line. Akatsen berri emateko edo iradokizunak egiteko, ireki Issue bat biltegian, erabili ezarpenen pantaila edo idatzi callmus.contact@gmail.com helbidera.",
+        privacy_p3: "<strong>Pribatutasun eta cookie politika</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Datu pertsonalak:</strong> Zure erabiltzaile-izena, helbide elektronikoa, herrialdea eta jaiotze-data gordetzen ditugu zure kontua sortzeko eta sailkapenean erakusteko. <strong>Erabiltzaile-izena baino ez da publikoa</strong>; zure posta kontua egiaztatzeko eta pasahitza berreskuratzeko baino ez da erabiltzen.</li> <li><strong>Pasahitza:</strong> Ez dugu zure pasahitza gordetzen, hash bat baizik. Ahaztuz gero, zure postara bidalitako kode baten bidez berrezar dezakezu.</li><li><strong>Googlerekin sartzea:</strong> Googlerekin sartzen bazara, zure posta eta izena jasotzen ditugu kontua sortzeko edo lotzeko; ez dugu inoiz zure Google pasahitza ikusten.</li><li><strong>Partiden erregistroa:</strong> Jokaldien erregistroa gordetzen dugu botaren hurrengo bertsioak trebatzeko.</li><li><strong>Audientzia-neurketa:</strong> Bisitak, egonaldi-denbora, partidak eta menuko zein botoi sakatzen diren zenbatzen ditugu jokoa nola erabiltzen den jakiteko. Neurketa <strong>gurea da eta cookierik gabekoa</strong>: ez dugu ezer gordetzen zure gailuan neurtzeko, ez dugu kanpoko analitika-zerbitzurik erabiltzen eta <strong>ez dugu inoiz zure IP helbidea biltegiratzen</strong> (egunero aldatzen den eta gordetzen ez den ausazko gako batekin batera, bisita bereko orriak elkartzeko baino ez da erabiltzen). Datuak agregatuak dira, ez dira gure zerbitzaritik ateratzen eta erregistro zehatzak 90 egunera ezabatzen dira. Ko-fi botoiaz sakatu dela baino ez dugu erregistratzen; hortik aurrera bere politika propioa duen kanpoko gune batera zoaz, eta ez dakigu dohaintzarik egiten duzun ez zenbat.</li><li><strong>Cookieak:</strong> Zure saioa hasita mantentzeko eta zure hizkuntza gogoratzeko erabat beharrezkoak diren cookie teknikoak erabiltzen ditugu. Ez dugu publizitate-jarraipenerako ez analitikarako cookierik erabiltzen.</li></ul>",
+        privacy_disclaimer: "Izena emanez gero, pribatutasun-politikak onartzen dituzu; CallMus-i buruz atalean aurki ditzakezu.",
+        msg_link_copied: "Esteka arbelean kopiatu da!",
+        msg_nombre_invitacion: "Idatzi zure izena partidan sartzeko.",
+
+        // --- Soziala (lagunak, mezularitza, taldeak) ---
+        btn_amigos: "👥 Lagunak",
+        tab_amigos: "Lagunak",
+        tab_grupos: "Taldeak",
+        add_friend_ph: "Izenaz edo #kodeaz gehitu…",
+        btn_add_friend: "Gehitu",
+        friend_requests: "Eskaerak",
+        sin_solicitudes: "Ez duzu eskaerarik zain.",
+        btn_aceptar: "Onartu",
+        btn_rechazar: "Ukatu",
+        btn_chat: "💬 Txata",
+        btn_invitar_juego: "🎮 Gonbidatu",
+        btn_eliminar_amigo: "✕",
+        crear_grupo_ph: "Taldearen izena…",
+        btn_crear_grupo: "Taldea sortu",
+        group_leaderboard: "🏆 Taldearen sailkapena",
+        group_members: "Kideak",
+        group_chat: "💬 Taldeko txata",
+        group_invite_ph: "Erabiltzailez gonbidatu…",
+        btn_group_invite: "Gonbidatu",
+        btn_salir_grupo: "Taldetik irten",
+        chat_ph: "Idatzi mezu bat…",
+        btn_enviar: "Bidali",
+        btn_volver: "← Itzuli",
+        estado_online: "Konektatuta",
+        estado_offline: "Deskonektatuta",
+        sin_amigos: "Oraindik ez duzu lagunik. Gehitu norbait!",
+        sin_grupos: "Ez zara inolako talderen kide.",
+        sin_mensajes: "Oraindik ez dago mezurik. Agurtu!",
+        sin_miembros_leaderboard: "Oraindik ez dago sailkapen-daturik.",
+        rol_owner: "Jabea",
+        rol_admin: "Admin",
+        rol_member: "Kidea",
+        toast_nueva_solicitud: "{nombre}(r)en lagun-eskaera berria",
+        toast_amistad_aceptada: "{nombre}k zure eskaera onartu du",
+        toast_mensaje_nuevo: "{nombre}(r)en mezu berria",
+        toast_invitacion_grupo: "{nombre}k {grupo} taldera gehitu zaitu",
+        invitacion_de: "{nombre}k jokatzera gonbidatzen zaitu ({n}etik onena)",
+        confirm_eliminar_amigo: "{nombre} zure lagunetatik kendu?",
+        confirm_salir_grupo: "Ziur taldetik irten nahi duzula?",
+        btn_aceptar_partida: "Onartu",
+        solicitud_enviada: "Eskaera bidalita!",
+        grupo_creado: "Taldea sortuta!",
+        miembro_anadido: "Kidea gehituta!",
+        err_self: "Ezin duzu zeure burua gehitu.",
+        err_no_existe: "Jokalari hori ez da existitzen (begiratu izena edo kodea).",
+        err_ya_amigos: "Jada lagunak zarete.",
+        err_already_pending: "Eskaera jada bidalita edo zain.",
+        err_blocked: "Erabiltzailea ez dago erabilgarri.",
+        err_limite: "Mugara iritsi zara.",
+        err_rate_limit: "Eskaera gehiegi. Itxaron une bat.",
+        err_offline: "Lagun hori ez dago konektatuta orain.",
+        err_no_amigo: "Zure lagunak baino ezin dituzu gonbidatu.",
+        err_nombre_grupo: "Izenak 3 eta 40 karaktere artean izan behar ditu.",
+        err_ya_miembro: "Erabiltzaile hori jada taldean dago.",
+        err_generico: "Zerbait gaizki joan da. Saiatu berriro.",
+        cargando_social: "Kargatzen…",
+        // --- Taldearen kudeaketa (rolak, baimenak, sailkapenaren informazioa) ---
+        who_can_add: "Nork gehi dezake:",
+        policy_admins: "Adminek soilik",
+        policy_all: "Kide guztiek",
+        btn_hacer_admin: "⬆ Admin",
+        btn_quitar_admin: "⬇ Admin kendu",
+        btn_expulsar: "Kanporatu",
+        confirm_expulsar: "{nombre} taldetik kanporatu?",
+        group_info_expl: "Taldearen sailkapenak kideen arteko partidak baino ez ditu erabiltzen, eta biak taldean sartu ondoren jokatutakoak soilik. ELOa eta garaipen-tasa taldearenak berarenak dira eta zerotik hasten dira.",
+        toast_rol_grupo: "Zure rola aldatu da {grupo} taldean",
+        toast_expulsado: "{grupo} taldetik kanporatu zaituzte",
+
+        // --- Ezarpenak (Roadmap #22) ---
+        ajustes_titulo: "⚙ Ezarpenak",
+        ajustes_tooltip: "Ezarpenak",
+        ajustes_idioma: "Hizkuntza",
+        ajustes_nombre_invitado: "Zure izena mahaian",
+        ajustes_invitado_nota: "Sortu kontu bat zure izena, zure ELOa eta zure lagunak gordetzeko.",
+        ajustes_cambiar_username: "Erabiltzaile-izena aldatu",
+        ajustes_nuevo_username: "Erabiltzaile-izen berria",
+        ajustes_cambiar_email: "Helbide elektronikoa aldatu",
+        ajustes_nuevo_email: "Helbide elektroniko berria",
+        ajustes_cambiar_password: "Pasahitza aldatu",
+        ajustes_crear_password: "Pasahitz bat sortu",
+        ajustes_password_repetir: "Errepikatu pasahitz berria",
+        ajustes_password_actual: "Oraingo pasahitza",
+        ajustes_codigo_placeholder: "6 digituko kodea",
+        ajustes_enviar_codigo: "Bidali kodea",
+        ajustes_confirmar: "Berretsi",
+        ajustes_guardar: "Gorde",
+        ajustes_guardando: "Gordetzen…",
+        ajustes_enviando: "Bidaltzen…",
+        ajustes_email_codigo_nota: "Idatzi zure posta berrira bidali dugun 6 digituko kodea.",
+        ajustes_sin_password_link: "Googlerekin sartu nintzen edo ez daukat pasahitzik",
+        ajustes_codigo_enviado_a: "Kodea {email} helbidera bidali da",
+        ajustes_cuenta_google: "Googlerekin sartu zinen. Pasahitz bat sortuz gero, zure erabiltzaile-izenarekin ere sartu ahal izango zara.",
+        ajustes_espera_username: "{dias} egun barru aldatu ahal izango duzu izena berriro.",
+        ajustes_password_no_coincide: "Bi pasahitzak ez datoz bat.",
+        ajustes_codigo_expl: "Zure identifikatzaile iraunkorra: ez da aldatzen izenez aldatuta ere. Partekatu ezazu zu gehitu ahal izateko.",
+        ajustes_codigo_copiar: "Sakatu kopiatzeko",
+        ajustes_codigo_copiado: "Kopiatuta!",
+        ajustes_eliminar_cuenta: "Nire kontua ezabatu",
+        ajustes_eliminar_aviso: "Zure posta, zure datu pertsonalak, zure adiskidetasunak eta zure mezuak ezabatuko dira. Zure erabiltzaile-izena libre geratuko da beste jokalari batentzat; jokatutako partidak modu anonimoan gordetzen dira, zure kodearekin markatuta, aurkarien historia ez aldatzeko. Hau ezin da desegin.",
+        ajustes_eliminar_confirmar: "Idatzi zure erabiltzaile-izena",
+        ajustes_eliminar_boton: "Nire kontua betiko ezabatu",
+
+        // Zerbitzariaren erantzunak (/auth/cuenta/* -ren 'codigo' gakoa)
+        ok_username_cambiado: "Erabiltzaile-izena eguneratuta.",
+        ok_email_cambiado: "Posta eguneratuta.",
+        ok_password_cambiada: "Pasahitza eguneratuta.",
+        ok_cuenta_eliminada: "Kontua ezabatuta. Eskerrik asko jokatzeagatik.",
+        ok_codigo_enviado: "Kode bat bidali dizugu.",
+        err_sin_sesion: "Saioa hasi behar duzu.",
+        err_sin_email: "Kontu honek ez du posta helbiderik.",
+        err_password_incorrecta: "Oraingo pasahitza ez da zuzena.",
+        err_falta_credencial: "Berretsi eragiketa zure pasahitzarekin.",
+        err_sin_codigo: "Ez dago koderik zain. Eskatu berri bat.",
+        err_codigo_caducado: "Kodea iraungi da. Eskatu berri bat.",
+        err_codigo_incorrecto: "Kode okerra.",
+        err_demasiadas_solicitudes: "Eskaera gehiegi. Saiatu berriro ordubete barru.",
+        err_username_invalido: "Erabiltzaileak 3-20 karaktere izan behar ditu (letrak, zenbakiak edo _).",
+        err_username_igual: "Hori da jada zure erabiltzaile-izena.",
+        err_username_en_uso: "Erabiltzaile-izen hori jada erabilita dago.",
+        err_username_espera: "{dias} egunean behin baino ezin duzu izenez aldatu.",
+        err_email_invalido: "Sartu baliozko helbide elektroniko bat.",
+        err_email_igual: "Hori da jada zure oraingo posta.",
+        err_email_en_uso: "Bada posta horrekin kontu bat.",
+        err_password_corta: "Pasahitzak gutxienez 6 karaktere izan behar ditu.",
+        err_confirmacion_no_coincide: "Idatzi zure erabiltzaile-izena zehatz-mehatz berresteko.",
+        err_cuenta_no_encontrada: "Ez dugu kontua aurkitu.",
+        err_red: "Konexio-errorea. Saiatu berriro.",
+        err_cuenta_baneada: "Kontu hau etenda dago. Idatzi callmus.contact@gmail.com helbidera akatsa dela uste baduzu.",
+
+        // ===== Laguntza eta administratzailearen oharrak (Roadmap #13) =====
+        soporte_titulo: "Laguntza eta harremana",
+        soporte_intro: "Akatsen bat aurkitu duzu edo laguntza behar duzu? Idatzi eta hemen bertan erantzungo dizugu.",
+        soporte_invitado: "Kontu bat behar duzu intzidentzia bat irekitzeko; horrela erantzun ahal dizugu. callmus.contact@gmail.com helbidera ere idatz dezakezu.",
+        soporte_nuevo: "Intzidentzia bat ireki",
+        soporte_tipo: "Mota",
+        soporte_tipo_bug: "Jokoaren akatsa",
+        soporte_tipo_cuenta: "Nire kontuarekin arazoa",
+        soporte_tipo_sugerencia: "Iradokizuna",
+        soporte_tipo_abuso: "Jokalari bat salatu",
+        soporte_tipo_otro: "Beste zerbait",
+        soporte_asunto: "Gaia",
+        soporte_mensaje: "Kontatu zer gertatu den",
+        soporte_enviar: "Bidali",
+        soporte_enviado: "Intzidentzia bidalita. Erantzuna dagoenean abisatuko dizugu.",
+        soporte_mis_incidencias: "Nire intzidentziak",
+        soporte_sin_incidencias: "Oraindik ez duzu bat ere ireki.",
+        soporte_responder: "Idatzi zure erantzuna…",
+        soporte_marcar_resuelto: "Konpondutzat eman",
+        soporte_volver: "← Itzuli",
+        soporte_estado_abierto: "Erantzunaren zain",
+        soporte_estado_respondido: "Erantzunda",
+        soporte_estado_resuelto: "Konponduta",
+        soporte_autor_admin: "CallMus taldea",
+        soporte_autor_yo: "Zu",
+        soporte_rate_limit: "Gaur intzidentzia gehiegi ireki dituzu. Saiatu geroago.",
+        soporte_vacio: "Bete gaia eta mezua.",
+        soporte_largo: "Mezua luzeegia da.",
+        toast_soporte_respuesta: "Taldeak zure intzidentziari erantzun dio.",
+        toast_anuncio: "CallMus-en oharra",
+        anuncio_cerrar: "Ulertuta",
+        mantenimiento_titulo: "Mantentze-lanak",
+        ajustes_soporte: "Laguntza eta harremana",
+        ajustes_panel_admin: "🛠 Administrazio-panela",
+        recon_jugador_caido: "Jokalari bat erori da. Itzuli zain…"
     }
 };
 
@@ -801,20 +1145,21 @@ function aplicarTraduccion() {
 // 1. Traducir todos los elementos estáticos que tengan data-i18n
     document.querySelectorAll('[data-i18n]').forEach(el => {
         let clave = el.getAttribute('data-i18n');
-        if (dict[langActual] && dict[langActual][clave]) {
+        const texto = _resolver(clave);
+        if (texto) {
             // NUEVO: Si es un campo de texto, cambiamos el placeholder
             if (el.tagName === 'INPUT') {
-                el.placeholder = dict[langActual][clave];
+                el.placeholder = texto;
             } else {
-                el.innerHTML = dict[langActual][clave];
+                el.innerHTML = texto;
             }
         }
     });
-    
+
     // 1bis. Tooltips (title="...") de los botones que solo llevan icono.
     document.querySelectorAll('[data-i18n-title]').forEach(el => {
-        const clave = el.getAttribute('data-i18n-title');
-        if (dict[langActual] && dict[langActual][clave]) el.title = dict[langActual][clave];
+        const texto = _resolver(el.getAttribute('data-i18n-title'));
+        if (texto) el.title = texto;
     });
 
     // 2. El botón de idioma anuncia a cuál se saltará al pulsarlo
@@ -889,6 +1234,8 @@ btnCrear.addEventListener('click', () => {
         return;
     }
     localStorage.setItem('callmus_nombre', miNombre);
+    esPartidaContraBot = false;
+    localStorage.removeItem('callmus_vs_bot');
     let mejorDe = parseInt(document.getElementById('in-mejor-de').value) || 3;
     let esPublico = document.getElementById('in-publico').checked;
     socket.emit('crear_sala', { nombre: miNombre, al_mejor_de: mejorDe, publico: esPublico});
@@ -905,6 +1252,7 @@ btnJugarBot.addEventListener('click', () => {
 
     // Emitimos un nuevo evento específico para el bot
     esPartidaContraBot = true;
+    localStorage.setItem('callmus_vs_bot', '1');
     socket.emit('crear_partida_bot', { nombre: miNombre, al_mejor_de: mejorDe });
 
     btnCrear.disabled = true;
@@ -928,6 +1276,8 @@ btnUnirse.addEventListener('click', () => {
     }
     localStorage.setItem('callmus_nombre', miNombre);
     localStorage.setItem('callmus_sala', cod);
+    esPartidaContraBot = false;
+    localStorage.removeItem('callmus_vs_bot');
     socket.emit('unirse_sala', { nombre: miNombre, codigo: cod });
     menuMensaje(t('msg_conectando'));
 });
@@ -936,6 +1286,7 @@ document.getElementById('btn-volver-menu').addEventListener('click', () => {
     enPartida = false;
     localStorage.removeItem('callmus_sala');
     localStorage.removeItem('callmus_token');   // salida voluntaria: no reconectar
+    localStorage.removeItem('callmus_vs_bot');
     socket.emit('abandonar_sala_limpiamente');
     setTimeout(() => { window.location.reload(); }, 100);
 });
@@ -1040,6 +1391,7 @@ function salirDePartida2p() {
     ocultarOverlaysPartida();
     localStorage.removeItem('callmus_sala');
     localStorage.removeItem('callmus_token');   // salida voluntaria: no reconectar
+    localStorage.removeItem('callmus_vs_bot');
     socket.emit('abandonar_partida');
     setTimeout(() => { window.location.reload(); }, 150);
 }
@@ -1081,12 +1433,12 @@ function mostrarToastPartida(texto) {
     setTimeout(() => toast.classList.add('hidden'), 3500);
 }
 
-window.addEventListener('beforeunload', (e) => {
-    if (enPartida) {
-        e.preventDefault();
-        e.returnValue = '';
-    }
-});
+// NO hay guardia de `beforeunload`: recargar en mitad de una partida 1v1 es
+// seguro y no pierde nada (el asiento se guarda con `callmus_token` y la
+// reconexión automática de más abajo te devuelve a la mesa), igual que en el
+// 2v2. El aviso «¿seguro que quieres salir?» del navegador sólo asustaba.
+// La salida de verdad es el botón, que sí confirma (`confirmarSalidaPartida`)
+// y además borra el token para no volver a entrar.
 
 socket.on('sala_creada', (datos) => {
     // La sala pasa a ser la única vista de la ventana de Jugar: se guarda el
@@ -1113,6 +1465,7 @@ socket.on('error_sala', (datos) => {
     btnUnirse.disabled = false;
     localStorage.removeItem('callmus_sala');
     localStorage.removeItem('callmus_token');   // token viejo inservible
+    localStorage.removeItem('callmus_vs_bot');
 });
 
 // Dibujar la lista de partidas públicas (dentro de la ventana de Jugar)
@@ -1172,6 +1525,8 @@ socket.on('actualizar_publicas', (lista) => {
             }
             localStorage.setItem('callmus_nombre', miNombre); // <--- AÑADIR
             localStorage.setItem('callmus_sala', cod);
+            esPartidaContraBot = false;
+            localStorage.removeItem('callmus_vs_bot');
             socket.emit('unirse_sala', { nombre: miNombre, codigo: cod });
             menuMensaje(t('msg_conectando'));
         });
@@ -1208,6 +1563,7 @@ socket.on('rival_desconectado', (d) => {
         enPartida = false;
         localStorage.removeItem('callmus_sala');
         localStorage.removeItem('callmus_token');
+        localStorage.removeItem('callmus_vs_bot');
         window.location.reload();
     }
 });
@@ -1216,6 +1572,7 @@ socket.on('rival_desconectado', (d) => {
 // Reconexión 2p / vs-IA: pausa por caída del rival + reenganche automático.
 // ==========================================
 let _reconInterval = null;
+let _reconEscalada = null;
 function mostrarOverlayReconexion(segundos) {
     const ov = document.getElementById('overlay-reconexion');
     const msg = document.getElementById('overlay-reconexion-msg');
@@ -1240,12 +1597,29 @@ function ocultarOverlayReconexion() {
     const ov = document.getElementById('overlay-reconexion');
     if (ov) ov.classList.add('hidden');
     clearInterval(_reconInterval);
+    clearTimeout(_reconEscalada);
+    _reconEscalada = null;
+}
+
+// Una recarga del rival tarda un par de segundos: taparle la mesa con el velo de
+// reconexión por eso es peor que el problema (en el 2v2 sólo sale un aviso). Así
+// que primero un aviso breve y, sólo si de verdad no vuelve, el velo con la
+// cuenta atrás — que arranca ya descontando lo que hemos esperado.
+const RECON_ESPERA_MS = 5000;
+
+function avisarReconexion(segundos) {
+    clearTimeout(_reconEscalada);
+    mostrarToastPartida(t('recon_jugador_caido'));
+    _reconEscalada = setTimeout(() => {
+        _reconEscalada = null;
+        mostrarOverlayReconexion(Math.max(0, (segundos || 0) - RECON_ESPERA_MS / 1000));
+    }, RECON_ESPERA_MS);
 }
 
 // El rival (o yo, si reconecto con el rival aún fuera) sigue caído: mostramos aviso.
 socket.on('oponente_desconectado', (d) => {
     if (!enPartida) return;
-    mostrarOverlayReconexion((d && d.gracia) || 0);
+    avisarReconexion((d && d.gracia) || 0);
 });
 socket.on('oponente_reconectado', () => ocultarOverlayReconexion());
 
@@ -1381,6 +1755,10 @@ socket.on('actualizar_mesa', (datos) => {
         if (window.Barajas) window.Barajas.precargarAjena(barajaRival);
     }
     ultimoEstadoMesa = datos;
+
+    // Se acabó la baraja y se han rebarajado los descartes (Roadmap #14): aviso
+    // breve, sin bloquear el turno.
+    if (datos.aviso_baraja) mostrarToastPartida(t('msg_baraja_agotada'));
 
     // Token de reconexión: nos aseguramos de tenerlo siempre guardado (invitado incl.).
     if (datos.reconexion_token) localStorage.setItem('callmus_token', datos.reconexion_token);
@@ -2185,18 +2563,23 @@ socket.on('connect', () => {
     const nombreGuardado = localStorage.getItem('callmus_nombre');
     const tokenGuardado = localStorage.getItem('callmus_token');
 
-    if (!salaGuardada || enPartida) return;
+    if (!salaGuardada) return;
 
     // Con token → estábamos en plena partida: reenganche por identidad (2p/vs-IA).
+    // OJO: esto NO se salta cuando `enPartida` ya es true. 'connect' también salta
+    // cuando Socket.IO rehace la conexión tras un corte de red sin recargar la
+    // página: el sid es otro y el servidor ya no nos tiene sentados, así que hay
+    // que volver a reclamar el asiento aunque la mesa siga pintada. Reclamarlo de
+    // más no rompe nada: `reanudar_partida` con el asiento ya nuestro es inocuo.
     if (tokenGuardado) {
-        menuMensaje(t('msg_reconectando'), '#918E84');
+        if (!enPartida) menuMensaje(t('msg_reconectando'), '#918E84');
         console.log(`🔌 Reanudando partida ${salaGuardada} con token.`);
         socket.emit('reanudar_partida', { codigo: salaGuardada, token: tokenGuardado });
         return;
     }
 
     // Sin token → sala en espera (aún no arrancó): reclamamos el asiento.
-    if (nombreGuardado) {
+    if (nombreGuardado && !enPartida) {
         menuMensaje(t('msg_reconectando'), '#918E84');
         console.log(`🔌 Conexión establecida. Reclamando sala oculta: ${salaGuardada}`);
         socket.emit('unirse_sala', { nombre: nombreGuardado, codigo: salaGuardada });

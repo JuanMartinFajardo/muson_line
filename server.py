@@ -1313,6 +1313,10 @@ def enviar_estado_a_jugadores(codigo_sala):
     partida_actual = sala.get('motor')
     if not partida_actual: return
 
+    # Aviso de baraja agotada (Roadmap #14): bandera de sala, no por jugador, así
+    # que se lee una vez y se apaga tras difundir el estado a todo el mundo.
+    aviso_baraja = getattr(partida_actual, 'baraja_agotada_aviso', False)
+
     for sid in list(sala['sids']):
         if sid is None or sid.startswith('BOT_'): continue   # asiento en pausa / bot
         # El asiento puede tener un sid que el motor ya no conoce (remap a medias
@@ -1462,11 +1466,16 @@ def enviar_estado_a_jugadores(codigo_sala):
             'mis_partidas': partida_actual.partidas_ganadas.get(sid, 0),
             'partidas_rival': partida_actual.partidas_ganadas.get(rival_sid, 0),
             'al_mejor_de': partida_actual.al_mejor_de,
-            'match_finalizado': partida_actual.match_finalizado
+            'match_finalizado': partida_actual.match_finalizado,
+            'aviso_baraja': aviso_baraja
         }
-        
+
         # Disparamos el mensaje a la sala entera, porque sabemos que eso sí llega siempre
-        socketio.emit('actualizar_mesa', payload, room=codigo_sala) 
+        socketio.emit('actualizar_mesa', payload, room=codigo_sala)
+
+    # El aviso de baraja agotada se muestra una sola vez.
+    if aviso_baraja:
+        partida_actual.baraja_agotada_aviso = False
 
     # --- LÓGICA DEL BOT ---
     if sala['estado'] == 'jugando' and 'bot' in sala:

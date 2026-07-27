@@ -60,6 +60,25 @@
         sena_ciego: 'Blind',
         play_senas_on: 'with signs',
     });
+    Object.assign(dict.eu, {
+        senas_boton: 'Keinua',
+        senas_hecha: 'Hau egin duzu: {sena}',
+        senas_denuncia_titulo: 'Zer ikusi diozu <b>{nombre}</b>(r)i?',
+        senas_denuncia_cerrar: 'Utzi',
+        senas_visto: '<b>{sena}</b> ikusi diot <b>{nombre}</b>(r)i!',
+        senas_ayuda: 'Geziak, WASD edo irristatu begiratzeko · ukitu aurkari bat keinuren bat harrapatzen badiozu',
+        sena_solomillo: 'Solomiloa',
+        sena_duples: 'Duplak',
+        sena_31: '31',
+        sena_tres_reyes: 'Hiru errege',
+        sena_tres_ases: 'Hiru as',
+        sena_medias: 'Mediak',
+        sena_dos_reyes: 'Bi errege',
+        sena_dos_ases: 'Bi as',
+        sena_30: '30',
+        sena_ciego: 'Itsua',
+        play_senas_on: 'keinuekin',
+    });
     aplicarTraduccion();
 
     // Orden de la CHULETA (el de la ventana de denunciar). El orden de prioridad

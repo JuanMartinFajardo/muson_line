@@ -84,6 +84,22 @@ class PartidaMus4:
         self.rondas_mus = 0
 
         self.mensaje_transicion = None
+
+        # Ronda de cantes de Pares/Juego. En una mesa de verdad, antes de apostar
+        # a Pares cada jugador dice en voz alta si los tiene; sólo después se
+        # envida. El motor SIEMPRE hace esa declaración (es información pública y
+        # va al log), pero por omisión la resuelve de golpe, que es lo que
+        # necesitan el gimnasio, la arena y el replay: sin sockets no hay a quién
+        # enseñársela y una cola pendiente los dejaría colgados.
+        #
+        # El servidor la enciende (`declaracion_pausada = True`) para repartirla
+        # en el tiempo: se encola el orden de mesa y se va cantando asiento a
+        # asiento, con la mesa congelada mientras tanto (`acciones_legales`
+        # devuelve [], como con un mensaje de transición).
+        self.declaracion_pausada = False
+        self.declaraciones_pendientes = []   # [(asiento, bool)] aún por cantar
+        self.declaracion_fase = None         # lance cuya ronda de cantes se preparó
+
         self.recuento_calculado = False
         self.baraja_agotada_aviso = False
         self.pasos_recuento = []
@@ -221,6 +237,8 @@ class PartidaMus4:
         self.quien_corta_mus = None
         self.rondas_mus = 0
         self.mensaje_transicion = None
+        self.declaraciones_pendientes = []
+        self.declaracion_fase = None
         self.baraja_agotada_aviso = False
         self._lances_ronda = {}
 
@@ -328,6 +346,8 @@ class PartidaMus4:
         self.ordago_aceptado_en = None
         self.juego_es_punto = False
         self.transicion_punto_mostrada = False
+        self.declaraciones_pendientes = []
+        self.declaracion_fase = None
         self.preparar_subfase()
 
     def preparar_subfase(self):
@@ -355,10 +375,8 @@ class PartidaMus4:
             # Declaración automática (sin señas): cada asiento declara según sus cartas.
             # Son información PÚBLICA y la señal más informativa del mus, así que
             # van al log como eventos de primera clase (§8.3), en orden de mesa.
-            for s in self.orden_desde(self.mano):
-                if self.estado[s]['tiene_pares_dec'] is None:
-                    self.estado[s]['tiene_pares_dec'] = tiene_pares(self.estado[s]['cartas'])
-                    self.log.decl(s, 'Pares', self.estado[s]['tiene_pares_dec'])
+            if self._cantar_declaraciones('Pares', tiene_pares):
+                return   # la mesa espera a que se canten una a una
             a_tiene = self._equipo_tiene('A', tiene_pares)
             b_tiene = self._equipo_tiene('B', tiene_pares)
             if not (a_tiene and b_tiene):
@@ -376,10 +394,8 @@ class PartidaMus4:
         elif nombre_fase == 'Juego':
             # Ojo: a esta rama se vuelve a entrar tras el aviso "juego a punto",
             # por eso la declaración se emite una sola vez por ronda.
-            for s in self.orden_desde(self.mano):
-                if self.estado[s]['tiene_juego_dec'] is None:
-                    self.estado[s]['tiene_juego_dec'] = tiene_juego(self.estado[s]['cartas'])
-                    self.log.decl(s, 'Juego', self.estado[s]['tiene_juego_dec'])
+            if self._cantar_declaraciones('Juego', tiene_juego):
+                return   # la mesa espera a que se canten una a una
             a_tiene = self._equipo_tiene('A', tiene_juego)
             b_tiene = self._equipo_tiene('B', tiene_juego)
             if not a_tiene and not b_tiene:
@@ -398,6 +414,50 @@ class PartidaMus4:
                 return
             else:
                 self.turno_de = self._primer_asiento_eligible(tiene_juego)
+
+    _CLAVE_DEC = {'Pares': 'tiene_pares_dec', 'Juego': 'tiene_juego_dec'}
+
+    def _cantar_declaraciones(self, lance, predicado):
+        """Ronda de cantes de un lance. Devuelve True si la mesa debe esperar.
+
+        Sin pausa (gimnasio, arena, replay) declara los cuatro asientos de golpe
+        y devuelve False: el lance se resuelve en la misma llamada, como siempre.
+        Con pausa encola el orden de mesa y devuelve True hasta que la cola se
+        vacía a base de `declarar_siguiente()`. `preparar_subfase` se vuelve a
+        llamar sola al cantar el último, y entonces sí cae por aquí sin esperar.
+        """
+        clave = self._CLAVE_DEC[lance]
+        if self.declaracion_fase != lance:
+            self.declaracion_fase = lance
+            self.declaraciones_pendientes = [
+                (s, predicado(self.estado[s]['cartas']))
+                for s in self.orden_desde(self.mano)
+                if self.estado[s][clave] is None
+            ]
+            if not self.declaracion_pausada:
+                # De golpe: se cantan todas aquí mismo y no queda cola.
+                for s, valor in self.declaraciones_pendientes:
+                    self.estado[s][clave] = valor
+                    self.log.decl(s, lance, valor)
+                self.declaraciones_pendientes = []
+        return bool(self.declaraciones_pendientes)
+
+    def declarar_siguiente(self):
+        """Canta la declaración del siguiente asiento de la cola.
+
+        Devuelve `(asiento, lance, tiene)` o None si no había nada pendiente. Al
+        cantar la última vuelve a `preparar_subfase`, que ya resuelve el lance
+        (abre las apuestas o pone el mensaje de transición que corresponda).
+        """
+        if not self.declaraciones_pendientes:
+            return None
+        lance = self.declaracion_fase
+        seat, valor = self.declaraciones_pendientes.pop(0)
+        self.estado[seat][self._CLAVE_DEC[lance]] = valor
+        self.log.decl(seat, lance, valor)
+        if not self.declaraciones_pendientes:
+            self.preparar_subfase()
+        return (seat, lance, valor)
 
     def _primer_asiento_eligible(self, predicado):
         """Primer asiento desde la mano cuya mano cumple el predicado (pares/juego).
@@ -522,6 +582,10 @@ class PartidaMus4:
         # Mientras se muestra un mensaje de transición el servidor auto-avanza:
         # nadie tiene que (ni puede) hacer nada.
         if self.mensaje_transicion:
+            return []
+        # Ídem mientras se está cantando la ronda de Pares/Juego: hasta que no
+        # haya declarado el último no se sabe siquiera si hay lance que apostar.
+        if self.declaraciones_pendientes:
             return []
 
         acciones = []
@@ -908,6 +972,7 @@ class PartidaMus4:
         'ordago_aceptado_en', 'juego_es_punto', 'transicion_punto_mostrada',
         'quien_corta_mus', 'rondas_mus', 'recuento_calculado', 'ronda_n',
         'baraja_agotada_aviso', 'match_id',
+        'declaracion_pausada', 'declaracion_fase',
     )
 
     def fork(self):
@@ -939,6 +1004,7 @@ class PartidaMus4:
         od['respondedores'] = self.respondedores[:]
         od['jugadores_listos'] = self.jugadores_listos[:]
         od['pasos_recuento'] = list(self.pasos_recuento)
+        od['declaraciones_pendientes'] = list(self.declaraciones_pendientes)
         od['mensaje_transicion'] = self.mensaje_transicion
         od['_lances_ronda'] = dict(self._lances_ronda)
         od['log'] = _LOG_MUDO
@@ -968,6 +1034,7 @@ class PartidaMus4:
             'respondedores': list(self.respondedores),
             'jugadores_listos': list(self.jugadores_listos),
             'pasos_recuento': list(self.pasos_recuento),
+            'declaraciones_pendientes': [list(d) for d in self.declaraciones_pendientes],
             'mensaje_transicion': self.mensaje_transicion,
             'lances_ronda': dict(self._lances_ronda),
         }
@@ -994,6 +1061,8 @@ class PartidaMus4:
         motor.respondedores = list(estado_plano['respondedores'])
         motor.jugadores_listos = list(estado_plano['jugadores_listos'])
         motor.pasos_recuento = list(estado_plano['pasos_recuento'])
+        motor.declaraciones_pendientes = [tuple(d) for d in
+                                          (estado_plano.get('declaraciones_pendientes') or [])]
         motor.mensaje_transicion = estado_plano['mensaje_transicion']
         motor._lances_ronda = dict(estado_plano.get('lances_ronda') or {})
         motor.log = NullLogger(motor.match_id, '4p')

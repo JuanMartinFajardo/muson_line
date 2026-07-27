@@ -272,6 +272,7 @@ class PartidaMus:
             self.turno_de = None
             self.ordago_aceptado_en = None        
             self.mensaje_transicion = None
+            self.baraja_agotada_aviso = False
             self.recuento_calculado = False
             self.pasos_recuento = []
             self.jugadores_listos = []
@@ -336,10 +337,11 @@ class PartidaMus:
         robadas = []
         for _ in range(cantidad):
             if not self.baraja:
-                # Si nos quedamos sin cartas, barajamos los descartes
+                # Sin cartas: rebarajamos los descartes y avisamos (Roadmap #14).
                 self.baraja = self.descartes.copy()
                 self._azar().shuffle(self.baraja)
                 self.descartes = []
+                self.baraja_agotada_aviso = True
             if self.baraja:
                 robadas.append(self.baraja.pop(0))
         return robadas
@@ -363,6 +365,7 @@ class PartidaMus:
         self.estado[self.j2]['descartes_hechos'] = 0
         self.quien_corta_mus = None
         self.rondas_mus = 0
+        self.baraja_agotada_aviso = False
         self._lances_ronda = {}
         self._decl_emitidas = set()
 
@@ -844,7 +847,7 @@ class PartidaMus:
         'turno_de', 'ordago_aceptado_en', 'recuento_calculado', 'match_id',
         'ronda_n', 'al_mejor_de', 'partida_sumada', 'match_finalizado',
         'quien_corta_mus', 'rondas_mus', 'juego_es_punto',
-        'transicion_punto_mostrada',
+        'transicion_punto_mostrada', 'baraja_agotada_aviso',
     )
 
     def fork(self):

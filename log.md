@@ -4,6 +4,32 @@ Historial cronológico de cambios relevantes del proyecto. El más reciente arri
 
 ---
 
+## 2026-07-27 — Se acabó la baraja: ahora se avisa (Roadmap #14)
+
+Cuando muchas rondas de mus seguidas agotaban el mazo, el motor rebarajaba los
+descartes **sin decir nada**: las cartas seguían saliendo y más de uno pensaba que
+algo se había roto. Ahora sale un aviso breve, y el turno sigue como si nada.
+
+- **Motor (`mus_mecanicas.py`).** `robar()` marca `baraja_agotada_aviso = True` en la
+  rama del rebarajado; `iniciar_ronda()` lo apaga. Es una bandera **de la mesa**, no
+  de cada jugador, así que el aviso llega a los dos aunque el rebarajado ocurra en
+  mitad de los descartes. Viaja en `_CAMPOS_ESCALARES`, de modo que `fork()`,
+  `to_state()` y `from_state()` la conservan (partidas guardadas y reconexiones).
+- **Servidor (`server.py`).** `enviar_estado_a_jugadores` lee la bandera **una vez**
+  antes del bucle de jugadores, la manda como `aviso_baraja` en el estado de todos y
+  la apaga al terminar la difusión: un aviso por rebarajado, ni uno más.
+- **Cliente (`static/app.js`).** `msg_baraja_agotada` en los tres diccionarios
+  (ES/EN/EU) y aviso flotante con el mismo `mostrarToastPartida` de siempre, que se
+  va solo. **No** se ha usado el canal de `mensaje_transicion`: ese exige pulsar para
+  continuar y este aviso no debe cortar la partida.
+- **El 2v2 ya lo tenía** (`mus_mecanicas_4.py`, `server_mus4.py`, `static/app4.js`)
+  con este mismo diseño; se ha comprobado que funciona y el 1v1 se ha escrito igual.
+- **Comprobado** levantando el servidor con una baraja recortada: en la mesa contra
+  la IA (1v1) y en una mesa de cuatro personas (2v2) el aviso salta justo al
+  rebarajar, una sola vez, a todos los de la mesa, y la mano continúa sin tocar nada.
+
+---
+
 ## 2026-07-27 — El móvil: deslizar sin que se mueva la página, y la pantalla completa del iPhone
 
 Las señas se juegan deslizando el dedo, pero el navegador entendía ese mismo gesto

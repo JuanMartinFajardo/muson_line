@@ -48,6 +48,16 @@
         fs_ios_ya_p: 'The table is already built for the finger: swiping on it moves your gaze, not the page, and pulling down no longer reloads.',
         fs_ios_ok: 'Got it',
     });
+    Object.assign(dict.eu, {
+        fullscreen_salir_tooltip: 'Pantaila osotik irten',
+        fs_ios_titulo: 'Pantaila osoa iPhonean',
+        fs_ios_sub: 'Safarik ez dio inolako webguneri pantaila osoan jartzen uzten.',
+        fs_ios_paso_t: 'Gehitu CallMus hasierako pantailara',
+        fs_ios_paso_p: 'Ukitu <em>Partekatu</em> beheko barran → <em>Gehitu hasierako pantailara</em> → <em>Gehitu</em>. Bere ikono propiotik irekiko da, nabigatzailearen barrarik gabe eta pantaila osoa mahaiarentzat.',
+        fs_ios_ya_t: 'Bitartean, berdin jokatu dezakezu',
+        fs_ios_ya_p: 'Mahaia hatzarentzat prestatuta dago: gainean irristatzeak begirada mugitzen du, ez orria, eta ez da birkargatzen behera tiratzeagatik.',
+        fs_ios_ok: 'Ulertuta',
+    });
     aplicarTraduccion();
 
     const raiz = document.documentElement;

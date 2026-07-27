@@ -12,7 +12,7 @@ The frontend is a **single HTML page with vanilla JavaScript** — no framework,
 ## `static/app.js` (~1500 lines) — main client
 
 - **Card preloading:** after 2 s, silently preloads all 40 card `.webp` images plus the card back.
-- **i18n engine:** a `dict` object with `es` and `en` translations (~150 keys each); `t(key)` resolves strings, elements carry `data-i18n` attributes (or `data-i18n-title` for icon-only buttons whose tooltip needs translating), and dynamic server messages arrive as **message codes** (e.g. `{'code': 'fase_apuestas', 'fase': 'Grande', 'jugador': 'X'}`) that the client renders in the active language. Language toggles via the `EN`/`ES` button (now inside the ⚙ settings window, same id) and persists (localStorage).
+- **i18n engine:** a `dict` object with `es`, `en` and `eu` (Basque) translations (~500 keys each); `t(key)` resolves strings, elements carry `data-i18n` attributes (or `data-i18n-title` for icon-only buttons whose tooltip needs translating), and dynamic server messages arrive as **message codes** (e.g. `{'code': 'fase_apuestas', 'fase': 'Grande', 'jugador': 'X'}`) that the client renders in the active language. Language cycles through `es → en → eu` via the button inside the ⚙ settings window (same `#btn-lang` id, driven by the `LANGS` array in `app.js`; the button always shows the *next* language) and persists (localStorage). Missing keys fall back to Spanish via `_resolver()`, never to the raw key name.
 - **Socket.IO client:** `const socket = io({ closeOnBeforeunload: false })`. Emits `crear_sala`, `crear_partida_bot`, `unirse_sala`, `accion_juego`, `pedir_publicas`, `abandonar_sala_limpiamente`, `abandonar_partida`, `esperar_reemplazo`, `reanudar_partida`; listens for `sala_creada`, `iniciar_partida`, `actualizar_mesa`, `actualizar_publicas`, `error_sala`, `rival_desconectado`, `oponente_desconectado`/`oponente_reconectado`, `jugador_abandono`, `esperando_reemplazo`, `reemplazo_encontrado`.
 - **Rendering:** every `actualizar_mesa` payload repaints the whole table: cards, whose turn, phase banner, bet info (pending raise, pots, concessions), recuento steps, match score. Card selection for discards is tracked in `cartasSeleccionadas`.
 - **Sharing:** the waiting panel offers copy-link / WhatsApp / Web Share API buttons with a join URL containing the room code.
@@ -114,7 +114,7 @@ the notch and the gesture bar have to be dodged by the content.
 
 ## `static/tutorial.js` (~2200 lines)
 
-An interactive step-by-step tutorial launched by the *How to Play* button: injected styles for card-zoom effects (hover on desktop, tap on mobile), staged explanations of the deck, lances, and betting. **Fully bilingual (ES/EN)** since Roadmap #2: slide content is keyed by the global `langActual` variable defined in `app.js` (single source of truth, persisted to `localStorage['callmus_lang']`), and a listener on `#btn-lang` re-renders the open tutorial when the language is toggled. The *How to Play* launcher button is translated via `data-i18n="btn_tutorial"` in `app.js`.
+An interactive step-by-step tutorial launched by the *How to Play* button: injected styles for card-zoom effects (hover on desktop, tap on mobile), staged explanations of the deck, lances, and betting. **Fully translated (ES/EN/EU)**, bilingual since Roadmap #2 and trilingual with the Basque pass: slide content is keyed by the global `langActual` variable defined in `app.js` (single source of truth, persisted to `localStorage['callmus_lang']`), and a listener on `#btn-lang` re-renders the open tutorial when the language is toggled. The *How to Play* launcher button is translated via `data-i18n="btn_tutorial"` in `app.js`.
 
 **Three tracks and an index (July 2026).** The tutorial no longer is one long carousel: it opens on an **index** (`dictIndice`) with three buttons, each leading to its own slide array.
 
@@ -250,7 +250,7 @@ still inline in `index.html` (candidate for cleanup).
 
 ## Conventions for new frontend work
 
-- Add every user-visible string to **both** `dict.es` and `dict.en` and reference it with `t()` / `data-i18n`.
+- Add every user-visible string to **all three** of `dict.es`, `dict.en` and `dict.eu`, and reference it with `t()` / `data-i18n`.
 - Server → client messages that need localization must be sent as `{code, ...params}` objects, never pre-rendered text.
 - New screens follow the `.screen` + `.hidden` toggle pattern; new modals follow the existing `modal-*` pattern with `cerrarModales()` (add the new id there and to the hide lists in `social.js` / `tutorial.js`).
 - Menu-side work goes in `menu.css` / `menu.js` with the `.cm-` prefix and the tokens of the "midnight ink" palette — no new hard-coded hex values, no inline `style=""`. Table-side work goes in `game.css` under the same rules; keep `style.css` / `style4.css` for layout only, so there is one place per screen that decides how it looks.

@@ -17,7 +17,7 @@ In this readme you will find:
 CallMus is intended to be a simple but robust online plataform to play the two player version of Mus. The app offers so far two modes: **online** playing and playing **against a bot**.
 To play online one can press **Create new game** and get a code. To play with someone, just send him/her the code. If **Public game** is activated, it will appear in a list of public games, from where other players can join.
 
-The game is offered in Spanish and English.
+The game is offered in Spanish, English and Basque (Euskera).
 
 I included an **account system** to keep track of the winings. When played logged, the matches contribute to compute an **ELO ranking** among players.
 

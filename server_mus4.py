@@ -37,6 +37,11 @@ TURNO_SEGUNDOS = 30          # anti-AFK: auto-acción si un jugador no responde
 GRACIA_RECONEXION = 90       # ventana para reconectar tras caer en plena partida
 TRANSICION_SEGUNDOS = 3      # auto-avance de mensajes de transición (nadie pares, etc.)
 RECUENTO_TIMEOUT = 60        # auto-"listo" en el recuento para no bloquear a los demás
+# Ronda de cantes de Pares/Juego: lo que se tarda de un «¡pares sí!» al siguiente.
+# En una mesa de verdad, antes de envidar a pares todos dicen si los llevan; el
+# motor ya lo declaraba, pero de golpe y sin que se viera. Repartido en el tiempo
+# la mesa respira como la de casa. Cuatro asientos ≈ 2,8 s por lance.
+DECLARACION_SEGUNDOS = 0.7
 ESPERA_REEMPLAZO = 300       # ventana en la que la partida se anuncia buscando sustituto
 
 # Log v2 (mus_log.py). Encendido: cada partida 2v2 deja un JSONL reproducible en
@@ -699,6 +704,10 @@ def _iniciar_partida(codigo):
         return
     motor = PartidaMus4()
     motor.al_mejor_de = room.get('al_mejor_de', 3)
+    # En una mesa con gente, los cantes de Pares y Juego se dicen uno a uno y se
+    # oyen: el motor los encola y `_programar_timers` los va soltando. Fuera del
+    # servidor (gimnasio, arena, replay) el motor sigue resolviéndolos de golpe.
+    motor.declaracion_pausada = True
     motor.nombres = {s: room['nombres'].get(s, f'J{s}') for s in range(4)}
     motor.usernames = {s: room['usernames'].get(s) for s in range(4)}
     # Log v2: desde este punto TODA partida 2v2 deja rastro reproducible. Es la
@@ -809,6 +818,8 @@ def procesar_accion_4(seat, codigo, datos):
         return
 
     if accion == 'continuar_transicion':
+        if not motor.mensaje_transicion:
+            return   # nada que cerrar (p. ej. llega en plena ronda de cantes)
         motor.mensaje_transicion = None
         motor.preparar_subfase()
         enviar_estado_4(codigo)
@@ -893,8 +904,10 @@ def enviar_estado_4(codigo):
     token_actual = room['turno_token']
 
     # Deadline del turno (para la barra de cuenta atrás del cliente).
+    # Durante la ronda de cantes no corre reloj de nadie: no hay turno que agotar.
     deadline = None
-    if motor.fase in ('espera_reparto', 'mus', 'apuestas', 'descarte') and not motor.mensaje_transicion:
+    if (motor.fase in ('espera_reparto', 'mus', 'apuestas', 'descarte')
+            and not motor.mensaje_transicion and not motor.declaraciones_pendientes):
         deadline = time.time() + TURNO_SEGUNDOS
         room['turno_deadline'] = deadline
 
@@ -957,7 +970,11 @@ def enviar_estado_4(codigo):
         }
 
         # Mensaje de estado (mismos códigos que 2p; el cliente los localiza).
-        if motor.fase == 'descarte':
+        if motor.declaraciones_pendientes:
+            # Nadie tiene el turno: la mesa está diciendo si lleva la jugada.
+            mensaje = {'code': 'ronda_cantes',
+                       'fase': motor.declaracion_fase}
+        elif motor.fase == 'descarte':
             mensaje = {'code': 'fase_descarte'}
         elif motor.fase == 'apuestas':
             if motor.indice_fase < len(motor.FASES_APUESTA):
@@ -1004,6 +1021,10 @@ def enviar_estado_4(codigo):
             'acciones_legales': motor.acciones_legales(seat),
             'mensaje': mensaje,
             'mensaje_transicion': motor.mensaje_transicion,
+            # Lance cuya ronda de cantes se está diciendo ahora mismo ('Pares' /
+            # 'Juego'), o None. El cliente lo usa para no resaltar un turno que
+            # todavía no es de nadie.
+            'declarando': motor.declaracion_fase if motor.declaraciones_pendientes else None,
             'recuento': datos_recuento,
             'puede_pedrete': puede_pedrete,
             'match_finalizado': motor.match_finalizado,
@@ -1047,9 +1068,10 @@ def _programar_bots(codigo):
     motor = room.get('motor')
     if not motor or motor.match_finalizado:
         return
-    # Con un mensaje de transición en pantalla manda el temporizador de
-    # transición: nadie (tampoco un bot) juega hasta que se cierre.
-    if motor.mensaje_transicion:
+    # Con un mensaje de transición en pantalla —o con la ronda de cantes a
+    # medias— manda su temporizador: nadie (tampoco un bot) juega hasta que
+    # se cierre.
+    if motor.mensaje_transicion or motor.declaraciones_pendientes:
         return
     # Si ningún bot tiene nada que hacer, no gastamos un greenlet.
     if not any(motor.acciones_legales(seat) for seat in room['bots']):
@@ -1071,7 +1093,7 @@ def _programar_bots(codigo):
             if not r or r['estado'] != 'jugando':
                 return
             m = r.get('motor')
-            if not m or m.match_finalizado or m.mensaje_transicion:
+            if not m or m.match_finalizado or m.mensaje_transicion or m.declaraciones_pendientes:
                 return
             for seat in sorted(r['bots']):
                 decision = r['bots'][seat].obtener_accion(m.vista(seat))
@@ -1127,7 +1149,9 @@ def _programar_timers(codigo, token):
     if motor.match_finalizado:
         return
 
-    if motor.mensaje_transicion:
+    if motor.declaraciones_pendientes:
+        kind, delay = 'declaracion', DECLARACION_SEGUNDOS
+    elif motor.mensaje_transicion:
         kind, delay = 'transicion', TRANSICION_SEGUNDOS
     elif motor.fase == 'recuento':
         kind, delay = 'recuento', RECUENTO_TIMEOUT
@@ -1144,7 +1168,19 @@ def _programar_timers(codigo, token):
         if not r or r['estado'] != 'jugando' or r.get('turno_token') != token:
             return  # el estado avanzó: temporizador obsoleto e inofensivo
         m = r['motor']
-        if kind == 'transicion':
+        if kind == 'declaracion':
+            # Un cante por vuelta: se anuncia en el sitio de quien lo dice y se
+            # difunde la mesa, lo que programa el siguiente. Al cantar el último,
+            # el motor resuelve el lance solo (abre apuestas o pone el aviso de
+            # "nadie tiene pares"), así que la difusión ya lleva el resultado.
+            cantado = m.declarar_siguiente()
+            if cantado:
+                seat, lance, tiene = cantado
+                _anunciar_accion_4(codigo, seat,
+                                   ('pares' if lance == 'Pares' else 'juego') +
+                                   ('_si' if tiene else '_no'))
+            enviar_estado_4(codigo)
+        elif kind == 'transicion':
             m.mensaje_transicion = None
             m.preparar_subfase()
             enviar_estado_4(codigo)

@@ -662,6 +662,11 @@ html.modo-mesa .cm-corner { margin-right: env(safe-area-inset-right); }
 .seat-4.equipo-B .accion-burbuja { border-color: rgba(124, 147, 184, 0.45); }
 /* Cortar el mus abre la mano: merece destacar sin llegar a ser un órdago. */
 .accion-burbuja.corta { color: var(--cm-gold-hi); }
+/* La vuelta de cantes previa a Pares y a Juego: se dice en voz alta, pero no es
+   una jugada. Va en la misma plaquita, sólo que sin peso; y el «no» aún menos,
+   que es lo que más se repite y no aporta nada mirarlo. */
+.accion-burbuja.cante { color: var(--cm-bone); opacity: 0.92; }
+.accion-burbuja.cante-no { color: var(--cm-dim); opacity: 0.75; }
 /* El órdago y el pedrete se juegan la partida entera. */
 .accion-burbuja.fuerte {
     border-color: rgba(194, 53, 46, 0.7) !important;

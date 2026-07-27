@@ -1,0 +1,14 @@
+{"v":2,"t":"hdr","match":"UHMZD0","mode":"2p","ts":"2026-07-27T16:29:20.131Z","rules":{"objetivo":40,"al_mejor_de":3,"team_response":"na","senas":false,"engine":"mus2"},"seats":[{"s":0,"kind":"human","code":null},{"s":1,"kind":"bot","pers":null}],"teams":[[0],[1]]}
+{"t":"deal","r":1,"mano":1,"hands":[[1,11,5,6],[2,7,7,2]]}
+{"t":"a","s":1,"a":"no_mus","ms":10581}
+{"t":"a","s":1,"a":"pasar","lance":"Grande","ms":1556}
+{"t":"a","s":0,"a":"pasar","lance":"Grande","ms":18966}
+{"t":"a","s":1,"a":"pasar","lance":"Chica","ms":1506}
+{"t":"a","s":0,"a":"pasar","lance":"Chica","ms":324}
+{"t":"decl","s":1,"lance":"Pares","have":true}
+{"t":"decl","s":0,"lance":"Pares","have":false}
+{"t":"decl","s":1,"lance":"Juego","have":false}
+{"t":"decl","s":0,"lance":"Juego","have":false}
+{"t":"a","s":1,"a":"pasar","lance":"Punto","ms":4534}
+{"t":"a","s":0,"a":"pasar","lance":"Punto","ms":465}
+{"t":"eor","r":1,"lances":{"Grande":{"win":0,"pts":1},"Chica":{"win":1,"pts":1},"Pares":{"win":1,"pts":3},"Punto":{"win":0,"pts":1}},"scores":[2,4],"hands":[[1,11,5,6],[2,7,7,2]]}

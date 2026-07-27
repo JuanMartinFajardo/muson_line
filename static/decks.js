@@ -65,6 +65,26 @@
         decks_desbloqueada: 'New deck available: {nombre}',
         decks_clasica: 'Classic',
     });
+    Object.assign(dict.eu, {
+        decks_titulo: 'Nire karta-sortak',
+        decks_sub: 'Aukeratu gai bat palo bakoitzarentzat. Musean paloak ez du punturik ematen, beraz nahas ditzakezu.',
+        decks_hueco_coins: 'Urreak',
+        decks_hueco_cups: 'Kopak',
+        decks_hueco_swords: 'Ezpatak',
+        decks_hueco_clubs: 'Bastoiak',
+        decks_hueco_dorso: 'Atzealdea',
+        decks_elige: '<b>{hueco}</b> palorako gaia',
+        decks_todos_palos: 'Lau paloetan jarri',
+        decks_restablecer: 'Karta-sorta klasikora itzuli',
+        decks_bloqueo_cuenta: 'Kontu bat behar duzu',
+        decks_bloqueo_restringido: 'Oraindik ez daukazu',
+        decks_guardado: 'Karta-sorta gordeta.',
+        decks_guardado_local: 'Nabigatzaile honetan gordeta. Sortu kontu bat beste gailu batzuetara eramateko.',
+        decks_error: 'Ezin izan da karta-sorta gorde.',
+        decks_vacio: 'Oraindik ez dago gairik eskuragarri.',
+        decks_desbloqueada: 'Karta-sorta berria eskuragarri: {nombre}',
+        decks_clasica: 'Klasikoa',
+    });
 
     // ======================================================================
     // 2. Estado

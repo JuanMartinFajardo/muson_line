@@ -1064,6 +1064,446 @@ const dictTut1v1 = {
                 </div>
             `
         }
+    ],
+
+    eu: [
+        {
+            title: "Espainiako karta-sorta",
+            content: `
+                <p style="font-size: 1.1em; color: #eceff4; margin-bottom: 20px;">Musa Espainiako 40 kartako karta-sorta tradizionalarekin jokatzen da, lau palotan banatuta.</p>
+
+                <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 25px;">
+                    <div style="background: #3b4252; padding: 10px; border-radius: 8px; width: 60px;">🪙<br><span style="font-size: 0.8em; color: #88c0d0;">Urreak</span></div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 8px; width: 60px;">🍷<br><span style="font-size: 0.8em; color: #88c0d0;">Kopak</span></div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 8px; width: 60px;">⚔️<br><span style="font-size: 0.8em; color: #88c0d0;">Ezpatak</span></div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 8px; width: 60px;">🏏<br><span style="font-size: 0.8em; color: #88c0d0;">Bastoiak</span></div>
+                </div>
+
+                <p style="font-size: 1em; color: #d8dee9; margin-bottom: 15px;">Palo bakoitzak <b>1etik 7ra</b> bitarteko zenbakiak ditu eta hiru "Figura" berezi:</p>
+
+                <div class="tut-cards-group" style="gap: 12px; align-items: center; margin: 0 auto; max-width: max-content; padding: 5px;">
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <img src="/static/img/card_coins_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 60px; border-radius: 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);">
+                        <span style="color: #ebcb8b; font-weight: bold; margin-top: 5px; font-size: 0.85em;">Txanka (10)</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <img src="/static/img/card_coins_11.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 60px; border-radius: 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);">
+                        <span style="color: #ebcb8b; font-weight: bold; margin-top: 5px; font-size: 0.85em;">Zaldia (11)</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <img src="/static/img/card_coins_12.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 60px; border-radius: 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);">
+                        <span style="color: #ebcb8b; font-weight: bold; margin-top: 5px; font-size: 0.85em;">Erregea (12)</span>
+                    </div>
+                </div>
+                <span class="tut-zoom-hint">🔍 Pasatu sagua edo ukitu figurak handitzeko</span>
+            `
+        },
+        {
+            title: "Errege-sekretua: 3ak eta 2ak",
+            content: `
+                <p style="font-size: 1.1em; color: #eceff4; margin-bottom: 20px;">Musean ez dago benetako 3rik ez 2rik. Iruzurtiak dira! 8 Erregerekin eta 8 Asekin jokatzen da.</p>
+
+                <div style="background: rgba(46, 52, 64, 0.6); border: 1px solid #4c566a; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                    <p style="margin-top: 0; color: #ebcb8b; font-weight: bold;">3 bakoitza Errege bat da</p>
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+                        <img src="/static/img/card_cups_03.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 60px; border-radius: 4px;">
+                        <span style="font-size: 2em; color: #a3be8c;">&rarr;</span>
+                        <img src="/static/img/card_cups_12.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 60px; border-radius: 4px; box-shadow: 0 0 15px rgba(235, 203, 139, 0.5);">
+                    </div>
+                </div>
+
+                <div style="background: rgba(46, 52, 64, 0.6); border: 1px solid #4c566a; border-radius: 8px; padding: 15px;">
+                    <p style="margin-top: 0; color: #88c0d0; font-weight: bold;">2 bakoitza As bat da (1)</p>
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+                        <img src="/static/img/card_coins_02.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 60px; border-radius: 4px;">
+                        <span style="font-size: 2em; color: #a3be8c;">&rarr;</span>
+                        <img src="/static/img/card_coins_01.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 60px; border-radius: 4px; box-shadow: 0 0 15px rgba(136, 192, 208, 0.5);">
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Mus fasea (deskarteak)",
+            content: `
+                <p style="font-size: 1.1em; color: #eceff4; margin-bottom: 20px;">4 karta banatu ondoren, jokalariek erabakitzen dute kartak bota nahi dituzten eskua hobetzeko. Horri <b>"Mus"</b> eskatzea esaten zaio.</p>
+
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 20px; font-size: 0.9em;">
+
+                    <div style="background: #4c566a; color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold;">
+                        1. 4 kartaren banaketa
+                    </div>
+
+                    <div style="color: #88c0d0;">&darr;</div>
+
+                    <div style="background: #3b4252; border: 2px solid #88c0d0; color: #eceff4; padding: 15px; border-radius: 8px; text-align: center; width: 80%;">
+                        <b>BI jokalariek nahi dute musa?</b>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; width: 90%; margin-top: 5px;">
+                        <div style="display: flex; flex-direction: column; align-items: center; width: 45%;">
+                            <div style="color: #a3be8c; font-weight: bold; margin-bottom: 5px;">BAI</div>
+                            <div style="color: #a3be8c;">&darr;</div>
+                            <div style="background: rgba(163, 190, 140, 0.2); border: 1px solid #a3be8c; color: #a3be8c; padding: 10px; border-radius: 8px; text-align: center; font-size: 0.9em;">
+                                1-4 karta botatzen dira.<br>Beste horrenbeste hartzen dira.<br><i>(Errepikatu egiten da)</i>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; align-items: center; width: 45%;">
+                            <div style="color: #bf616a; font-weight: bold; margin-bottom: 5px;">EZ (Mus ez)</div>
+                            <div style="color: #bf616a;">&darr;</div>
+                            <div style="background: rgba(191, 97, 106, 0.2); border: 1px solid #bf616a; color: #bf616a; padding: 10px; border-radius: 8px; text-align: center; font-size: 0.9em;">
+                                Banaketa gelditu egiten da.<br>Apustuak hasten dira.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <p style="font-size: 0.9em; color: #d8dee9; font-style: italic;">* Esku ona baduzu, moztu musa aurkariak berea hobetu ez dezan!</p>
+            `
+        },
+        {
+            title: "Apustuen 4 lanceak",
+            content: `
+                <p style="font-size: 1.1em; color: #eceff4; margin-bottom: 15px;">Musa moztu ondoren, txandaka egiten da apustu 4 lance ezberdinetan:</p>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
+
+                    <div style="background: #3b4252; border-left: 5px solid #ebcb8b; padding: 10px 15px; border-radius: 4px;">
+                        <strong style="color: #ebcb8b; font-size: 1.1em;">⬆️ Handia</strong>
+                        <p style="margin: 5px 0 0 0; font-size: 0.95em; color: #d8dee9;">Karta altuenek irabazten dute. (Erregeak > Zaldiak > Txankak...)</p>
+                    </div>
+
+                    <div style="background: #3b4252; border-left: 5px solid #88c0d0; padding: 10px 15px; border-radius: 4px;">
+                        <strong style="color: #88c0d0; font-size: 1.1em;">⬇️ Txikia</strong>
+                        <p style="margin: 5px 0 0 0; font-size: 0.95em; color: #d8dee9;">Karta baxuenek irabazten dute. (Asak > 4 > 5...)</p>
+                    </div>
+
+                    <div style="background: #3b4252; border-left: 5px solid #b48ead; padding: 10px 15px; border-radius: 4px;">
+                        <strong style="color: #b48ead; font-size: 1.1em;">👯 Pareak</strong>
+                        <p style="margin: 5px 0 0 0; font-size: 0.95em; color: #d8dee9;">2 karta berdin edo gehiago badituzu bakarrik egin dezakezu apustu. (Duplak > Mediak > Pare soilak).</p>
+                    </div>
+
+                    <div style="background: #3b4252; border-left: 5px solid #a3be8c; padding: 10px 15px; border-radius: 4px;">
+                        <strong style="color: #a3be8c; font-size: 1.1em;">🎯 Jokoa</strong>
+                        <p style="margin: 5px 0 0 0; font-size: 0.95em; color: #d8dee9;">Batu zure karten balioa (Figurak = 10). <b>31 edo gehiago</b> behar duzu. Onena 31 da, gero 32, ondoren 40, 37, 36, 35, 34 eta azkenik 33. <br><i>*Inor 31era iristen ez bada, "Puntu" altuenera jokatzen da.</i></p>
+                    </div>
+
+                </div>
+            `
+        },
+        {
+            title: "Apustuen hizkuntza",
+            content: `
+                <p style="font-size: 1.1em; color: #eceff4; margin-bottom: 20px;">Lance batean apustu bat has dezakezu edo hari erantzun. Hau da zure arsenala:</p>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; text-align: left;">
+
+                    <div style="display: flex; gap: 10px;">
+                        <div style="background: #a3be8c; color: #2e3440; padding: 10px; border-radius: 4px; font-weight: bold; width: 80px; text-align: center;">Envido</div>
+                        <div style="background: #3b4252; color: #d8dee9; padding: 10px; border-radius: 4px; flex-grow: 1;">2 puntu apustatzen dituzu.</div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <div style="background: #4c566a; color: white; padding: 10px; border-radius: 4px; font-weight: bold; width: 80px; text-align: center;">Paso</div>
+                        <div style="background: #3b4252; color: #d8dee9; padding: 10px; border-radius: 4px; flex-grow: 1;">Ez duzu apustatzen. Biek pasatzen badute, lancea 0 puntutan geratzen da.</div>
+                    </div>
+
+                    <div style="width: 100%; height: 1px; background: #4c566a; margin: 5px 0;"></div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <div style="background: #88c0d0; color: #2e3440; padding: 10px; border-radius: 4px; font-weight: bold; width: 80px; text-align: center;">Nahi dut</div>
+                        <div style="background: #3b4252; color: #d8dee9; padding: 10px; border-radius: 4px; flex-grow: 1;">Apustua onartzen duzu (<b>Nahi dut</b> / Ikusi). Puntuak amaierara arte gordeta geratzen dira.</div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <div style="background: #bf616a; color: white; padding: 10px; border-radius: 4px; font-weight: bold; width: 80px; text-align: center;">Ez dut nahi</div>
+                        <div style="background: #3b4252; color: #d8dee9; padding: 10px; border-radius: 4px; flex-grow: 1;">Erretiratu egiten zara (<b>Ez dut nahi</b>). Aurkariak berehala irabazten du puntu 1 (edo aurreko apustua).</div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <div style="background: #ebcb8b; color: #2e3440; padding: 10px; border-radius: 4px; font-weight: bold; width: 80px; text-align: center;">Hordago</div>
+                        <div style="background: #3b4252; color: #d8dee9; padding: 10px; border-radius: 4px; flex-grow: 1;"><b>DENA EDO EZER EZ!</b> Onartzen bada, partida berehala amaitzen da!</div>
+                    </div>
+
+                </div>
+            `
+        },
+        {
+            title: "Eskua vs. Postrea",
+            content: `
+                <p style="font-size: 1.1em; color: #eceff4; margin-bottom: 20px;">Musean posizioa da dena. Rolak esku bakoitzean trukatzen dira.</p>
+
+                <div style="display: flex; justify-content: space-between; gap: 15px; margin-bottom: 20px;">
+
+                    <div style="background: #3b4252; border: 2px solid #ebcb8b; border-radius: 8px; padding: 15px; width: 48%; position: relative;">
+                        <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); font-size: 1.5em;">👑</div>
+                        <h3 style="color: #ebcb8b; margin-top: 10px; margin-bottom: 5px;">Eskua</h3>
+                        <p style="font-size: 0.9em; color: #d8dee9; text-align: left; margin: 0;">
+                            • <b>Lehenengo</b> hitz egiten du.<br>
+                            • <b>Berdinketa</b> guztiak irabazten ditu.<br>
+                        </p>
+                    </div>
+
+                    <div style="background: #3b4252; border: 2px solid #81a1c1; border-radius: 8px; padding: 15px; width: 48%;">
+                        <h3 style="color: #81a1c1; margin-top: 10px; margin-bottom: 5px;">Postrea</h3>
+                        <p style="font-size: 0.9em; color: #d8dee9; text-align: left; margin: 0;">
+                            • <b>Azkena</b> hitz egiten du (informazio-abantaila handia).<br>
+                            • Karta hertsiki hobeak behar ditu irabazteko.
+                        </p>
+                    </div>
+
+                </div>
+
+                <div style="background: rgba(235, 203, 139, 0.1); border-left: 4px solid #ebcb8b; padding: 10px; color: #eceff4; font-size: 0.95em; text-align: left;">
+                    <b>Urrezko araua:</b> aurkariaren karta berberak badituzu, Eskuak beti irabazten du!
+                </div>
+            `
+        },
+        {
+            title: "Zenbaketa fasea (puntuak)",
+            content: `
+                <p style="font-size: 1em; color: #eceff4; margin-bottom: 15px;">Eskuaren amaieran kartak erakusten dira. Lance bakoitzeko irabazleak mahaiko <b>apustuak</b> eramaten ditu, gehi dituzun kartengatiko <b>hobari-puntuak</b>:</p>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; width: 45%; text-align: left;">
+                        <div style="color: #88c0d0; font-weight: bold; margin-bottom: 5px;">Handia eta Txikia</div>
+                        <div style="font-size: 0.85em; color: #d8dee9;">Hobaririk gabe. Egindako apustuak baino ez dituzu irabazten (edo pnt 1 biek pasatu badute).</div>
+                    </div>
+
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; width: 45%; text-align: left;">
+                        <div style="color: #a3be8c; font-weight: bold; margin-bottom: 5px;">Puntua</div>
+                        <div style="font-size: 0.85em; color: #d8dee9;">Puntua irabazteak <span style="color:#a3be8c; font-weight:bold;">+1 pnt</span> ematen du.</div>
+                    </div>
+
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; width: 93%; text-align: left; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="color: #b48ead; font-weight: bold; margin-bottom: 5px;">Pareak</div>
+                            <div style="font-size: 0.85em; color: #d8dee9;">Pare soilak: <span style="color:#a3be8c; font-weight:bold;">+1 pnt</span><br>Mediak (hirukotea): <span style="color:#a3be8c; font-weight:bold;">+2 pnt</span><br>Duplak (bi pare): <span style="color:#a3be8c; font-weight:bold;">+3 pnt</span></div>
+                        </div>
+                    </div>
+
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; width: 93%; text-align: left; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px;">Jokoa</div>
+                            <div style="font-size: 0.85em; color: #d8dee9;">31 zehatza izatea: <span style="color:#a3be8c; font-weight:bold;">+3 pnt</span><br>32tik 40ra izatea: <span style="color:#a3be8c; font-weight:bold;">+2 pnt</span></div>
+                        </div>
+                    </div>
+
+                </div>
+            `
+        },
+        {
+            title: "Sekretu aurreratuak",
+            content: `
+                <p style="font-size: 1.1em; color: #eceff4; margin-bottom: 15px;">Gutxitan gertatzen diren baina oso indartsuak diren bi esku, ezagutu behar dituzunak:</p>
+
+                <div style="display: flex; flex-direction: column; gap: 15px; text-align: left;">
+                    <div style="background: #3b4252; border-left: 5px solid #d08770; padding: 10px 15px; border-radius: 4px;">
+                        <strong style="color: #d08770; font-size: 1.1em;">🃏 Pedrete (4-5-6-7)</strong>
+                        <div class="tut-cards-group" style="display: flex; gap: 5px; margin: 10px 0;">
+                            <img src="/static/img/card_swords_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_05.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_coins_06.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_clubs_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint" style="margin-bottom: 0;">🔍 Pasatu sagua edo ukitu kartak handitzeko</span>
+                        <p style="margin: 0; font-size: 0.95em; color: #d8dee9;">Eskurik txarrena da, eta konpentsazio gisa berehala ematen dizu <b style="color:#a3be8c;">+1 pnt</b> eta 4 karta berri hartzen dituzu! Baina <b>kantatu egin behar duzu</b> mus fasean, aurkariak moztu baino lehen.</p>
+                    </div>
+
+                    <div style="background: #3b4252; border-left: 5px solid #ebcb8b; padding: 10px 15px; border-radius: 4px;">
+                        <strong style="color: #ebcb8b; font-size: 1.1em;">👑 Erreala</strong>
+                        <div class="tut-cards-group" style="display: flex; gap: 5px; margin: 10px 0;">
+                            <img src="/static/img/card_coins_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_coins_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint" style="margin-bottom: 0;">🔍 Pasatu sagua edo ukitu kartak handitzeko</span>
+                        <p style="margin: 0; font-size: 0.95em; color: #d8dee9;">Hiru 7k eta Txanka batek (10) 31 gorena osatzen dute. Esku honek <b>Jokoa beti irabazten du</b>, Postre izanda ere!</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Praktikatzeko prest?",
+            content: `
+                <p style="font-size: 1.1em; color: #eceff4; margin-bottom: 25px;">Teoria badakizu jada. Ikus dezagun orain nola jokatzen den mahaian.</p>
+
+                <div style="display: flex; flex-direction: column; gap: 15px; align-items: center; margin-top: 30px;">
+                    <button onclick="window.goToSlide(9)" style="width: 85%; background: #81a1c1; color: #2e3440; font-weight: bold; padding: 15px; border-radius: 8px; font-size: 1.1em; border: none; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">📖 Adibideak irakurri (urratsez urrats)</button>
+
+                    <button id="btn-start-interactive" style="width: 85%; background: #a3be8c; color: #2e3440; font-weight: bold; padding: 15px; border-radius: 8px; font-size: 1.1em; border: none; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">🎮 Praktikatzen hasi</button>
+                </div>
+            `
+        },
+        {
+            title: "1. adib.: Handia eta Txikia ('Ez dut nahi')",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 10px;">1. jokalariak karta bikainak ditu HANDIRAKO, baina 2.a indartsua da TXIKIAN.</p>
+
+                <div style="display: flex; justify-content: space-around; margin-bottom: 12px; align-items: center;">
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.9em;">J1 (Eskua)</div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_12.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_03.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_05.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #81a1c1; font-weight: bold; margin-bottom: 5px; font-size: 0.9em;">J2 (Postrea)</div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_01.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_02.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_06.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 0.85em;">
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #ebcb8b;">
+                        <strong style="color: #ebcb8b; font-size: 1.1em;">⬆️ HANDIA</strong><br>
+                        <span style="color: #ebcb8b;">J1:</span> <b>2 envidatzen ditu.</b><br>
+                        <span style="color: #81a1c1;">J2:</span> Badaki 6a eta Asa negargarriak direla Handirako. <b>Ez du nahi.</b><br>
+                        <div style="margin-top: 5px; color: #a3be8c;"><b>Emaitza:</b> J1ek berehala irabazten du <b>puntu 1</b> (nahi izan ez den envitea).</div>
+                    </div>
+
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #88c0d0;">
+                        <strong style="color: #88c0d0; font-size: 1.1em;">⬇️ TXIKIA</strong><br>
+                        <span style="color: #ebcb8b;">J1:</span> Pasatu.<br>
+                        <span style="color: #81a1c1;">J2:</span> <b>2 envidatzen ditu.</b><br>
+                        <span style="color: #ebcb8b;">J1:</span> Faroleatu eta <b>nahi du (Ikusi)</b>.<br>
+                        <div style="margin-top: 5px; color: #a3be8c;"><b>Emaitza:</b> 2 puntu gordeta. J2k zenbaketan irabaziko ditu!</div>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "2. adib.: Pareen talka",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 10px;">Errege-pare bat izatea ondo dago, baina mediak (hirukotea) hobeak dira.</p>
+
+                <div style="display: flex; justify-content: space-around; margin-bottom: 12px; align-items: center;">
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.9em;">J1 (Parea)</div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_12.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_03.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_05.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #81a1c1; font-weight: bold; margin-bottom: 5px; font-size: 0.9em;">J2 (Mediak)</div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 0.85em;">
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #b48ead;">
+                        <strong style="color: #b48ead; font-size: 1.1em;">👯 PAREAK</strong><br>
+                        <span style="color: #eceff4; font-style: italic;">Biek deklaratzen dute pareak dituztela.</span><br>
+                        <span style="color: #ebcb8b;">J1:</span> Erregeetan konfiantza du. <b>2 envidatzen ditu.</b><br>
+                        <span style="color: #81a1c1;">J2:</span> Mediak ditu! <b>4ra igotzen du.</b><br>
+                        <span style="color: #ebcb8b;">J1:</span> <b>Nahi du (Ikusi).</b><br>
+                        <div style="margin-top: 8px; padding: 8px; background: rgba(163,190,140,0.1); color: #a3be8c; border-radius: 4px;">
+                            <b>Azken zenbaketa:</b> J2k hiru 4ak erakusten ditu eta J1en Erregeak txikitzen ditu. <br>J2k <b>apustatutako 4 puntuak</b> + <b>2 pnt hobari</b> eramaten ditu mediengatik!
+                        </div>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "3. adib.: 31 vs 32",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 10px;">Jokoan, 31 da guztien onena. 32 da txarrena!</p>
+
+                <div style="display: flex; justify-content: space-around; margin-bottom: 12px; align-items: center;">
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.9em;">J1 (32 batura)</div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_12.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_05.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #81a1c1; font-weight: bold; margin-bottom: 5px; font-size: 0.9em;">J2 (31 batura)</div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_03.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_11.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 0.85em;">
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #a3be8c;">
+                        <strong style="color: #a3be8c; font-size: 1.1em;">🎯 JOKOA</strong><br>
+                        <span style="color: #eceff4; font-style: italic;">Biak iristen dira 31ra edo gehiagora.</span><br>
+                        <span style="color: #ebcb8b;">J1:</span> Eskua naiz, agian 32 nahikoa da. <b>2 envidatzen ditu.</b><br>
+                        <span style="color: #81a1c1;">J2:</span> 31 zehatza dut! <b>HORDAGO!</b><br>
+                        <span style="color: #ebcb8b;">J1:</span> Badaki 32 negargarria dela. <b>Ez du nahi.</b><br>
+                        <div style="margin-top: 8px; padding: 8px; background: rgba(163,190,140,0.1); color: #a3be8c; border-radius: 4px;">
+                            <b>Azken zenbaketa:</b> J2k apustatutako 2 puntuak berehala eramaten ditu. Amaieran, J2k <b>+3 pnt hobari</b> ere lortzen ditu 31 izateagatik!
+                        </div>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "4. adib.: Puntura jokatzen",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 10px;">Inor 31ra iristen ez bada, "Puntura" jokatzen da (baturarik altuenak irabazten du).</p>
+
+                <div style="display: flex; justify-content: space-around; margin-bottom: 12px; align-items: center;">
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.9em;">J1 (29 batura)</div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_12.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_06.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_06.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #81a1c1; font-weight: bold; margin-bottom: 5px; font-size: 0.9em;">J2 (28 batura)</div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_03.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_06.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_05.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 44px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 0.85em;">
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #a3be8c;">
+                        <strong style="color: #a3be8c; font-size: 1.1em;">🎯 PUNTUA</strong><br>
+                        <span style="color: #eceff4; font-style: italic;">"Inork ez du jokorik. Puntura jokatzen da."</span><br>
+                        <span style="color: #ebcb8b;">J1:</span> 29 oso hurbil dago 30etik (puntu gorenetik). <b>2 envidatzen ditu.</b><br>
+                        <span style="color: #81a1c1;">J2:</span> 28 dut, agian nahikoa izango da? <b>Nahi du (Ikusi).</b><br>
+                        <div style="margin-top: 8px; padding: 8px; background: rgba(163,190,140,0.1); color: #a3be8c; border-radius: 4px;">
+                            <b>Azken zenbaketa:</b> J1ek 29 erakusten du, J2k 28. J1ek irabazi du!<br>J1ek <b>apustatutako 2 puntuak</b> + <b>1 pnt hobari</b> eramaten ditu Puntua irabazteagatik.
+                        </div>
+                    </div>
+                </div>
+            `
+        }
     ]
 };
 
@@ -1524,6 +1964,232 @@ const dictTut2v2 = {
                 <button class="tut-goto" data-tut-pista="senas" style="background:#ebcb8b; color:#2e3440;">☞ Learn the signs</button>
             `
         }
+    ],
+
+    eu: [
+        {
+            title: "Mahaia: bi bikote",
+            content: `
+                <p class="tut-lead">2 aurka 2 jokoan lau jokalari eta bi talde daude. <b>Zure bikotekidea zure parean</b> esertzen da; aurkariak, alboetan.</p>
+
+                <div class="tut-mesa">
+                    <div class="tut-seat eqA s-t"><b>Zure bikotekidea</b><small>A taldea</small></div>
+                    <div class="tut-seat eqB s-l"><b>Aurkaria</b><small>B taldea</small></div>
+                    <div class="tut-mesa-centro s-c">txanda eskuinerantz<br>biratzen da &#8635;</div>
+                    <div class="tut-seat eqB s-r"><b>Aurkaria</b><small>B taldea</small></div>
+                    <div class="tut-seat eqA yo s-b"><b>Zu</b><small>A taldea</small></div>
+                </div>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Puntuak taldearenak dira</span>
+                        <p>Zure bikotekideak eta zuk markagailua partekatzen duzue. <b>40 puntura</b> iristen den taldeak irabazten du partida, eta norgehiagoka mahaia sortzean aukeratzen diren partidetatik onenera jokatzen da.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Eskua eserleku bat biratzen da</span>
+                        <p>Esku bakoitzean <b>Eskua</b> hurrengo eserlekura pasatzen da, beraz laurak izaten dira esku eta postre. Mahaiaren ordenan hitz egiten da, eskutik hasita.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Aldatzen ez dena",
+            content: `
+                <p class="tut-lead">Funtsezko arauak 1 aurka 1ekoak berberak dira.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">1v1ean bezala</span>
+                        <p>• 40 kartako karta-sorta, <b>3ak errege</b> eta <b>2ak as</b> direla.<br>
+                        • Lau lanceak: <b>Handia, Txikia, Pareak eta Jokoa</b> (edo Puntua).<br>
+                        • Hitz berberak: paso, envido, igo, nahi dut, ez dut nahi eta hordago.<br>
+                        • Zenbaketan sari berberak, <b>Pedretea</b> eta <b>Erreala</b>.</p>
+                    </div>
+                </div>
+
+                <button class="tut-goto" data-tut-pista="1v1">📖 Oinarrizko arauak errepasatu (1 aurka 1)</button>
+                <span class="tut-nota">Ondoren datozenak bikoteka jokatzearen lau desberdintasunak dira.</span>
+            `
+        },
+        {
+            title: "Musa lauren artean mozten da",
+            content: `
+                <p class="tut-lead">Laurei galdetzen zaie hurrenez hurren, eskutik hasita.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Musa dago LAUREK nahi badute</span>
+                        <p><b>Batek bakarrik «musik ez» esatea</b> nahikoa da mozteko: inork ez du deskartatzen eta apustuak hasten dira.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">Mozten duenak zabaltzen du Handia</span>
+                        <p>Moztu duenak hitz egiten du lehenengo Handian, eskua ez izan arren. Gainerako lanceetan eskutik hasten da berriro.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Deskarteak norberarenak dira</span>
+                        <p>Musa badago, jokalari bakoitzak 1etik 4ra karta botatzen ditu eta beste horrenbeste hartzen. Gero berriro galdetzen da, eta horrela norbaitek moztu arte.</p>
+                    </div>
+                </div>
+
+                <div class="tut-tip"><b>Kontuz:</b> esku on batekin musa mozteak ez zaitu zu bakarrik babesten: <b>bi aurkariek</b> hobetzea ere eragozten du.</div>
+            `
+        },
+        {
+            title: "Pareak eta Jokoa deklaratu egiten dira",
+            content: `
+                <p class="tut-lead">Pareak eta Jokoa apustatu aurretik, laurek ozen esaten dute badituzten ala ez. Informazio <b>publikoa</b> da, eta mahaiko baliotsuenetakoa.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#b48ead;">
+                        <span class="tt">Talde batek «badu» bietako batek badu</span>
+                        <p>Berdin dio bikoteko zeinek dituen pareak: taldea lancean sartzen da.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Talde bakar batek badu</span>
+                        <p>Ez da apustatzen: lancea talde horrek eramaten du zuzenean. Bere esken <b>sariak berdin zenbatzen dira</b> zenbaketan.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#4c566a;">
+                        <span class="tt">Inork ez badu</span>
+                        <p>Pareak besterik gabe saltatzen da. Jokoan, inor 31ra iristen ez bada, <b>Puntura</b> jokatzen da — eta hor bai egiten da apustu.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Apustatzea biren kontua da",
+            content: `
+                <p class="tut-lead">Aurkako taldearen aurka envidatzen da, ez jokalari baten aurka. Eta bikoteak <b>bien artean</b> erantzuten du.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">1. Norbaitek envidatzen du</span>
+                        <p>Eskutik hasita hitz egiten da hurrenez hurren. Txanda duenak pasatu, envidatu edo hordagoa bota dezake.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">2. Txandako aurkariak erantzuten du</span>
+                        <p><b>Nahi izan</b>, <b>igo</b> edo <b>ez nahi izan</b> dezake.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">3. …eta nahi ez badu, bere bikotekideak hitz egiten du oraindik</span>
+                        <p>Apustua eman aurretik, kideak <b>taldearen alde nahi izan edo igo</b> dezake. <b>Biek</b> ezetz esaten badute bakarrik ematen da.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">4. Dena taldearen markagailura doa</span>
+                        <p>Inork ezin du 40ra iristeko falta dena baino gehiago apustatu (pasatuz gero, <b>hordago</b> bihurtzen da), eta aurkariari partida emango liokeen «ez dut nahi» bat nahitaez <b>«nahi dut»</b> bihurtzen da.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Bikoteka zenbatzea",
+            content: `
+                <p class="tut-lead">Kartak erakustean, lance bakoitza <b>talde bakoitzaren eskurik onena</b> alderatuz ebazten da.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Taldeak irabazten du, ez jokalariak</span>
+                        <p>Zure bikoteko bien artean lance horretan hoberen doan eskua hartzen da eta aurkarien onenaren aurka jartzen da.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Berdinketak eskuak hausten ditu</span>
+                        <p>Bi eskuak berdin-berdinak badira, mahaiaren ordenan <b>eskutik hurbilen</b> dagoen jokalariarenak irabazten du.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#b48ead;">
+                        <span class="tt">Sariak BATU egiten dira</span>
+                        <p>Paretan eta Jokoan, lancea irabazten duen taldeak kualifikatzen duen <b>bere bi eskuetako bakoitzaren</b> saria kobratzen du. Pareak dituzten bi eskuk biek kobratzen dute.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "1. adib.: sariak batu egiten dira",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 10px;"><b>Pareen</b> lancea. Laurek deklaratzen dute: A taldeak pareak dituzten bi esku ditu; B taldeak, bat.</p>
+
+                <div style="display: flex; justify-content: space-around; margin-bottom: 12px; align-items: flex-start;">
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.85em;">Zu (A)<br><span style="font-weight:normal; color:#d8dee9;">errege-parea</span></div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_12.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_03.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_clubs_05.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.85em;">Zure bikotekidea (A)<br><span style="font-weight:normal; color:#d8dee9;">duplak</span></div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_11.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_11.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_clubs_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Handitu</span>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div style="color: #81a1c1; font-weight: bold; margin-bottom: 5px; font-size: 0.85em;">B taldearen onena: txanka-mediak</div>
+                    <div class="tut-cards-group tut-overlap" style="justify-content:center;">
+                        <img src="/static/img/card_coins_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        <img src="/static/img/card_cups_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        <img src="/static/img/card_swords_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        <img src="/static/img/card_clubs_06.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                    </div>
+                </div>
+
+                <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #b48ead; text-align: left; font-size: 0.85em;">
+                    <strong style="color: #b48ead; font-size: 1.1em;">👯 PAREAK</strong><br>
+                    <span style="color: #ebcb8b;">A:</span> <b>2 envidatzen ditu.</b> &nbsp;<span style="color: #81a1c1;">B:</span> <b>Nahi du.</b><br>
+                    <div style="margin-top: 8px; padding: 8px; background: rgba(163,190,140,0.1); color: #a3be8c; border-radius: 4px;">
+                        <b>Zenbaketa:</b> zure bikotekidearen duplek aurkariaren mediei irabazten diete.<br>
+                        A taldeak <b>2 (apustatutakoa)</b> + <b>3 (duplak)</b> + <b>1 (zure errege-parea)</b> = <b>6 puntu</b> eramaten ditu.
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "2. adib.: bikotekideak erantzuten du",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 12px;"><b>Handiaren</b> lancea. Zure eskuineko aurkariak envidatu du eta zuk ez duzu eskurik… baina erabakia ez da zurekin amaitzen.</p>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 0.88em;">
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #81a1c1;">
+                        <span style="color: #81a1c1; font-weight: bold;">Aurkaria (B):</span> <b>2 envidatzen ditu.</b>
+                    </div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #ebcb8b;">
+                        <span style="color: #ebcb8b; font-weight: bold;">Zu (A):</span> 7-6-5-4 duzu. <b>Ez dut nahi.</b>
+                    </div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #a3be8c;">
+                        <span style="color: #a3be8c; font-weight: bold;">Zure bikotekidea (A):</span> ezer eman aurretik, berari dagokio hitz egitea: <b>hiru errege</b> ditu eta <b>4ra igotzen du</b>.
+                    </div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #bf616a;">
+                        <span style="color: #bf616a; font-weight: bold;">B taldea:</span> pentsatu eta <b>ez du nahi</b>.
+                    </div>
+                    <div style="padding: 10px; background: rgba(163,190,140,0.1); color: #a3be8c; border-radius: 4px;">
+                        <b>Emaitza:</b> A taldeak aurkariak nahi izan ez duen envitearen <b>2 puntuak</b> irabazten ditu. Zure «ez dut nahi»-ak ez zuen lancea itxi: bikoteko <b>biek</b> baztertzen dutenean bakarrik ematen da.
+                    </div>
+                </div>
+
+                <div class="tut-tip">Horregatik komeni da zure bikotekideak deklaratzen duena begiratzea: berak zerbait duenean, zu lasai pasa zaitezke.</div>
+            `
+        },
+        {
+            title: "Eta gero keinuak daude",
+            content: `
+                <p class="tut-lead">Zure bikotekideak eta zuk ez duzue inoiz elkarren kartarik ikusten… baina betiko musean <b>aurpegiarekin abisatzen diozue elkarri</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Mahaiaren aukera bat dira</span>
+                        <p>2 aurka 2 partida bat sortzean <b>«Keinuekin»</b> aktiba dezakezu. Haiekin mahaia aldatu egiten da: zure kartak ahoz behera daude eta begiratzen ari zarenaren aurpegia baino ez duzu ikusten.</p>
+                    </div>
+                </div>
+
+                <button class="tut-goto" data-tut-pista="senas" style="background:#ebcb8b; color:#2e3440;">☞ Keinuak ikasi</button>
+            `
+        }
     ]
 };
 
@@ -1899,6 +2565,175 @@ const dictTutSenas = {
                 </div>
             `
         }
+    ],
+
+    eu: [
+        {
+            title: "Zer diren keinuak",
+            content: `
+                <p class="tut-lead">Keinuak zure bikotekideari zer daukazun adierazteko egiten dituzun imintzioak dira — eta aurkariek harrapatzen saiatzen direnak.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">2 aurka 2 jokoan bakarrik</span>
+                        <p>Partida sortzean aktibatzen dira, <b>«Keinuekin»</b> etengailuarekin. Hori gabe, mahaia betikoa da.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Mahaia banan-banan begiratzen da</span>
+                        <p>Keinuekin <b>ez duzu mahai osoa ikusten</b>: burua biratzen duzu eta begiratzen ari zarenaren aurpegia —eta beraz keinua— baino ez duzu ikusten. Zure kartak ahoz behera daude, begiratzen dituzun bitartean izan ezik.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">Eta horregatik dago arriskua</span>
+                        <p>Zure bikotekideak zure keinua ikusteko, <b>egiten duzun une berean</b> egon behar du zuri begira. Eta aurkari bat begira badago, harrapatu zaitu.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Begiratzea joko erdia da",
+            content: `
+                <p class="tut-lead">Lau toki daude begiratzeko. <b>Gezien</b> bidez, <b>WASD</b> bidez edo <b>hatza irristatuz</b>.</p>
+
+                <div class="tut-mesa">
+                    <div class="tut-seat eqA s-t"><b>Zure bikotekidea</b><small><span class="tut-key">↑</span> <span class="tut-key">W</span></small></div>
+                    <div class="tut-seat eqB s-l"><b>Aurkaria</b><small><span class="tut-key">←</span> <span class="tut-key">A</span></small></div>
+                    <div class="tut-mesa-centro s-c">bat bakarrik ikusten<br>duzu aldiko</div>
+                    <div class="tut-seat eqB s-r"><b>Aurkaria</b><small><span class="tut-key">→</span> <span class="tut-key">D</span></small></div>
+                    <div class="tut-seat yo s-b"><b>Zure kartak</b><small><span class="tut-key">↓</span> <span class="tut-key">S</span></small></div>
+                </div>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Bakoitzak nori begiratzen dion irakur daiteke</span>
+                        <p>Ikusten duzun aurpegian, <b>begininiak</b> mugitu egiten dira eta burua bere helburuaren aldera makurtzen da. Zuri begira badago, <b>aurpegia urrez pizten da</b>.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#4c566a;">
+                        <span class="tt">Begirada bakarrik ibiltzen da</span>
+                        <p>Ezer ukitzen ez baduzu, zure begirada bakarrik ibiltzen da aurrearen eta bi alboen artean — inoiz ez zure kartetarantz: haiei begiratzea beti da zure erabakia.</p>
+                    </div>
+                </div>
+
+                <span class="tut-nota">Partida sortzean, <b>?</b> botoi bat dago «Keinuekin» ondoan, aginte hauek errepasatzen dituena.</span>
+            `
+        },
+        {
+            title: "Urrezko araua: altuena",
+            content: `
+                <p class="tut-lead"><b>Keinua</b> botoiak ez dizu aukeratzen uzten: <b>zure eskuak onartzen duen keinurik altuena</b> ateratzen da.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Keinu batek ez du inoiz gezurrik esaten</span>
+                        <p>Hiru erregerekin ezin duzu «bi errege» keinatu disimulatzeko: <b>hiru errege</b> aterako da. Erabakitzen duzuna <b>noiz</b> keinatu eta <b>arriskatzen zaren</b> da, ez zer esaten duzun.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Lehentasun-ordena</span>
+                        <p>solomiloa · duplak · 31 · hiru errege · hiru as · mediak · bi errege · bi as · 30 · itsua</p>
+                        <p>Zerrendako zure eskuak betetzen duen lehenengoak agintzen du. Hiru errege eta as batekin <b>solomiloa</b> ateratzen da, eman dezakezun berririk onena.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Bat 3 segundoro</span>
+                        <p>Botoia birkargatu egiten da: ezin da keinua etengabe errepikatu norbaitek begiratu arte.</p>
+                    </div>
+                </div>
+
+                <div class="tut-tip">Gogoratu <b>3ak errege gisa</b> eta <b>2ak as gisa</b> balio dutela: <b>Errege · 3 · 7 · 6</b> eskuak bi errege ditu.</div>
+            `
+        },
+        {
+            title: "Keinu indartsuak",
+            content: () => `
+                <p class="tut-lead">Eskurik onenak kontatzen dituzten bostak. Aurpegiek keinua etengabe egiten dute.</p>
+                ${tutListaSenas([
+                    ['solomillo',  'Solomiloa',  'Hiru errege eta as bat',          'musu bat'],
+                    ['duples',     'Duplak',     'Bi pare (edo lau berdin)',        'bekainak altxatzea'],
+                    ['31',         '31',         '31 zehatzeko jokoa',              'begi-keinu bat'],
+                    ['tres_reyes', 'Hiru errege', 'Hiru errege (3ak balio dute)',   'ezpainaren alde bat haginkatzea'],
+                    ['tres_ases',  'Hiru as',    'Hiru as (2ak balio dute)',        'mihia alboka ateratzea'],
+                ])}
+            `
+        },
+        {
+            title: "Gainerako keinuak",
+            content: () => `
+                <p class="tut-lead">Eta gelditzen diren bostak, <b>itsua</b> arte — hori ere informazioa baita.</p>
+                ${tutListaSenas([
+                    ['medias',    'Mediak',     'Beste edozeren hirukotea',      'ahoa okertzea'],
+                    ['dos_reyes', 'Bi errege',  'Bi errege (3ak balio dute)',    'ezpainaren erdia haginkatzea'],
+                    ['dos_ases',  'Bi as',      'Bi as (2ak balio dute)',        'mihia ateratzea'],
+                    ['30',        '30',         '30eko batura, 31ra iritsi gabe', 'sorbaldak uzkurtzea'],
+                    ['ciego',     'Itsua',      'Aurrekoetatik ezer ez',         'begiak ixtea'],
+                ])}
+                <span class="tut-nota">Keinuak tradizionalak dira, solomiloa izan ezik, etxekoa baita.</span>
+            `
+        },
+        {
+            title: "Noiz keinatu daitekeen",
+            content: `
+                <p class="tut-lead"><b>Keinua</b> botoia ez dago beti bizirik.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Bai: musean eta apustuetan</span>
+                        <p>Horiek baitira zure bikotekideak kontatzen diozunarekin zerbait egin dezakeen uneak.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">Ez: deskartean</span>
+                        <p>Deskartatzen den bitartean, <b>zure fokua zure kartetan iltzatzen da</b> eta ezin da mugitu: ikusi behar dituzu aukeratzeko, eta horrela inork ez du keinurik egiten besteak beste zerbaitetan dabiltzan bitartean.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#4c566a;">
+                        <span class="tt">Ez: zenbaketan</span>
+                        <p>Lau eskuak mahai gainean daudela, begiratzeko jokoa <b>erabat itzaltzen da</b>: ez dago aurpegirik, ezin da salatu eta <b>zure kartak azaltzen dira</b> besteak bezala. Jada ez dago ezer ezkutatzeko.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "«Ikusi zaitut!»",
+            content: `
+                <p class="tut-lead">Aurkari bat keinu bat egiten harrapatzen baduzu, <b>sala dezakezu</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Nola egiten den</span>
+                        <p>Ukitu aurkaria mahaian eta aukeratu zerrendatik zein keinu ikusi diozun. <b>Aurkari</b> bat baino ezin da salatu: zure bikotekidea ez, jakina.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#b48ead;">
+                        <span class="tt">Zerrenda hori da xuleta</span>
+                        <p>Aukera bakoitzak bere keinua erakusten du etengabe animatuta. Zein zen zalantzarik baduzu, ireki eta konparatu.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Ez du punturik ematen ez kentzen</span>
+                        <p>Tanteo soziala baino ez da: mahaian ohar bat ateratzen da salatua izendatuz («BI ERREGE ikusi dizkiot Martari!») eta gutxi gehiago. Baina hortik aurrera badakizu begira zaituztela… eta haiek, begira dituzula.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Lau truku",
+            content: `
+                <p class="tut-lead">Elkar ulertzen duen bikote bat imintzioak baino egiten ez dituen batetik bereizten duena.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Keinatu aurpegia urrez dagoenean</span>
+                        <p>Zure bikotekidea benetan begira dagoen seinale bakarra da. Airera keinatzeak ez du balio.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">Begirada kentzeak ez zaitu erabat salbatzen</span>
+                        <p>Norbaiti begiratzeari utzi eta <b>segundo batez</b> ikusten jarraitzen duzu. Aurkariek ere bai: begirada kentzen duten unean bertan keinatzea ez da ematen duen bezain segurua.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Itsuak ere zerbait esaten du</span>
+                        <p>Ezer ez daukazula abisatzeak bien alde envidatzea aurrezten dio zure bikotekideari.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Botek ere keinatzen dute</span>
+                        <p>Begiak mugitzen dituzte eta beren keinua behin egiten dute esku bakoitzeko. Garaiz begiratzen badiezu, edonor bezala harrapatzen dira.</p>
+                    </div>
+                </div>
+            `
+        }
     ]
 };
 
@@ -1939,6 +2774,19 @@ const dictIndice = {
                      sub: 'The ten gestures, when you may use them and how you get caught.' },
         },
         nota: "The 1 vs 1 track explains the rules of Mus; the other two take them for granted.",
+    },
+    eu: {
+        title: "Nola jokatzen den",
+        intro: "Hiru bide. Hasi behar duzun tokitik.",
+        pistas: {
+            '1v1': { color: '#a3be8c', icono: '⚔️', nombre: '1 aurka 1',
+                     sub: 'Musa hutsetik: karta-sorta, lau lanceak, apustuak eta zenbaketa.' },
+            '2v2': { color: '#81a1c1', icono: '👥', nombre: '2 aurka 2',
+                     sub: 'Bikoteka jokatzean aldatzen dena: taldeak, deklarazioak eta batzen diren sariak.' },
+            'senas': { color: '#ebcb8b', icono: '☞', nombre: 'Keinuak',
+                     sub: 'Hamar keinuak, noiz egin daitezkeen eta nola harrapatzen diren.' },
+        },
+        nota: "1 aurka 1 bideak musaren arauak azaltzen ditu; beste biek jakintzat ematen dituzte.",
     }
 };
 
@@ -1947,7 +2795,9 @@ const tutBtns = {
     es: { next: "Siguiente &rarr;", prev: "&larr; Anterior", finish: "Finalizar",
           indice: "&larr; Índice", volver: "Volver al índice" },
     en: { next: "Next &rarr;",      prev: "&larr; Prev",     finish: "Finish",
-          indice: "&larr; Index",  volver: "Back to the index" }
+          indice: "&larr; Index",  volver: "Back to the index" },
+    eu: { next: "Hurrengoa &rarr;", prev: "&larr; Aurrekoa", finish: "Amaitu",
+          indice: "&larr; Aurkibidea", volver: "Aurkibidera itzuli" }
 };
 
 // Devuelve el contenido del idioma activo (fallback a español).

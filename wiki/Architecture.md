@@ -56,7 +56,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | File | Role |
 | :--- | :--- |
 | [index.html](../index.html) | Single page: lobby (menu screen), game screen, auth modals, leaderboard modal |
-| [static/app.js](../static/app.js) | i18n dictionary (ES/EN), Socket.IO client, all game rendering and UI logic (~1500 lines) |
+| [static/app.js](../static/app.js) | i18n dictionary (ES/EN/EU), Socket.IO client, all game rendering and UI logic (~1500 lines) |
 | [static/auth.js](../static/auth.js) | Login / signup / email-verification / logout flows (fetch to `/auth/*`) |
 | [static/tutorial.js](../static/tutorial.js) | Interactive "How to play" tutorial (bilingual, see Roadmap #2) |
 | [static/settings.js](../static/settings.js) | Settings window: language, account changes, deletion |

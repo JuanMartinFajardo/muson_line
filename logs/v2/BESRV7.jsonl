@@ -1,0 +1,11 @@
+{"v":2,"t":"hdr","match":"BESRV7","mode":"2p","ts":"2026-07-27T19:52:19.974Z","rules":{"objetivo":40,"al_mejor_de":3,"team_response":"na","senas":false,"engine":"mus2"},"seats":[{"s":0,"kind":"human","code":null},{"s":1,"kind":"bot","pers":null}],"teams":[[0],[1]]}
+{"t":"deal","r":1,"mano":0,"hands":[[10,12,4,7],[5,10,3,7]]}
+{"t":"a","s":0,"a":"no_mus","ms":3496}
+{"t":"a","s":0,"a":"pasar","lance":"Grande","ms":1132}
+{"t":"a","s":1,"a":"pasar","lance":"Grande","ms":1547}
+{"t":"a","s":0,"a":"ordago","lance":"Chica","ms":851}
+{"t":"a","s":1,"a":"nover","lance":"Chica","ms":1507}
+{"t":"decl","s":0,"lance":"Pares","have":false}
+{"t":"decl","s":1,"lance":"Pares","have":false}
+{"t":"decl","s":0,"lance":"Juego","have":true}
+{"t":"decl","s":1,"lance":"Juego","have":true}

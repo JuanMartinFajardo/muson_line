@@ -191,6 +191,89 @@
         lb_vacia: 'No ranked players yet.',
     });
 
+    Object.assign(dict.eu, {
+        menu_play: 'Jokatu',
+        menu_play_sub: '1 aurka 1, 2 aurka 2 edo IAren aurka',
+        menu_tutorial: 'Nola jokatzen den',
+        menu_decks: 'Nire karta-sortak',
+        menu_leaderboard: 'Sailkapena',
+        menu_kofi: 'Ko-fi',
+        kofi_tooltip: 'Gonbidatu kafe bat Ko-fin',
+        menu_about: 'CallMus-i buruz',
+        tag_soon: 'Laster',
+        fullscreen_tooltip: 'Pantaila osoa',
+        btn_amigos_tooltip: 'Lagunak eta taldeak',
+        share_copy: 'Gonbidapenaren esteka kopiatu',
+        share_copy_code: 'Kodea kopiatu',
+        share_more: 'Partekatu…',
+
+        play_title: 'Jokatu',
+        play_sub: 'Prestatu partida hiru urratsetan',
+        play_sub_espera: 'Partekatu kodea jokatzea nahi duzunarekin',
+        play_your_name: 'Zure izena mahaian',
+        play_como: '<b>{nombre}</b> gisa jokatuko duzu.',
+        play_step_mesa: 'Mahaia',
+        play_step_rivales: 'Aurkariak',
+        play_step_ajustes: 'Xehetasunak',
+        play_1v1: '1 aurka 1',
+        play_1v1_sub: 'Zu eta aurkari bat',
+        play_2v2: '2 aurka 2',
+        play_2v2_sub: 'Bikoteka, lau jokalari',
+        play_vs_human: 'Pertsonen aurka',
+        play_vs_human_sub: 'Zuk gela sortu eta kodea partekatzen duzu',
+        play_vs_bot: 'IAren aurka',
+        play_vs_bot_sub: 'Berehala hasten zara, itxaron gabe',
+        play_4_humanos: 'Lau pertsona',
+        play_4_humanos_sub: 'Zure bikotekidea eta aurkako bikotea',
+        play_4_bots: 'Botekin',
+        play_4_bots_sub: 'Eserlekuak IAz bete',
+        play_4_mixto: 'Mahai mistoa',
+        play_4_mixto_sub: 'Pertsonak eta botak mahai berean',
+        play_best_of: 'Onena hauetatik',
+        play_public: 'Partida publikoa',
+        play_public_sub: 'Edonork ikus dezake zerrendan eta sartu',
+        play_senas: 'Keinuekin',
+        play_senas_sub: 'Zure bikotekideari zer daukazun adierazi',
+        senas_ayuda_tooltip: 'Nola funtzionatzen duten keinuek',
+        senas_ayuda_cerrar: 'Ulertuta',
+        senas_ayuda_mas: 'Hamar keinuak ikusi',
+        play_seat_note: '0 eta 2 eserlekuak A taldea dira; 1 eta 3, B taldea. Zure bikotekidea zure parean esertzen da.',
+        play_create: 'Partida sortu',
+        play_start_bot: 'IAren aurka hasi',
+        play_join_title: '…edo sartu partida batean',
+        play_join_btn: 'Sartu',
+        play_live_title: 'Orain irekita',
+        play_live_loading: 'Partidak bilatzen…',
+
+        sum_vs_bot: 'IAren aurka',
+        sum_vs_human: 'beste pertsona baten aurka',
+        sum_vs_humans: 'lau pertsonaren artean',
+        sum_vs_bots_4: 'mahaia botez beteta',
+        sum_vs_mixto_4: 'pertsonekin eta botekin',
+        sum_best_of: '<b>{n}</b>etik onena',
+        sum_publica: 'publikoa',
+        sum_privada: 'pribatua',
+
+        live_mejor_de: '{n}etik onena',
+        live_asientos: '4 eserlekutik {n}',
+
+        msg_creando_sala: 'Gela sortzen…',
+        msg_escribe_codigo: 'Idatzi lehenik gelaren kode bat.',
+        msg_conectando: 'Konektatzen…',
+        msg_reconectando: 'Zure partidara automatikoki birkonektatzen…',
+
+        pronto_barajas: 'Karta-sorten menua ez dago oraindik erabilgarri: karta-sorta pertsonalizatuekin batera iritsiko da.',
+        pronto_generico: 'Funtzio hau ez dago oraindik erabilgarri.',
+
+        lb_title: 'Sailkapena',
+        lb_sub: 'Ukitu izen bat jokalariaren kodea ikusteko',
+        lb_player: 'Jokalaria',
+        lb_elo: 'ELO',
+        lb_wins: 'Garaipenak',
+        lb_winrate: '%',
+        lb_vacia: 'Oraindik ez dago sailkatutako jokalaririk.',
+    });
+
     // ======================================================================
     // 2. Aviso flotante para lo que aún no existe
     // ======================================================================
@@ -302,6 +385,41 @@
                 <b>Signing and calling out</b>
                 <p>The <em>Sign</em> button sits bottom right: one every <em>3 s</em>, and only during Mus and betting. You don't pick which one: out comes the highest your hand allows.</p>
                 <p>Tap an opponent to call out a sign. While discarding your focus is locked on your cards, and at the showdown everything shuts down.</p>
+            </div>
+        `,
+        eu: `
+            <h3>Nola funtzionatzen duten keinuek</h3>
+            <p class="cm-ayuda-sub">Mahaiaren aginteak. Hamar keinuak tutorialean daude.</p>
+
+            <div class="cm-ayuda-bloque">
+                <b>Mahaia banan-banan begiratzen da</b>
+                <div class="cm-ayuda-mesa">
+                    <div class="cm-ayuda-reg r-t">Zure bikotekidea<small><span class="cm-tecla">↑</span> <span class="cm-tecla">W</span></small></div>
+                    <div class="cm-ayuda-reg r-l">Aurkaria<small><span class="cm-tecla">←</span> <span class="cm-tecla">A</span></small></div>
+                    <div class="cm-ayuda-reg centro r-c">begiratzen duzuna<br>baino ez duzu ikusten</div>
+                    <div class="cm-ayuda-reg r-r">Aurkaria<small><span class="cm-tecla">→</span> <span class="cm-tecla">D</span></small></div>
+                    <div class="cm-ayuda-reg r-b">Zure kartak<small><span class="cm-tecla">↓</span> <span class="cm-tecla">S</span></small></div>
+                </div>
+                <p>Geziak edo <em>WASD</em>; mugikorrean, <em>irristatu hatza</em> norabide horretan.</p>
+            </div>
+
+            <div class="cm-ayuda-bloque">
+                <b>Enfokatutako eserlekuaren aurpegia baino ez da ikusten</b>
+                <p>Eta, beraz, bere keinua. Aurpegi hori <em>urrez pizten bada</em>, zuri begira dago: keinua egiteko unea da.</p>
+                <p>Zure kartak ahoz behera daude, begiratzen dituzun bitartean izan ezik. Begiratzea beti da zure erabakia.</p>
+            </div>
+
+            <div class="cm-ayuda-bloque">
+                <b>Begirada bere kabuz mugitzen da, eta balaztarekin</b>
+                <p>Ezer ukitzen ez baduzu, zure begirada aurrearen eta bi alboen artean ibiltzen da — inoiz ez zure karteetarantz. Eskuz aukeratzen duzunak <em>2,5 s</em> inguru agintzen du.</p>
+                <p><em>1 s</em> gutxienez toki batera begira aldatu ahal izan aurretik: ez balio geziak barreiatzeak dena ikusteko.</p>
+                <p><em>1 s</em>-ko gainjartzea: begirada kendu ondoren une batez ikusten jarraitzen duzu begiratzen zenuena… eta aurkariek zu.</p>
+            </div>
+
+            <div class="cm-ayuda-bloque">
+                <b>Keinua egitea eta salatzea</b>
+                <p><em>Keinua</em> botoia behean eskuinean agertzen da: bat <em>3 s</em>-ero, eta musean eta apustuetan soilik. Ez duzu aukeratzen zein: zure eskuak onartzen duen altuena ateratzen da.</p>
+                <p>Ukitu aurkari bat keinu bat salatzeko. Deskartean fokua zure kartetan iltzatzen da, eta zenbaketan dena itzaltzen da.</p>
             </div>
         `
     };
@@ -614,6 +732,7 @@
             socket.emit('abandonar_sala_limpiamente');
             localStorage.removeItem('callmus_sala');
             localStorage.removeItem('callmus_token');
+            localStorage.removeItem('callmus_vs_bot');
             setTimeout(() => window.location.reload(), 100);
         });
     }

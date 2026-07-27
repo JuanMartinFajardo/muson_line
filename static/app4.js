@@ -62,6 +62,13 @@ Object.assign(dict.es, {
     acc_nover: 'No quiero',
     acc_ordago: '¡ÓRDAGO!',
     acc_pedrete: '¡Pedrete!',
+    // La vuelta de cantes previa a Pares y a Juego: cada uno dice si la lleva.
+    acc_pares_si: '¡Pares sí!',
+    acc_pares_no: 'Pares no',
+    acc_juego_si: '¡Juego!',
+    acc_juego_no: 'Juego no',
+    cantes_pares: 'Se cantan los pares…',
+    cantes_juego: 'Se canta el juego…',
 });
 Object.assign(dict.en, {
     btn_crear_4: '👥 4-Player Mus',
@@ -119,6 +126,77 @@ Object.assign(dict.en, {
     acc_nover: 'I fold',
     acc_ordago: 'ÓRDAGO!',
     acc_pedrete: 'Pedrete!',
+    // The round of calls before Pairs and Game: everyone says if they have it.
+    acc_pares_si: 'Pairs!',
+    acc_pares_no: 'No pairs',
+    acc_juego_si: 'Game!',
+    acc_juego_no: 'No game',
+    cantes_pares: 'Calling pairs…',
+    cantes_juego: 'Calling game…',
+});
+Object.assign(dict.eu, {
+    btn_crear_4: '👥 Mus 4 jokalari',
+    seat_libre: 'Libre',
+    equipo_a: 'A taldea', equipo_b: 'B taldea',
+    tu_equipo: 'Zure taldea', tu_pareja: 'Zure bikotekidea',
+    esperando_jugadores_4: 'Jokalarien zain…',
+    elige_asiento: 'Aukeratu eserleku bat',
+    pares_si: 'Pareak bai', pares_no: 'Pareak ez',
+    juego_si: 'Jokoa bai', juego_no: 'Jokoa ez',
+    // Pareak eta jokoa norberarenak dira, ez bikotearenak: gabe ez da apustatzen.
+    sin_pares_aviso_4: 'Ez duzu parerik: lance honetan zure kideak apustu egingo du.',
+    sin_juego_aviso_4: 'Ez duzu jokorik: lance honetan zure kideak apustu egingo du.',
+    public_games_4: '🌐 4 jokalarien gelak',
+    un_ordago: 'HORDAGO bat',
+    msg_baraja_agotada: 'Karta-sorta amaitu da! Botatakoak berriro nahasten dira.',
+    rival_desconectado_4: 'Jokalari bat deskonektatu da. Partida amaitu da.',
+    esperando_reconexion_4: 'Jokalari bat erori da. Itzuli zain…',
+    jugador_reconectado_4: 'Jokalaria itzuli da! Partidak aurrera darrai.',
+    seat_pick_n: '{n}. eserlekua',
+    gana_tu_equipo_partida: 'Zure taldeak partida irabazi du!',
+    gana_rival_partida: 'Aurkako taldeak partida irabazi du.',
+    salir_texto_4: 'Menu nagusira itzuliko zara. Besteek beste norbaitek zure eserlekua hartu arte itxaron ahal izango dute.',
+    abandono_texto_4: '{nombre}k partida utzi du ({asiento}. eserlekua). Beste norbaitek bere lekua hartu arte itxaron nahi duzue, ala irten nahiago duzu?',
+    abandono_texto_4_timeout: '{nombre} ({asiento}. eserlekua) deskonektatu egin da eta ez da garaiz itzuli. Beste norbaitek bere lekua hartu arte itxaron nahi duzue, ala irten nahiago duzu?',
+    espera_reemplazo_texto_4: 'Zuen partida abian dauden partiden zerrendan agertzen da: edonor sartu eta eserleku libreak har ditzake. Markagailua gorde egiten da eta esku berri bat banatuko da.',
+    espera_faltan_4: '{n} jokalari falta dira iristeko.',
+    espera_falta_1_4: 'Jokalari 1 falta da iristeko.',
+    reemplazo_encontrado_4: '{nombre} partidara sartu da.',
+    sin_reemplazo_4: 'Inor ez da garaiz sartu. Menu nagusira itzultzen.',
+    leaderboard_nota_4p: 'Oharra: goiko ELOa eta garaipenak 1 aurka 1 partidenak dira. 4 jokalarien musean (2v2) partida bakoitzaren azken markagailua (adib. 2-1) bereiz gordetzen da, jokalari bakoitzari bere taldearekin irabazitako jokoak batuz.',
+    // Botak (4ko IAren planaren 0. fasea)
+    bots_quien: 'Nork hartzen du eserleku bakoitza',
+    bots_personalidad: 'Botek nola jokatzen duten',
+    bots_nota_mixto: 'Ukitu eserleku bat bot bat jartzeko, edo utzi libre beste pertsona batentzat.',
+    bots_nota_todos: 'Beste hiru eserlekuak botek hartzen dituzte: partida berehala hasiko da.',
+    seat_tu: 'Zu',
+    seat_bot: 'Bota',
+    seat_persona: 'Pertsona',
+    btn_rellenar_bots: '🤖 Botez bete eta hasi',
+    pers_equilibrado: 'Orekatua',
+    pers_agresivo: 'Erasokorra',
+    pers_conservador: 'Kontserbadorea',
+    pers_musero: 'Musera',
+    pers_caotico: 'Kaotikoa',
+    bots_no_puntuan: 'Boten aurkako partidek ez dute sailkapenerako balio.',
+    // Jokalari bakoitzak kantatzen duena, mahaian esango litzatekeen bezala.
+    acc_mus: 'Mus',
+    acc_no_mus: 'Musik ez!',
+    acc_descartar: '{n} botatzen ditu',
+    acc_pasar: 'Paso',
+    acc_envidar: 'Envido {n}',
+    acc_subir: '{n} igotzen du',
+    acc_ver: 'Kanta',
+    acc_nover: 'Ez dut nahi',
+    acc_ordago: 'HORDAGO!',
+    acc_pedrete: 'Pedrete!',
+    // Pareak eta jokoa kantatzeko txanda, apustuen aurretik.
+    acc_pares_si: 'Pareak bai!',
+    acc_pares_no: 'Pareak ez',
+    acc_juego_si: 'Jokoa!',
+    acc_juego_no: 'Jokoa ez',
+    cantes_pares: 'Pareak kantatzen…',
+    cantes_juego: 'Jokoa kantatzen…',
 });
 aplicarTraduccion();
 
@@ -147,7 +225,7 @@ const msg4 = document.getElementById('play-msg');
  *  espera, que se pinta en lista y tiene sitio de sobra. */
 function etiquetaBot4(personalidad, corto) {
     const clave = 'pers_' + (personalidad || 'equilibrado');
-    const nombre = dict[langActual] && dict[langActual][clave] ? t(clave) : t('seat_bot');
+    const nombre = _resolver(clave) ? t(clave) : t('seat_bot');
     return corto ? `🤖 ${nombre}` : `🤖 ${t('seat_bot')} · ${nombre}`;
 }
 
@@ -423,7 +501,13 @@ socket.on('baraja_mesa_4', (d) => {
 // El servidor anuncia toda acción de juego a la mesa (`accion_4`); aquí se
 // traduce y table4.js la pinta un momento en el sitio de quien la hizo. Los
 // cantes fuertes se marcan aparte para que salten a la vista.
-const ACCIONES_FUERTES_4 = { ordago: 'fuerte', no_mus: 'corta', pedrete: 'fuerte' };
+const ACCIONES_FUERTES_4 = {
+    ordago: 'fuerte', no_mus: 'corta', pedrete: 'fuerte',
+    // La vuelta de cantes no es una jugada: se pinta más apagada, para que
+    // «pares sí» no compita visualmente con un envite.
+    pares_si: 'cante', pares_no: 'cante cante-no',
+    juego_si: 'cante', juego_no: 'cante cante-no',
+};
 
 socket.on('accion_4', (d) => {
     if (!enPartida4 || !d) return;
@@ -432,7 +516,7 @@ socket.on('accion_4', (d) => {
     const yo = estadoActual4 ? estadoActual4.mi_asiento : miAsiento4;
     if (yo === null || yo === undefined) return;
     const clave = 'acc_' + d.accion;
-    if (!dict[langActual] || !dict[langActual][clave]) return;
+    if (!_resolver(clave)) return;
     const texto = (d.cantidad === null || d.cantidad === undefined)
         ? t(clave)
         : t_dinamico(clave, { n: d.cantidad });
@@ -452,6 +536,15 @@ function actualizarMensajeYBotones4(d) {
 
     if (d.fase === 'recuento') {
         renderRecuento4(d);
+        return;
+    }
+
+    // Vuelta de cantes de Pares/Juego: la mesa está diciendo quién lleva la
+    // jugada. No hay turno de nadie ni botones que ofrecer hasta que acabe.
+    if (d.declarando) {
+        log.innerText = t(d.declarando === 'Pares' ? 'cantes_pares' : 'cantes_juego');
+        mostrarBotones4([]);
+        ocultarPanelesApuesta4();
         return;
     }
 

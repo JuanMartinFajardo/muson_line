@@ -6,7 +6,7 @@ Implementation guide for planned CallMus features, written so an agent can pick 
 - Every user-visible string goes into both `dict.es` and `dict.en` in [static/app.js](../static/app.js) and is rendered via `t()` / `data-i18n`. Server → client messages that need localization are sent as `{code, ...params}` objects.
 - New DB tables go in [base_datos.py](../base_datos.py) `init_db()` with `CREATE TABLE IF NOT EXISTS`.
 - Secrets/config via `os.environ`, never hardcoded.
-- Suggested priority order: ~~1 (login)~~ → ~~21 (bug fixes)~~ → ~~22 (settings menu)~~ → ~~23 (player codes)~~ → **14 (deck-exhausted notice) → 9 (turn timer) → 18 (resume bot games)** → ~~2 (tutorial i18n)~~ → ~~13 (admin)~~ → **16 (security) → 19 (stats)** → ~~3 (friends/groups)~~ → ~~5 (decks)~~ → **4 (tournaments)** — then the rest.
+- Suggested priority order: ~~1 (login)~~ → ~~21 (bug fixes)~~ → ~~22 (settings menu)~~ → ~~23 (player codes)~~ → ~~14 (deck-exhausted notice)~~ → **9 (turn timer) → 18 (resume bot games)** → ~~2 (tutorial i18n)~~ → ~~13 (admin)~~ → **16 (security) → 19 (stats)** → ~~3 (friends/groups)~~ → ~~5 (decks)~~ → **4 (tournaments)** — then the rest.
 
 ---
 
@@ -479,17 +479,18 @@ I need to know if this admin mode requires extra deployment in the server, or ju
 
 ---
 
-## 14. "Deck exhausted" notice
+## 14. "Deck exhausted" notice — ✅ DONE (2026-07-27)
 
-**Current behavior:** `PartidaMus.robar()` silently reshuffles the discard pile when the draw pile empties. Players sometimes get confused when repeated mus rounds exhaust the deck.
+**Was:** `robar()` silently reshuffled the discard pile when the draw pile emptied. Players got confused when repeated mus rounds exhausted the deck.
 
-**Steps:**
-1. In `robar()`, when the reshuffle branch triggers, set a flag: `self.baraja_agotada_aviso = True`.
-2. In `enviar_estado_a_jugadores`, include it in the payload once and reset it (`aviso_baraja: True`), or reuse the existing `mensaje_transicion` mechanism with a new code: `{'code': 'baraja_agotada'}` — the transition path is preferable because the client already renders those as dismissable notices.
-3. Client: add `msg_baraja_agotada` to both dicts — ES: "¡Se ha acabado la baraja! Se barajan los descartes."; EN: "The deck ran out! Reshuffling the discards." Render as a brief toast/transition (auto-dismiss ~2.5 s; don't require a click, it shouldn't interrupt flow).
-4. Rare edge: the reshuffle can happen mid-discard for both players; ensure the notice shows to both (room-wide flag, not per-player).
+**What was done (1v1 and 2v2, same design in both engines):**
+1. **Engine flag.** `PartidaMus.robar()` ([mus_mecanicas.py](../mus_mecanicas.py)) and `PartidaMus4.robar()` ([mus_mecanicas_4.py](../mus_mecanicas_4.py)) set `self.baraja_agotada_aviso = True` in the reshuffle branch. It is a **room-wide** flag (not per-player), so both/all four see the notice; `iniciar_ronda()` clears it, and it travels in `_CAMPOS_ESCALARES` so `fork()` / `to_state()` / `from_state()` keep it across saves and reconnections.
+2. **Server.** `enviar_estado_a_jugadores` ([server.py](../server.py)) and `enviar_estado_4` ([server_mus4.py](../server_mus4.py)) read the flag **once** before the per-player loop, send it as `aviso_baraja` in every payload of that broadcast, and reset it afterwards — so the notice arrives exactly once per reshuffle, to everyone at the table.
+3. **Client.** `msg_baraja_agotada` is in the three dicts of [app.js](../static/app.js) and [app4.js](../static/app4.js) (ES/EN/EU); the mesa handler calls the existing toast (`mostrarToastPartida` / `mostrarToast4`), which auto-dismisses on its own. Nothing to click, no phase change: the turn goes on underneath.
 
-**Acceptance:** playing many consecutive mus rounds triggers the notice exactly when the reshuffle happens, in the player's language, without blocking play.
+The transition-message channel (`mensaje_transicion`) was **not** used: it blocks the table until the player continues, and this notice must not interrupt play.
+
+**Acceptance (verified):** with a shortened deck, a bot game fires the notice at the exact moment of the reshuffle, once per reshuffle, in the player's language, and the hand continues without a click.
 
 ---
 
