@@ -8,9 +8,9 @@
 #
 # QUÉ MIDE
 #   Visitas, visitantes, duración de la visita, embudo visita→juego, partidas,
-#   altas, inicios de sesión, retención por cohortes de cuenta, y el reparto por
-#   fuente de tráfico, país, idioma, dispositivo, navegador, modo de juego y
-#   baraja.
+#   altas, inicios de sesión, retención por cohortes de cuenta, interés por el
+#   botón de Ko-fi, y el reparto por fuente de tráfico, país, idioma,
+#   dispositivo, navegador, modo de juego y baraja.
 #
 # POR QUÉ NO HACE FALTA UN AVISO DE COOKIES
 #   No se guarda NADA en el dispositivo del visitante para medir: ni cookie de
@@ -74,6 +74,7 @@ EVENTOS_CLIENTE = {
     'menu_jugar', 'menu_ranking', 'menu_ajustes', 'menu_tutorial', 'menu_barajas',
     'tutorial_fin', 'idioma', 'baraja', 'registro_abierto', 'login_abierto',
     'soporte_abierto', 'amigos_abierto', 'invitacion_enviada', 'error_cliente',
+    'kofi',
 }
 # Eventos que solo genera el servidor (no se aceptan por HTTP).
 EVENTOS_SERVIDOR = {
@@ -157,7 +158,9 @@ def init_db():
                 campana     TEXT,
                 landing     TEXT,
                 baraja      TEXT,
-                trafico_bot INTEGER DEFAULT 0
+                trafico_bot INTEGER DEFAULT 0,
+                kofi        INTEGER DEFAULT 0,   -- la visita pulsó Ko-fi
+                kofi_clics  INTEGER DEFAULT 0
             )''')
         c.execute('CREATE INDEX IF NOT EXISTS idx_ses_dia ON Sesiones(dia)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_ses_user ON Sesiones(user_id, dia)')
@@ -193,6 +196,8 @@ def init_db():
                 logins         INTEGER DEFAULT 0,
                 visitas_cuenta INTEGER DEFAULT 0,
                 cuentas        INTEGER DEFAULT 0,
+                kofi           INTEGER DEFAULT 0,   -- visitas que pulsaron Ko-fi
+                kofi_clics     INTEGER DEFAULT 0,   -- clics (una visita puede repetir)
                 consolidado    REAL
             )''')
         c.execute('''
@@ -207,6 +212,7 @@ def init_db():
                 jugaron        INTEGER DEFAULT 0,
                 partidas       INTEGER DEFAULT 0,
                 registros      INTEGER DEFAULT 0,
+                kofi           INTEGER DEFAULT 0,
                 PRIMARY KEY (dia, dimension, valor)
             )''')
         c.execute('''
@@ -220,9 +226,28 @@ def init_db():
                 partidas       INTEGER DEFAULT 0,
                 partidas_fin   INTEGER DEFAULT 0,
                 segundos_juego INTEGER DEFAULT 0,
+                kofi           INTEGER DEFAULT 0,
                 PRIMARY KEY (dia, user_id)
             )''')
         c.execute('CREATE INDEX IF NOT EXISTS idx_diausuario_user ON DiaUsuario(user_id, dia)')
+
+        # Migración de bases creadas antes de una columna nueva. Mismo patrón
+        # que base_datos.py: añadir columnas es la única forma de evolucionar
+        # el esquema sin perder el histórico ya medido.
+        _migrar(c, 'Sesiones', ('kofi', 'kofi_clics'))
+        _migrar(c, 'Dia', ('kofi', 'kofi_clics'))
+        _migrar(c, 'DiaDim', ('kofi',))
+        _migrar(c, 'DiaUsuario', ('kofi',))
+
+
+def _migrar(c, tabla, columnas):
+    """Añade las columnas que falten, todas INTEGER DEFAULT 0. SQLite rellena
+    las filas existentes con el valor por defecto."""
+    existentes = {r['name'] for r in c.execute(f"PRAGMA table_info({tabla})")}
+    for col in columnas:
+        if col not in existentes:
+            c.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} INTEGER DEFAULT 0")
+            print(f"🛠️ Analítica: columna {tabla}.{col} añadida.")
 
 
 # ==========================================================================
@@ -374,6 +399,8 @@ def _nueva_sesion(clave, ahora):
         'landing': (request.path or '/')[:80],
         'baraja': None,
         'trafico_bot': 1 if _RE_BOT.search(ua) else 0,
+        'kofi': 0,
+        'kofi_clics': 0,
         'sucia': True,
     }
     if username:
@@ -498,9 +525,18 @@ def _evento_interno(tipo, etiqueta, valor, username, modo, por_usuario=False):
             s['logueado'] = 1
         elif tipo == 'baraja' and etiqueta:
             s['baraja'] = etiqueta[:40]
+        elif tipo == 'kofi':
+            s['kofi'] = 1
+            s['kofi_clics'] += 1
         if username and not s.get('username'):
             s['username'] = username
             s['user_id'] = _id_de(username)
+
+    if tipo == 'kofi':
+        # La etiqueta la pone el servidor, no el cliente (el endpoint es
+        # público): dice si el clic llegó antes o después de jugar, que es lo
+        # que de verdad interesa saber de un botón de apoyo.
+        etiqueta = 'tras jugar' if (s and s['jugo']) else 'sin jugar'
 
     etiqueta_final = etiqueta or modo
     _eventos_pend.append({
@@ -527,7 +563,7 @@ _COLUMNAS = ('visitante', 'dia', 'inicio', 'fin', 'activo', 'vistas', 'eventos',
              'user_id', 'username', 'logueado', 'registro', 'login', 'interactuo',
              'jugo', 'partidas', 'partidas_fin', 'segundos_juego', 'modos', 'pais',
              'idioma', 'dispositivo', 'navegador', 'so', 'fuente', 'medio',
-             'campana', 'landing', 'baraja', 'trafico_bot')
+             'campana', 'landing', 'baraja', 'trafico_bot', 'kofi', 'kofi_clics')
 
 
 def _valores(s):
@@ -617,6 +653,8 @@ def consolidar(dia):
             'logins': sum(f['login'] or 0 for f in filas),
             'visitas_cuenta': sum(1 for f in filas if f['logueado']),
             'cuentas': len({f['user_id'] for f in filas if f['user_id']}),
+            'kofi': sum(1 for f in filas if f['kofi']),
+            'kofi_clics': sum(f['kofi_clics'] or 0 for f in filas),
         }
         columnas = list(total.keys())
         c.execute("DELETE FROM Dia WHERE dia = ?", (dia,))
@@ -632,7 +670,8 @@ def consolidar(dia):
                 valor = 'desconocido'
             k = (dim, str(valor)[:60])
             d = acc.setdefault(k, dict(visitas=0, duracion_total=0, activo_total=0,
-                                       rebotes=0, jugaron=0, partidas=0, registros=0))
+                                       rebotes=0, jugaron=0, partidas=0, registros=0,
+                                       kofi=0))
             d['visitas'] += 1
             d['duracion_total'] += int(f['fin'] - f['inicio'])
             d['activo_total'] += f['activo'] or 0
@@ -640,6 +679,7 @@ def consolidar(dia):
             d['jugaron'] += 1 if f['jugo'] else 0
             d['partidas'] += f['partidas'] or 0
             d['registros'] += f['registro'] or 0
+            d['kofi'] += 1 if f['kofi'] else 0
 
         for f in filas:
             for dim, col in _DIMENSIONES_SESION.items():
@@ -654,15 +694,28 @@ def consolidar(dia):
         for r in c.execute("SELECT tipo, COUNT(*) n FROM Eventos WHERE dia = ? GROUP BY tipo", (dia,)):
             k = ('evento', r['tipo'])
             acc.setdefault(k, dict(visitas=0, duracion_total=0, activo_total=0,
-                                   rebotes=0, jugaron=0, partidas=0, registros=0))
+                                   rebotes=0, jugaron=0, partidas=0, registros=0,
+                                   kofi=0))
             acc[k]['visitas'] = r['n']
+
+        # Ko-fi como dimensión propia: el clic se etiqueta en el servidor con
+        # «tras jugar» / «sin jugar», que es lo que dice si la gente apoya el
+        # proyecto después de haberlo probado o solo de pasada.
+        for r in c.execute("SELECT COALESCE(etiqueta,'desconocido') e, COUNT(*) n "
+                           "FROM Eventos WHERE dia = ? AND tipo = 'kofi' GROUP BY e", (dia,)):
+            k = ('kofi', r['e'])
+            acc.setdefault(k, dict(visitas=0, duracion_total=0, activo_total=0,
+                                   rebotes=0, jugaron=0, partidas=0, registros=0,
+                                   kofi=0))
+            acc[k]['visitas'] = r['n']
+            acc[k]['kofi'] = r['n']
 
         c.execute("DELETE FROM DiaDim WHERE dia = ?", (dia,))
         c.executemany(
             "INSERT INTO DiaDim (dia,dimension,valor,visitas,duracion_total,activo_total,"
-            "rebotes,jugaron,partidas,registros) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "rebotes,jugaron,partidas,registros,kofi) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             [(dia, dim, val, d['visitas'], d['duracion_total'], d['activo_total'],
-              d['rebotes'], d['jugaron'], d['partidas'], d['registros'])
+              d['rebotes'], d['jugaron'], d['partidas'], d['registros'], d['kofi'])
              for (dim, val), d in acc.items()])
 
         # --- por cuenta ----------------------------------------------------
@@ -672,7 +725,7 @@ def consolidar(dia):
                 continue
             d = por_usuario.setdefault(f['user_id'], dict(
                 username=f['username'], visitas=0, duracion_total=0, activo_total=0,
-                partidas=0, partidas_fin=0, segundos_juego=0))
+                partidas=0, partidas_fin=0, segundos_juego=0, kofi=0))
             d['username'] = f['username'] or d['username']
             d['visitas'] += 1
             d['duracion_total'] += int(f['fin'] - f['inicio'])
@@ -680,12 +733,14 @@ def consolidar(dia):
             d['partidas'] += f['partidas'] or 0
             d['partidas_fin'] += f['partidas_fin'] or 0
             d['segundos_juego'] += f['segundos_juego'] or 0
+            d['kofi'] += f['kofi_clics'] or 0
         c.execute("DELETE FROM DiaUsuario WHERE dia = ?", (dia,))
         c.executemany(
             "INSERT INTO DiaUsuario (dia,user_id,username,visitas,duracion_total,"
-            "activo_total,partidas,partidas_fin,segundos_juego) VALUES (?,?,?,?,?,?,?,?,?)",
+            "activo_total,partidas,partidas_fin,segundos_juego,kofi) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
             [(dia, uid, d['username'], d['visitas'], d['duracion_total'], d['activo_total'],
-              d['partidas'], d['partidas_fin'], d['segundos_juego'])
+              d['partidas'], d['partidas_fin'], d['segundos_juego'], d['kofi'])
              for uid, d in por_usuario.items()])
 
 
@@ -742,7 +797,7 @@ def resumen(desde, hasta):
 
     campos = ('visitas', 'duracion_total', 'activo_total', 'rebotes', 'interactuaron',
               'jugaron', 'partidas', 'partidas_fin', 'segundos_juego', 'registros',
-              'logins', 'visitas_cuenta')
+              'logins', 'visitas_cuenta', 'kofi', 'kofi_clics')
     tot = {k: sum(f[k] or 0 for f in filas) for k in campos}
     # Los visitantes únicos no se pueden sumar entre días (el hash rota cada
     # día): lo que se enseña es la suma de únicos diarios, y se dice.
@@ -755,11 +810,16 @@ def resumen(desde, hasta):
     tot['tasa_juego'] = round(100.0 * tot['jugaron'] / tot['visitas'], 1) if tot['visitas'] else 0
     tot['tasa_alta'] = round(100.0 * tot['registros'] / tot['visitas'], 2) if tot['visitas'] else 0
     tot['partidas_por_jugador'] = round(tot['partidas'] / tot['jugaron'], 2) if tot['jugaron'] else 0
+    # CTR del botón de Ko-fi: visitas que lo pulsaron sobre el total de visitas.
+    tot['tasa_kofi'] = round(100.0 * tot['kofi'] / tot['visitas'], 2) if tot['visitas'] else 0
+    tot['kofi_por_jugador'] = (round(100.0 * tot['kofi'] / tot['jugaron'], 2)
+                               if tot['jugaron'] else 0)
 
     serie = [{'dia': f['dia'],
               'visitas': f['visitas'], 'visitantes': f['visitantes'],
               'jugaron': f['jugaron'], 'partidas': f['partidas'],
               'registros': f['registros'], 'logins': f['logins'],
+              'kofi': f['kofi'] or 0, 'kofi_clics': f['kofi_clics'] or 0,
               'activo_medio': round((f['activo_total'] or 0) / f['visitas'], 1) if f['visitas'] else 0,
               'tasa_juego': round(100.0 * f['jugaron'] / f['visitas'], 1) if f['visitas'] else 0}
              for f in filas]
@@ -775,7 +835,8 @@ def _rellenar_huecos(serie, desde, hasta):
         k = d.isoformat()
         salida.append(porfecha.get(k, {'dia': k, 'visitas': 0, 'visitantes': 0,
                                        'jugaron': 0, 'partidas': 0, 'registros': 0,
-                                       'logins': 0, 'activo_medio': 0, 'tasa_juego': 0}))
+                                       'logins': 0, 'kofi': 0, 'kofi_clics': 0,
+                                       'activo_medio': 0, 'tasa_juego': 0}))
         d += timedelta(days=1)
     return salida
 
@@ -800,7 +861,7 @@ def dimension(dim, desde, hasta, limite=40):
         filas = [dict(r) for r in c.execute(
             "SELECT valor, SUM(visitas) visitas, SUM(duracion_total) duracion_total, "
             "SUM(activo_total) activo_total, SUM(rebotes) rebotes, SUM(jugaron) jugaron, "
-            "SUM(partidas) partidas, SUM(registros) registros "
+            "SUM(partidas) partidas, SUM(registros) registros, SUM(kofi) kofi "
             "FROM DiaDim WHERE dimension = ? AND dia BETWEEN ? AND ? "
             "GROUP BY valor ORDER BY visitas DESC LIMIT ?",
             (dim, desde, hasta, limite))]
@@ -809,6 +870,7 @@ def dimension(dim, desde, hasta, limite=40):
         f['activo_medio'] = round((f['activo_total'] or 0) / v, 1) if v else 0
         f['tasa_rebote'] = round(100.0 * (f['rebotes'] or 0) / v, 1) if v else 0
         f['tasa_juego'] = round(100.0 * (f['jugaron'] or 0) / v, 1) if v else 0
+        f['tasa_kofi'] = round(100.0 * (f['kofi'] or 0) / v, 2) if v else 0
     return filas
 
 
@@ -838,7 +900,7 @@ def usuarios(desde, hasta, orden='activo_total', limite=100, busca=''):
     desde, hasta = _rango(desde, hasta)
     _asegurar_dia_vivo(desde, hasta)
     ordenes = {'visitas', 'duracion_total', 'activo_total', 'partidas',
-               'partidas_fin', 'segundos_juego', 'dias', 'ultima'}
+               'partidas_fin', 'segundos_juego', 'dias', 'ultima', 'kofi'}
     if orden not in ordenes:
         orden = 'activo_total'
     with _conn() as c:
@@ -846,7 +908,8 @@ def usuarios(desde, hasta, orden='activo_total', limite=100, busca=''):
             "SELECT user_id, MAX(username) username, COUNT(DISTINCT dia) dias, "
             "MAX(dia) ultima, SUM(visitas) visitas, SUM(duracion_total) duracion_total, "
             "SUM(activo_total) activo_total, SUM(partidas) partidas, "
-            "SUM(partidas_fin) partidas_fin, SUM(segundos_juego) segundos_juego "
+            "SUM(partidas_fin) partidas_fin, SUM(segundos_juego) segundos_juego, "
+            "SUM(kofi) kofi "
             "FROM DiaUsuario WHERE dia BETWEEN ? AND ? GROUP BY user_id "
             "ORDER BY %s DESC LIMIT ?" % orden, (desde, hasta, limite))]
     if busca:
@@ -863,7 +926,7 @@ def detalle_usuario(user_id, dias=90):
     with _conn() as c:
         serie = [dict(r) for r in c.execute(
             "SELECT dia, visitas, duracion_total, activo_total, partidas, partidas_fin, "
-            "segundos_juego FROM DiaUsuario WHERE user_id = ? AND dia >= ? ORDER BY dia",
+            "segundos_juego, kofi FROM DiaUsuario WHERE user_id = ? AND dia >= ? ORDER BY dia",
             (user_id, desde))]
         eventos = [dict(r) for r in c.execute(
             "SELECT tipo, COUNT(*) n FROM Eventos WHERE user_id = ? AND dia >= ? "
@@ -939,11 +1002,13 @@ def en_vivo():
             'pais': s['pais'], 'dispositivo': s['dispositivo'],
             'fuente': s['fuente'], 'jugo': bool(s['jugo']),
             'partidas': s['partidas'],
+            'kofi': bool(s['kofi']),
             'inactivo': int(ahora - s['fin']),
         } for s in sorted(vivas, key=lambda x: -x['fin'])[:60]]
     return {'visitas': len(vivas),
             'con_cuenta': sum(1 for d in detalle if d['username']),
             'jugando': sum(1 for d in detalle if d['jugo']),
+            'kofi': sum(1 for d in detalle if d['kofi']),
             'detalle': detalle}
 
 
@@ -952,7 +1017,7 @@ def csv_dias(desde, hasta):
     _asegurar_dia_vivo(desde, hasta)
     cols = ('dia', 'visitas', 'visitantes', 'duracion_total', 'activo_total', 'rebotes',
             'interactuaron', 'jugaron', 'partidas', 'partidas_fin', 'segundos_juego',
-            'registros', 'logins', 'visitas_cuenta', 'cuentas')
+            'registros', 'logins', 'visitas_cuenta', 'cuentas', 'kofi', 'kofi_clics')
     lineas = [';'.join(cols)]
     with _conn() as c:
         for r in c.execute("SELECT * FROM Dia WHERE dia BETWEEN ? AND ? ORDER BY dia",
@@ -1106,7 +1171,7 @@ def init_analitica(app, socketio, ctx):
     def an_dimension():
         desde, hasta = _fechas()
         dim = request.args.get('dim', 'fuente')
-        if dim not in set(_DIMENSIONES_SESION) | {'modo', 'evento'}:
+        if dim not in set(_DIMENSIONES_SESION) | {'modo', 'evento', 'kofi'}:
             return jsonify({'exito': False, 'mensaje': 'dimension_desconocida'}), 400
         return jsonify({'exito': True, 'dim': dim,
                         'filas': dimension(dim, desde, hasta,

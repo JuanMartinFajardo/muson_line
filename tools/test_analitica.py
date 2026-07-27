@@ -80,6 +80,9 @@ c.post('/api/a/latido', json={'activo': 90},
        headers={'User-Agent': UA_MOVIL, 'X-Forwarded-For': '10.0.0.1'})
 c.post('/api/a/evento', json={'tipo': 'menu_jugar'},
        headers={'User-Agent': UA_MOVIL, 'X-Forwarded-For': '10.0.0.1'})
+# …y después de jugar pulsa Ko-fi.
+c.post('/api/a/evento', json={'tipo': 'kofi'},
+       headers={'User-Agent': UA_MOVIL, 'X-Forwarded-For': '10.0.0.1'})
 
 # Visitante B: escritorio, campaña utm, entra y no hace nada (rebote).
 c.get('/?utm_source=newsletter&utm_medium=email&utm_campaign=lanzamiento',
@@ -90,6 +93,10 @@ c.get('/?utm_source=newsletter&utm_medium=email&utm_campaign=lanzamiento',
 c.get('/', headers={'User-Agent': UA_ESCRITORIO, 'X-Forwarded-For': '10.0.0.3'})
 c.post('/api/a/evento', json={'tipo': 'menu_ranking'},
        headers={'User-Agent': UA_ESCRITORIO, 'X-Forwarded-For': '10.0.0.3'})
+# Pulsa Ko-fi dos veces sin haber jugado: 2 clics pero 1 sola visita.
+for _ in range(2):
+    c.post('/api/a/evento', json={'tipo': 'kofi', 'etiqueta': 'me lo invento'},
+           headers={'User-Agent': UA_ESCRITORIO, 'X-Forwarded-For': '10.0.0.3'})
 
 # Un crawler: tiene que quedarse fuera de las cifras.
 c.get('/', headers={'User-Agent': UA_BOT, 'X-Forwarded-For': '10.0.0.9'})
@@ -103,7 +110,8 @@ hoy = datetime.date.today().isoformat()
 r = json.loads(c.get(f'/admin/api/analitica/resumen?desde={hoy}&hasta={hoy}').data)
 t = r['actual']['totales']
 print('   totales:', {k: t[k] for k in ('visitas', 'visitantes', 'jugaron', 'partidas',
-                                        'partidas_fin', 'rebotes', 'interactuaron')})
+                                        'partidas_fin', 'rebotes', 'interactuaron',
+                                        'kofi', 'kofi_clics')})
 comprobar('3 visitas humanas (el crawler y los estáticos fuera)', t['visitas'] == 3, t['visitas'])
 comprobar('1 visita jugó', t['jugaron'] == 1, t['jugaron'])
 comprobar('1 partida empezada y 1 terminada',
@@ -111,6 +119,9 @@ comprobar('1 partida empezada y 1 terminada',
 comprobar('1 rebote (el de la newsletter)', t['rebotes'] == 1, t['rebotes'])
 comprobar('tiempo activo del latido registrado', t['activo_total'] == 90, t['activo_total'])
 comprobar('tasa de juego = 33,3 %', abs(t['tasa_juego'] - 33.3) < 0.2, t['tasa_juego'])
+comprobar('2 visitas pulsaron Ko-fi', t['kofi'] == 2, t['kofi'])
+comprobar('3 clics de Ko-fi (una visita repitió)', t['kofi_clics'] == 3, t['kofi_clics'])
+comprobar('CTR de Ko-fi = 66,67 %', abs(t['tasa_kofi'] - 66.67) < 0.1, t['tasa_kofi'])
 
 print('\n2. Nada de IP ni de datos personales en disco')
 import sqlite3
@@ -134,6 +145,21 @@ d = json.loads(c.get(f'/admin/api/analitica/dimension?dim=evento&desde={hoy}&has
 tipos = {f['valor']: f['visitas'] for f in d['filas']}
 comprobar('eventos registrados', tipos.get('pagina') == 4 and tipos.get('partida_fin') == 1, tipos)
 
+# Ko-fi: la etiqueta la pone el servidor según si la visita ya había jugado, y
+# la que mandó el cliente («me lo invento») se ignora.
+d = json.loads(c.get(f'/admin/api/analitica/dimension?dim=kofi&desde={hoy}&hasta={hoy}').data)
+momentos = {f['valor']: f['visitas'] for f in d['filas']}
+comprobar('Ko-fi partido en «tras jugar» (1) y «sin jugar» (2)',
+          momentos.get('tras jugar') == 1 and momentos.get('sin jugar') == 2, momentos)
+comprobar('la etiqueta de Ko-fi no la decide el cliente',
+          'me lo invento' not in momentos, momentos)
+
+# El desglose por dimensión trae la columna de Ko-fi: quién apoya, por origen.
+d = json.loads(c.get(f'/admin/api/analitica/dimension?dim=dispositivo&desde={hoy}&hasta={hoy}').data)
+porkofi = {f['valor']: f['kofi'] for f in d['filas']}
+comprobar('el desglose por dispositivo reparte los Ko-fi',
+          porkofi.get('móvil') == 1 and porkofi.get('escritorio') == 1, porkofi)
+
 print('\n4. Embudo')
 emb = {p['paso']: p['n'] for p in r['embudo']}
 print('   ', emb)
@@ -143,6 +169,7 @@ print('\n5. En vivo')
 v = json.loads(c.get('/admin/api/analitica/en_vivo').data)['vivo']
 comprobar('3 visitas vivas (sin el crawler)', v['visitas'] == 3, v['visitas'])
 comprobar('1 jugando', v['jugando'] == 1, v['jugando'])
+comprobar('2 con Ko-fi pulsado', v['kofi'] == 2, v['kofi'])
 
 print('\n6. Atribución a cuenta y borrado del rastro')
 import base_datos
@@ -156,6 +183,7 @@ with app.test_request_context('/', headers={'User-Agent': UA_ESCRITORIO,
     analitica.pagina('/')
     analitica.evento('login', username=USUARIO_PRUEBA)
     analitica.evento('partida_inicio', modo='online2', username=USUARIO_PRUEBA)
+    analitica.evento('kofi')
 analitica.evento('partida_fin', modo='online2', valor=600,
                  username=USUARIO_PRUEBA, por_usuario=True)
 analitica.volcar()
@@ -165,6 +193,7 @@ comprobar('la cuenta aparece en «por usuario»', len(mio) == 1, [x['username'] 
 if mio:
     comprobar('con 1 partida empezada y 1 terminada',
               mio[0]['partidas'] == 1 and mio[0]['partidas_fin'] == 1, mio[0])
+    comprobar('con su clic de Ko-fi atribuido', mio[0]['kofi'] == 1, mio[0]['kofi'])
     det = json.loads(c.get(f"/admin/api/analitica/usuarios/{mio[0]['user_id']}").data)
     comprobar('el detalle por día responde', det['exito'] and det['detalle']['serie'])
 

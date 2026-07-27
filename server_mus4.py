@@ -779,6 +779,13 @@ def procesar_accion_4(seat, codigo, datos):
             enviar_estado_4(codigo)
             return
         elif accion in ('pasar', 'envidar', 'subir', 'ver', 'ordago', 'nover') and motor.fase == 'apuestas':
+            # El motor sabe qué puede hacer cada asiento AHORA (turno, topes de
+            # 40 y, sobre todo, las reglas que no vigila `accion_apuesta`: a
+            # Pares/Juego no apuesta quien no lleva la jugada, aunque la lleve
+            # su compañero). Sin este filtro un cliente manipulado —o uno con
+            # los botones desfasados— podía envidar a unos pares que no tiene.
+            if accion not in motor.acciones_legales(seat):
+                return
             motor.accion_apuesta(seat, accion, datos.get('cantidad', 0))
             # La cantidad se lee DESPUÉS de jugar: el motor recorta el envite al
             # tope legal (lo que falta para 40) y lo convierte en órdago si ya no
@@ -990,6 +997,11 @@ def enviar_estado_4(codigo):
             'partidas': motor.partidas_ganadas,
             'al_mejor_de': motor.al_mejor_de,
             'apuestas': info_apuestas,
+            # Lo que este asiento puede hacer ahora mismo, ya filtrado por el
+            # motor (la misma lista que consumen los bots). El cliente pinta los
+            # botones a partir de ella, así que la mesa nunca ofrece una jugada
+            # que el servidor vaya a rechazar.
+            'acciones_legales': motor.acciones_legales(seat),
             'mensaje': mensaje,
             'mensaje_transicion': motor.mensaje_transicion,
             'recuento': datos_recuento,

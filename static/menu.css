@@ -44,6 +44,10 @@
     /* Equipos del 2v2: en el menú el oro eres tú, el acero son los rivales. */
     --equipo-a: #C9A227;
     --equipo-b: #7C93B8;
+
+    /* Lo que tarda el oro en saltar de una pinta a la siguiente bajo el logo.
+       index.html lo sobrescribe con lo que diga el administrador. */
+    --cm-orn-paso: 1s;
 }
 
 /* El sprite de las pintas no debe ocupar sitio. */
@@ -162,6 +166,25 @@
 .cm-orn { display: inline-flex; align-items: center; gap: 11px; }
 .cm-orn .pinta { width: 14px; height: 14px; }
 .cm-orn .pinta:nth-child(3) { color: var(--cm-gold); }
+
+/* El oro pasea por las cuatro pintas: oros → copas → espadas → bastos y vuelta
+   a empezar. Las formas no se mueven; sólo cambia cuál está encendida. El paso
+   lo fija el administrador (`menu_pintas_ms`); con 0 no arranca la animación y
+   el oro se queda quieto en las espadas, que es la regla de arriba. */
+.cm-orn-ciclo .pinta {
+    animation: cm-orn-oro calc(var(--cm-orn-paso) * 4) linear infinite;
+}
+/* Retardos negativos: al cargar la página el ciclo ya está en marcha, así
+   ninguna pinta se queda encendida de más esperando su turno. */
+.cm-orn-ciclo .pinta:nth-child(2) { animation-delay: calc(var(--cm-orn-paso) * -3); }
+.cm-orn-ciclo .pinta:nth-child(3) { animation-delay: calc(var(--cm-orn-paso) * -2); }
+.cm-orn-ciclo .pinta:nth-child(4) { animation-delay: calc(var(--cm-orn-paso) * -1); }
+
+@keyframes cm-orn-oro {
+    0%, 10%   { color: var(--cm-dim-2); }
+    15%, 35%  { color: var(--cm-gold); }
+    40%, 100% { color: var(--cm-dim-2); }
+}
 
 #anuncios-fijados:not(:empty) { margin: 4px 0 16px; }
 #menu-screen .anuncio-fijado {
@@ -520,6 +543,114 @@
 }
 .cm-switch.is-soon .cm-switch-txt b { color: var(--cm-dim); }
 .cm-switch.is-soon .cm-switch-box { opacity: 0.4; }
+
+/* Interruptor con un [?] al lado (las señas). El filete de abajo pasa a la
+   fila: el interruptor ya no llega al borde. */
+.cm-switch-fila {
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--cm-hair);
+}
+.cm-switch-fila .cm-switch { flex: 1 1 auto; border-bottom: 0; }
+.cm-help-dot {
+    flex: 0 0 auto;
+    width: 22px; height: 22px;
+    padding: 0;
+    background: none;
+    border: 1px solid var(--cm-hair-2); border-radius: 50%;
+    color: var(--cm-dim);
+    font-family: var(--cm-serif); font-size: 0.76rem; line-height: 1;
+    cursor: pointer;
+    transition: .2s;
+}
+.cm-help-dot:hover { border-color: var(--cm-gold); color: var(--cm-gold-hi); }
+
+/* ------------------------------------------------------------
+   Ventana flotante de ayuda (la de las señas la monta menu.js)
+   ------------------------------------------------------------ */
+.cm-ayuda-velo {
+    position: fixed; inset: 0; z-index: 3200;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0; pointer-events: none;
+    transition: opacity .22s ease;
+}
+.cm-ayuda-velo.abierto { opacity: 1; pointer-events: auto; }
+
+.cm-ayuda {
+    position: fixed; left: 50%; top: 50%;
+    transform: translate(-50%, -46%);
+    z-index: 3300;
+    box-sizing: border-box;
+    width: min(430px, 92vw); max-height: 80vh; overflow-y: auto;
+    padding: 18px 18px 16px;
+    background: var(--cm-ink-3);
+    border: 1px solid var(--cm-hair-2);
+    /* El filete de oro arriba es lo que la despega del fondo, que es casi del
+       mismo negro que la ventana. */
+    border-top: 2px solid var(--cm-gold);
+    border-radius: 3px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75);
+    opacity: 0; pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+}
+.cm-ayuda.abierta { opacity: 1; transform: translate(-50%, -50%); pointer-events: auto; }
+
+.cm-ayuda h3 {
+    margin: 0 0 3px;
+    font-family: var(--cm-serif); font-weight: 400;
+    font-size: 0.95rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cm-gold);
+}
+.cm-ayuda .cm-ayuda-sub { margin: 0 0 12px; font-size: 0.74rem; color: var(--cm-dim); }
+.cm-ayuda-bloque { border-top: 1px solid var(--cm-hair); padding: 10px 0; }
+.cm-ayuda-bloque b { display: block; margin-bottom: 4px; font-size: 0.79rem; color: var(--cm-bone); }
+.cm-ayuda-bloque p { margin: 0; font-size: 0.76rem; line-height: 1.5; color: var(--cm-dim); }
+.cm-ayuda-bloque p + p { margin-top: 5px; }
+.cm-ayuda-bloque em { color: var(--cm-bone); font-style: normal; }
+
+/* Las cuatro regiones de foco, dibujadas como se ven en la mesa. */
+.cm-ayuda-mesa {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 6px; margin: 2px 0 10px;
+}
+.cm-ayuda-mesa .r-t { grid-column: 2; grid-row: 1; }
+.cm-ayuda-mesa .r-l { grid-column: 1; grid-row: 2; }
+.cm-ayuda-mesa .r-c { grid-column: 2; grid-row: 2; }
+.cm-ayuda-mesa .r-r { grid-column: 3; grid-row: 2; }
+.cm-ayuda-mesa .r-b { grid-column: 2; grid-row: 3; }
+.cm-ayuda-reg {
+    padding: 7px 4px;
+    background: var(--cm-ink-2);
+    border: 1px solid var(--cm-hair);
+    border-radius: 2px;
+    font-size: 0.68rem; color: var(--cm-bone); text-align: center;
+}
+.cm-ayuda-reg small { display: block; margin-top: 3px; color: var(--cm-dim); }
+.cm-ayuda-reg.centro {
+    background: none; border: 0;
+    color: var(--cm-dim-2); font-size: 0.63rem; line-height: 1.35;
+}
+.cm-tecla {
+    display: inline-block; min-width: 16px; padding: 1px 4px;
+    background: var(--cm-ink-2);
+    border: 1px solid var(--cm-hair-2); border-bottom-width: 2px;
+    border-radius: 3px;
+    font-family: monospace; font-size: 0.68rem; color: var(--cm-bone);
+}
+
+.cm-ayuda-pie { display: flex; gap: 8px; margin-top: 12px; }
+.cm-ayuda-pie button {
+    flex: 1 1 0;
+    padding: 9px 8px;
+    background: none;
+    border: 1px solid var(--cm-hair);
+    border-radius: 2px;
+    color: var(--cm-dim);
+    font-size: 0.68rem; letter-spacing: 0.11em; text-transform: uppercase;
+    cursor: pointer;
+    transition: .2s;
+}
+.cm-ayuda-pie button:hover { border-color: var(--cm-gold); color: var(--cm-gold-hi); }
+.cm-ayuda-pie .cm-ayuda-mas { border-color: var(--cm-hair-2); color: var(--cm-bone); }
 
 /* Asientos del 2v2 (el HTML lo genera app4.js con .seat-pick-btn) */
 .cm-seats { padding: 16px 0 2px; }
@@ -891,7 +1022,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .cm-live-dot, .cm-wait .anim-parpadeo { animation: none; }
+    .cm-live-dot, .cm-wait .anim-parpadeo, .cm-orn-ciclo .pinta { animation: none; }
     .cm-play, .cm-play::before, .cm-play-arrow, .cm-row .pinta,
     .cm-toast, .cm-icon-btn, .cm-opt, .cm-mode { transition: none; }
 }

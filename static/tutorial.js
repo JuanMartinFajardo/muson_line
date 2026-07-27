@@ -50,6 +50,116 @@ tutStyles.innerHTML = `
         display: block;
         text-align: center;
     }
+
+    /* ---------- Índice: las tres pistas ---------- */
+    .tut-hub { display: flex; flex-direction: column; gap: 12px; }
+    .tut-hub-btn {
+        display: flex; align-items: center; gap: 14px;
+        width: 100%; padding: 15px 14px;
+        background: #3b4252;
+        border: 1px solid #4c566a;
+        border-left: 4px solid var(--tc, #a3be8c);
+        border-radius: 8px;
+        color: #eceff4; text-align: left; cursor: pointer;
+        transition: background 0.18s ease, transform 0.18s ease;
+    }
+    .tut-hub-btn:hover { background: #434c5e; transform: translateX(3px); }
+    .tut-hub-ico { flex: 0 0 40px; font-size: 1.8em; text-align: center; }
+    .tut-hub-btn b { display: block; color: var(--tc, #a3be8c); font-size: 1.05em; margin-bottom: 3px; }
+    .tut-hub-btn small { display: block; color: #d8dee9; font-size: 0.85em; font-weight: normal; line-height: 1.35; }
+
+    /* ---------- Piezas comunes de las diapositivas nuevas ---------- */
+    .tut-lead { font-size: 1.05em; color: #eceff4; margin: 0 0 16px; }
+    .tut-col { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+    .tut-box {
+        background: #3b4252;
+        border-left: 4px solid var(--tc, #88c0d0);
+        border-radius: 4px;
+        padding: 10px 14px;
+        text-align: left;
+    }
+    .tut-box .tt { display: block; color: var(--tc, #88c0d0); font-weight: bold; font-size: 1.02em; margin-bottom: 5px; }
+    .tut-box p { margin: 0; font-size: 0.92em; color: #d8dee9; line-height: 1.45; }
+    .tut-box p + p { margin-top: 7px; }
+    .tut-tip {
+        background: rgba(235, 203, 139, 0.1);
+        border-left: 4px solid #ebcb8b;
+        border-radius: 0 4px 4px 0;
+        padding: 10px 12px; margin-top: 14px;
+        color: #eceff4; font-size: 0.92em; text-align: left; line-height: 1.45;
+    }
+    .tut-nota { display: block; margin-top: 16px; font-size: 0.82em; color: #88c0d0; opacity: 0.75; font-style: italic; }
+    .tut-goto {
+        display: block; width: 100%; margin-top: 16px; padding: 12px;
+        background: #4c566a; color: #eceff4;
+        border: none; border-radius: 8px;
+        font-size: 0.95em; font-weight: bold; cursor: pointer;
+        transition: background 0.18s ease;
+    }
+    .tut-goto:hover { background: #5e6b82; }
+    .tut-key {
+        display: inline-block; min-width: 20px; padding: 1px 6px;
+        background: #2e3440; border: 1px solid #4c566a; border-bottom-width: 2px;
+        border-radius: 4px;
+        font-family: monospace; font-size: 0.85em; color: #eceff4;
+    }
+
+    /* ---------- La mesa de cuatro (asientos / regiones de foco) ---------- */
+    .tut-mesa {
+        display: grid; grid-template-columns: repeat(3, 1fr);
+        gap: 8px; align-items: center;
+        margin: 0 auto 16px; max-width: 340px;
+    }
+    .tut-mesa .s-t { grid-column: 2; grid-row: 1; }
+    .tut-mesa .s-l { grid-column: 1; grid-row: 2; }
+    .tut-mesa .s-c { grid-column: 2; grid-row: 2; }
+    .tut-mesa .s-r { grid-column: 3; grid-row: 2; }
+    .tut-mesa .s-b { grid-column: 2; grid-row: 3; }
+    .tut-seat {
+        background: #3b4252; border: 1px solid #4c566a; border-radius: 8px;
+        padding: 8px 5px; font-size: 0.78em; color: #d8dee9; text-align: center;
+    }
+    .tut-seat b { display: block; color: #eceff4; font-size: 1.05em; }
+    .tut-seat small { display: block; color: #88c0d0; font-size: 0.92em; }
+    .tut-seat.eqA { border-color: #ebcb8b; }
+    .tut-seat.eqB { border-color: #81a1c1; }
+    .tut-seat.yo { background: #434c5e; }
+    .tut-mesa-centro { font-size: 0.72em; color: #6c7686; text-align: center; line-height: 1.4; }
+
+    /* ---------- Fichas de seña (la cara hace el gesto en bucle) ---------- */
+    .tut-senas { display: flex; flex-direction: column; gap: 8px; }
+    .tut-sena {
+        display: flex; align-items: center; gap: 12px;
+        background: #3b4252; border: 1px solid #434c5e; border-radius: 6px;
+        padding: 7px 10px; text-align: left;
+    }
+    /* La caja respeta el 64x74 del viewBox de la cara: los gestos de boca hay
+       que poder distinguirlos, así que no se puede achatar. */
+    .tut-sena-cara { flex: 0 0 52px; width: 52px; height: 60px; }
+    .tut-sena-txt { flex: 1 1 auto; min-width: 0; }
+    .tut-sena-nom { display: block; color: #ebcb8b; font-weight: bold; font-size: 0.9em; }
+    .tut-sena-mano { display: block; color: #eceff4; font-size: 0.84em; }
+    .tut-sena-gesto { display: block; color: #88c0d0; font-size: 0.78em; font-style: italic; }
+
+    /* El título tiene que dejar sitio a los dos botones redondos de las esquinas
+       (índice y cerrar), que van por encima del contenido. */
+    .tut-titulo { padding: 0 42px; }
+
+    /* El contenido va centrado en vertical, pero cuando no cabe hay que dejar
+       de centrarlo: si no, se recorta por ARRIBA y no hay forma de subir. El
+       !important es porque el centrado viene en el style= del propio div; si el
+       navegador no entiende "safe", tira la regla entera y se queda como estaba. */
+    #tutorial-content { justify-content: safe center !important; }
+
+    @media (max-width: 480px) {
+        .tut-titulo { padding: 0 40px; font-size: 1.45em !important; }
+        /* Con trece diapositivas los puntitos se comen la barra: en un móvil se
+           encogen para que los dos botones quepan enteros. */
+        #tut-nav { padding: 12px 10px; }
+        #tut-prev, #tut-next { padding: 8px 10px; font-size: 0.84em; white-space: nowrap; }
+        #tut-dots { gap: 5px !important; flex-wrap: wrap; justify-content: center; }
+        #tut-dots div { width: 7px !important; height: 7px !important; }
+    }
 `;
 document.head.appendChild(tutStyles);
 
@@ -58,13 +168,24 @@ document.head.appendChild(tutStyles);
 // ==========================================
 // MOTOR DEL TUTORIAL DE MUS (BILINGÜE ES/EN)
 // ==========================================
-// El contenido vive en `dictTutorial`, indexado por la variable global
-// `langActual` que define app.js (única fuente de verdad del idioma; se
-// persiste en localStorage con la clave 'callmus_lang'). Ambos arrays (es/en)
-// tienen el MISMO número de slides y el mismo orden, para que los índices
-// (slide 8 = práctica, slide 9 = Ejemplo 1) sean idénticos en los dos idiomas.
+// El tutorial son TRES PISTAS independientes, más un índice que las presenta:
+//
+//   · '1v1'   — las reglas del mus desde cero (`dictTut1v1`).
+//   · '2v2'   — sólo lo que cambia al jugar por parejas (`dictTut2v2`).
+//   · 'senas' — los diez gestos y sus reglas (`dictTutSenas`).
+//
+// Cada pista es un array de diapositivas `{title, content}` por idioma, indexado
+// por la variable global `langActual` que define app.js (única fuente de verdad
+// del idioma; se persiste en localStorage con la clave 'callmus_lang'). Los dos
+// idiomas de una pista tienen SIEMPRE el mismo número de diapositivas y el mismo
+// orden, para que los índices (en el 1v1: slide 8 = práctica, slide 9 = Ejemplo 1)
+// sean idénticos en ambos.
+//
+// `content` puede ser una cadena o una FUNCIÓN que la devuelva: las señas se
+// generan al pintar porque necesitan la cara SVG de senas4.js, que se carga
+// después de este archivo.
 
-const dictTutorial = {
+const dictTut1v1 = {
     es: [
         {
             title: "La Baraja Española",
@@ -946,15 +1067,899 @@ const dictTutorial = {
     ]
 };
 
-// Etiquetas de los botones de navegación (fuera de las slides).
-const tutBtns = {
-    es: { next: "Siguiente &rarr;", prev: "&larr; Anterior", finish: "Finalizar" },
-    en: { next: "Next &rarr;",      prev: "&larr; Prev",     finish: "Finish"   }
+// ==========================================
+// PISTA 2: EL MUS POR PAREJAS (2 contra 2)
+// ==========================================
+// Da por sabido el 1v1: aquí sólo está lo que CAMBIA al jugar cuatro. Las
+// diapositivas 6 y 7 son ejemplos con cartas, igual que en la pista del 1v1.
+
+const dictTut2v2 = {
+    es: [
+        {
+            title: "La mesa: dos parejas",
+            content: `
+                <p class="tut-lead">En el 2 contra 2 hay cuatro jugadores y dos equipos. <b>Tu pareja se sienta enfrente</b> de ti; los rivales, a los lados.</p>
+
+                <div class="tut-mesa">
+                    <div class="tut-seat eqA s-t"><b>Tu pareja</b><small>equipo A</small></div>
+                    <div class="tut-seat eqB s-l"><b>Rival</b><small>equipo B</small></div>
+                    <div class="tut-mesa-centro s-c">el turno gira<br>hacia la derecha &#8635;</div>
+                    <div class="tut-seat eqB s-r"><b>Rival</b><small>equipo B</small></div>
+                    <div class="tut-seat eqA yo s-b"><b>Tú</b><small>equipo A</small></div>
+                </div>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Los puntos son del equipo</span>
+                        <p>Tu pareja y tú compartéis marcador. Gana la partida el equipo que llega a <b>40 puntos</b>, y el duelo se juega al mejor de las partidas que se elijan al crear la mesa.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">La mano rota un asiento</span>
+                        <p>Cada ronda la <b>Mano</b> pasa al siguiente asiento, así que los cuatro pasan por ser mano y por ser postre. Se habla en orden de mesa empezando por la mano.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Lo que no cambia",
+            content: `
+                <p class="tut-lead">Las reglas de fondo son exactamente las del 1 contra 1.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Igual que en el 1v1</span>
+                        <p>• La baraja de 40 cartas, con los <b>3 como reyes</b> y los <b>2 como ases</b>.<br>
+                        • Los cuatro lances: <b>Grande, Chica, Pares y Juego</b> (o Punto).<br>
+                        • Las mismas palabras: paso, envido, subir, quiero, no quiero y órdago.<br>
+                        • Los mismos premios en el recuento, el <b>Pedrete</b> y <b>La Real</b>.</p>
+                    </div>
+                </div>
+
+                <button class="tut-goto" data-tut-pista="1v1">📖 Repasar las reglas básicas (1 contra 1)</button>
+                <span class="tut-nota">Lo que sigue son las cuatro diferencias del juego por parejas.</span>
+            `
+        },
+        {
+            title: "El mus se corta entre cuatro",
+            content: `
+                <p class="tut-lead">Se pregunta a los cuatro por orden, empezando por la mano.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Hay mus si lo quieren LOS CUATRO</span>
+                        <p>Basta con que <b>uno solo diga «no hay mus»</b> para cortar: no se descarta nadie y empiezan las apuestas.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">Quien corta, abre Grande</span>
+                        <p>El que ha cortado habla primero en Grande, aunque no sea la mano. En los demás lances se vuelve a empezar por la mano.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Los descartes son de cada uno</span>
+                        <p>Si hay mus, cada jugador tira de 1 a 4 cartas y roba otras tantas. Después se vuelve a preguntar, y así hasta que alguien corte.</p>
+                    </div>
+                </div>
+
+                <div class="tut-tip"><b>Ojo:</b> cortar el mus con una buena mano no sólo te protege a ti: también impide que <b>los dos rivales</b> mejoren.</div>
+            `
+        },
+        {
+            title: "Pares y Juego se declaran",
+            content: `
+                <p class="tut-lead">Antes de apostar Pares y Juego, los cuatro dicen en voz alta si tienen o no. Es información <b>pública</b>, y de las más valiosas de la mesa.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#b48ead;">
+                        <span class="tt">Un equipo «tiene» si tiene cualquiera de los dos</span>
+                        <p>Da igual quién de la pareja lleve los pares: el equipo entra en el lance.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Si sólo un equipo tiene</span>
+                        <p>No se apuesta: el lance se lo lleva ese equipo directamente. Los <b>premios de sus manos se cuentan igual</b> en el recuento.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#4c566a;">
+                        <span class="tt">Si no tiene nadie</span>
+                        <p>Pares se salta sin más. En Juego, si nadie llega a 31 se juega al <b>Punto</b> — y ahí sí se apuesta.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Apostar es cosa de dos",
+            content: `
+                <p class="tut-lead">Se envida contra el equipo rival, no contra un jugador. Y la pareja responde <b>entre los dos</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">1. Alguien envida</span>
+                        <p>Se habla por orden desde la mano. Quien tiene el turno puede pasar, envidar u ordagar.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">2. Responde el rival de turno</span>
+                        <p>Puede <b>querer</b>, <b>subir</b> o <b>no querer</b>.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">3. …y si no quiere, aún habla su pareja</span>
+                        <p>Antes de conceder la apuesta, el compañero puede <b>querer o subir por el equipo</b>. Sólo se concede si <b>los dos</b> dicen que no.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">4. Todo va al marcador del equipo</span>
+                        <p>Nadie puede apostar más de lo que falta para 40 (si te pasas, se convierte en <b>órdago</b>), y un «no quiero» que le daría la partida al rival se convierte en <b>«quiero»</b> a la fuerza.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "El recuento por parejas",
+            content: `
+                <p class="tut-lead">Al enseñar las cartas, cada lance se resuelve comparando <b>la mejor mano de cada equipo</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Gana el equipo, no el jugador</span>
+                        <p>De los dos de tu pareja se toma la mano que mejor va en ese lance y se enfrenta a la mejor de los rivales.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Los empates los rompe la mano</span>
+                        <p>Si las dos manos son idénticas, gana la del jugador <b>más cerca de la mano</b> en el orden de la mesa.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#b48ead;">
+                        <span class="tt">Los premios SE SUMAN</span>
+                        <p>En Pares y en Juego, el equipo que gana el lance cobra el premio de <b>cada una de sus dos manos</b> que cualifique. Dos parejas con pares cobran las dos.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Ej. 1: los premios se suman",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 10px;">Lance de <b>Pares</b>. Los cuatro declaran: el equipo A tiene dos manos con pares; el B, una.</p>
+
+                <div style="display: flex; justify-content: space-around; margin-bottom: 12px; align-items: flex-start;">
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.85em;">Tú (A)<br><span style="font-weight:normal; color:#d8dee9;">pareja de reyes</span></div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_12.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_03.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_clubs_05.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Ampliar</span>
+                    </div>
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.85em;">Tu pareja (A)<br><span style="font-weight:normal; color:#d8dee9;">duples</span></div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_11.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_11.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_clubs_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Ampliar</span>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div style="color: #81a1c1; font-weight: bold; margin-bottom: 5px; font-size: 0.85em;">La mejor del equipo B: medias de sotas</div>
+                    <div class="tut-cards-group tut-overlap" style="justify-content:center;">
+                        <img src="/static/img/card_coins_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        <img src="/static/img/card_cups_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        <img src="/static/img/card_swords_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        <img src="/static/img/card_clubs_06.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                    </div>
+                </div>
+
+                <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #b48ead; text-align: left; font-size: 0.85em;">
+                    <strong style="color: #b48ead; font-size: 1.1em;">👯 PARES</strong><br>
+                    <span style="color: #ebcb8b;">A:</span> <b>Envida 2.</b> &nbsp;<span style="color: #81a1c1;">B:</span> <b>Quiere.</b><br>
+                    <div style="margin-top: 8px; padding: 8px; background: rgba(163,190,140,0.1); color: #a3be8c; border-radius: 4px;">
+                        <b>Recuento:</b> los duples de tu pareja ganan a las medias del rival.<br>
+                        El equipo A se lleva <b>2 (lo apostado)</b> + <b>3 (duples)</b> + <b>1 (tu pareja de reyes)</b> = <b>6 puntos</b>.
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Ej. 2: responde la pareja",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 12px;">Lance de <b>Grande</b>. El rival de tu derecha envida y a ti no te da la mano… pero la decisión no acaba en ti.</p>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 0.88em;">
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #81a1c1;">
+                        <span style="color: #81a1c1; font-weight: bold;">Rival (B):</span> <b>Envida 2.</b>
+                    </div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #ebcb8b;">
+                        <span style="color: #ebcb8b; font-weight: bold;">Tú (A):</span> llevas 7-6-5-4. <b>No quiero.</b>
+                    </div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #a3be8c;">
+                        <span style="color: #a3be8c; font-weight: bold;">Tu pareja (A):</span> antes de conceder nada, le toca hablar a ella: lleva <b>tres reyes</b> y <b>sube a 4</b>.
+                    </div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #bf616a;">
+                        <span style="color: #bf616a; font-weight: bold;">Equipo B:</span> se lo piensa y <b>no quiere</b>.
+                    </div>
+                    <div style="padding: 10px; background: rgba(163,190,140,0.1); color: #a3be8c; border-radius: 4px;">
+                        <b>Resultado:</b> el equipo A gana los <b>2 puntos</b> del envite que el rival no ha querido. Tu «no quiero» no cerró el lance: sólo se concede cuando <b>los dos</b> de la pareja rechazan.
+                    </div>
+                </div>
+
+                <div class="tut-tip">Por eso conviene mirar lo que declara tu pareja: cuando ella tiene algo, tú puedes pasar tranquilo.</div>
+            `
+        },
+        {
+            title: "Y luego están las señas",
+            content: `
+                <p class="tut-lead">Tu pareja y tú nunca veis vuestras cartas… pero en el mus de siempre <b>os avisáis con la cara</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Son una opción de la mesa</span>
+                        <p>Al crear una partida de 2 contra 2 puedes activar <b>«Con señas»</b>. Con ellas la mesa cambia: tus cartas están boca abajo y sólo ves la cara de quien estés mirando.</p>
+                    </div>
+                </div>
+
+                <button class="tut-goto" data-tut-pista="senas" style="background:#ebcb8b; color:#2e3440;">☞ Aprender las señas</button>
+            `
+        }
+    ],
+
+    en: [
+        {
+            title: "The table: two pairs",
+            content: `
+                <p class="tut-lead">In 2 vs 2 there are four players and two teams. <b>Your partner sits across</b> from you; the opponents, on either side.</p>
+
+                <div class="tut-mesa">
+                    <div class="tut-seat eqA s-t"><b>Your partner</b><small>team A</small></div>
+                    <div class="tut-seat eqB s-l"><b>Opponent</b><small>team B</small></div>
+                    <div class="tut-mesa-centro s-c">the turn goes<br>to the right &#8635;</div>
+                    <div class="tut-seat eqB s-r"><b>Opponent</b><small>team B</small></div>
+                    <div class="tut-seat eqA yo s-b"><b>You</b><small>team A</small></div>
+                </div>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Points belong to the team</span>
+                        <p>You and your partner share one score. A game is won by the team that reaches <b>40 points</b>, and the match is best of however many games you pick when creating the table.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Mano moves one seat</span>
+                        <p>Every round the <b>Mano</b> passes to the next seat, so all four take turns being first and last. Play always goes around the table starting at the Mano.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "What doesn't change",
+            content: `
+                <p class="tut-lead">The underlying rules are exactly the ones from 1 vs 1.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Same as in 1v1</span>
+                        <p>• The 40-card deck, with <b>3s as Kings</b> and <b>2s as Aces</b>.<br>
+                        • The four phases: <b>Grande, Chica, Pares and Juego</b> (or Punto).<br>
+                        • The same words: pass, bid, raise, call, fold and órdago.<br>
+                        • The same showdown bonuses, the <b>Pedrete</b> and <b>La Real</b>.</p>
+                    </div>
+                </div>
+
+                <button class="tut-goto" data-tut-pista="1v1">📖 Review the basic rules (1 vs 1)</button>
+                <span class="tut-nota">What follows are the four differences of the partner game.</span>
+            `
+        },
+        {
+            title: "Cutting the Mus with four",
+            content: `
+                <p class="tut-lead">All four are asked in turn, starting with the Mano.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">There is Mus only if ALL FOUR want it</span>
+                        <p>A <b>single "no mus"</b> is enough to cut: nobody discards and betting starts.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">Whoever cuts, opens Grande</span>
+                        <p>The player who cut speaks first in Grande, even if they are not the Mano. Every other phase starts at the Mano again.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Discards are personal</span>
+                        <p>If there is Mus, each player throws 1 to 4 cards and draws that many. Then everyone is asked again, until someone cuts.</p>
+                    </div>
+                </div>
+
+                <div class="tut-tip"><b>Note:</b> cutting the Mus with a good hand doesn't only protect you: it also stops <b>both opponents</b> from improving.</div>
+            `
+        },
+        {
+            title: "Pares and Juego are declared",
+            content: `
+                <p class="tut-lead">Before betting Pares and Juego, all four say out loud whether they have it. It is <b>public</b> information, and some of the most valuable at the table.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#b48ead;">
+                        <span class="tt">A team "has it" if either partner does</span>
+                        <p>It doesn't matter which of the two holds the pairs: the team is in the phase.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">If only one team has it</span>
+                        <p>There is no betting: that team simply takes the phase. The <b>bonuses of its hands still count</b> at the showdown.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#4c566a;">
+                        <span class="tt">If nobody has it</span>
+                        <p>Pares is skipped altogether. In Juego, if nobody reaches 31 the phase becomes <b>Punto</b> — and that one is still bet.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Betting takes two",
+            content: `
+                <p class="tut-lead">You bid against the rival team, not against a player. And the pair answers <b>between the two of them</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">1. Someone bids</span>
+                        <p>Players speak in order from the Mano. Whoever is on turn may pass, bid or go all-in.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">2. The opponent on turn answers</span>
+                        <p>They may <b>call</b>, <b>raise</b> or <b>fold</b>.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">3. …and if they fold, their partner still speaks</span>
+                        <p>Before the bet is conceded, the partner may still <b>call or raise for the team</b>. It is only conceded when <b>both</b> say no.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">4. Everything goes to the team score</span>
+                        <p>Nobody can bet more than what is left to reach 40 (any excess becomes an <b>órdago</b>), and a fold that would hand the opponents the game is turned into a forced <b>call</b>.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "The showdown, by pairs",
+            content: `
+                <p class="tut-lead">When the cards come up, each phase is resolved by comparing <b>the best hand of each team</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">The team wins, not the player</span>
+                        <p>From your pair, the hand that does best in that phase is taken and faced against the opponents' best.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Ties are broken by the Mano</span>
+                        <p>If the two hands are identical, the one belonging to the player <b>closest to the Mano</b> in table order wins.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#b48ead;">
+                        <span class="tt">Bonuses ADD UP</span>
+                        <p>In Pares and Juego, the team that wins the phase collects the bonus of <b>each of its two hands</b> that qualifies. Two hands with pairs, two bonuses.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Ex 1: bonuses add up",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 10px;"><b>Pares</b> phase. All four declare: team A has two hands with pairs; team B, one.</p>
+
+                <div style="display: flex; justify-content: space-around; margin-bottom: 12px; align-items: flex-start;">
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.85em;">You (A)<br><span style="font-weight:normal; color:#d8dee9;">pair of Kings</span></div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_12.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_03.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_07.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_clubs_05.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Zoom</span>
+                    </div>
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #ebcb8b; font-weight: bold; margin-bottom: 5px; font-size: 0.85em;">Your partner (A)<br><span style="font-weight:normal; color:#d8dee9;">two pairs</span></div>
+                        <div class="tut-cards-group tut-overlap">
+                            <img src="/static/img/card_coins_11.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_cups_11.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_swords_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                            <img src="/static/img/card_clubs_04.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        </div>
+                        <span class="tut-zoom-hint">🔍 Zoom</span>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div style="color: #81a1c1; font-weight: bold; margin-bottom: 5px; font-size: 0.85em;">Team B's best: three Jacks</div>
+                    <div class="tut-cards-group tut-overlap" style="justify-content:center;">
+                        <img src="/static/img/card_coins_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        <img src="/static/img/card_cups_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        <img src="/static/img/card_swords_10.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                        <img src="/static/img/card_clubs_06.webp" onerror="this.src='/static/img/card_back.webp'" style="width: 40px; border-radius: 3px;">
+                    </div>
+                </div>
+
+                <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #b48ead; text-align: left; font-size: 0.85em;">
+                    <strong style="color: #b48ead; font-size: 1.1em;">👯 PARES</strong><br>
+                    <span style="color: #ebcb8b;">A:</span> <b>Bids 2.</b> &nbsp;<span style="color: #81a1c1;">B:</span> <b>Calls.</b><br>
+                    <div style="margin-top: 8px; padding: 8px; background: rgba(163,190,140,0.1); color: #a3be8c; border-radius: 4px;">
+                        <b>Showdown:</b> your partner's two pairs beat the opponents' three of a kind.<br>
+                        Team A takes <b>2 (the bet)</b> + <b>3 (two pairs)</b> + <b>1 (your pair of Kings)</b> = <b>6 points</b>.
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Ex 2: your partner answers",
+            content: `
+                <p style="font-size: 0.95em; color: #eceff4; margin-bottom: 12px;"><b>Grande</b> phase. The opponent on your right bids and your hand is useless… but the decision doesn't stop with you.</p>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 0.88em;">
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #81a1c1;">
+                        <span style="color: #81a1c1; font-weight: bold;">Opponent (B):</span> <b>Bids 2.</b>
+                    </div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #ebcb8b;">
+                        <span style="color: #ebcb8b; font-weight: bold;">You (A):</span> you hold 7-6-5-4. <b>Fold.</b>
+                    </div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #a3be8c;">
+                        <span style="color: #a3be8c; font-weight: bold;">Your partner (A):</span> before anything is conceded it is their turn to speak: they hold <b>three Kings</b> and <b>raise to 4</b>.
+                    </div>
+                    <div style="background: #3b4252; padding: 10px; border-radius: 6px; border-left: 4px solid #bf616a;">
+                        <span style="color: #bf616a; font-weight: bold;">Team B:</span> thinks about it and <b>folds</b>.
+                    </div>
+                    <div style="padding: 10px; background: rgba(163,190,140,0.1); color: #a3be8c; border-radius: 4px;">
+                        <b>Result:</b> team A wins the <b>2 points</b> of the bid the opponents didn't take. Your fold didn't close the phase: it is only conceded when <b>both</b> partners refuse.
+                    </div>
+                </div>
+
+                <div class="tut-tip">That is why it pays to listen to what your partner declares: when they have something, you can pass in peace.</div>
+            `
+        },
+        {
+            title: "And then there are signs",
+            content: `
+                <p class="tut-lead">You and your partner never see each other's cards… but in traditional Mus <b>you warn each other with your face</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">They are a table option</span>
+                        <p>When creating a 2 vs 2 game you can switch on <b>"With signs"</b>. With them the table changes: your cards lie face down and you only see the face of whoever you are looking at.</p>
+                    </div>
+                </div>
+
+                <button class="tut-goto" data-tut-pista="senas" style="background:#ebcb8b; color:#2e3440;">☞ Learn the signs</button>
+            `
+        }
+    ]
 };
 
-// Devuelve el array de slides del idioma activo (fallback a español).
+// ==========================================
+// PISTA 3: LAS SEÑAS
+// ==========================================
+// Las diapositivas de los diez gestos se generan al pintar (`content` función),
+// porque la cara SVG vive en senas4.js, que se carga después que este archivo.
+
+/** La cara de senas4.js haciendo una seña en bucle. Si por lo que sea todavía no
+ *  está cargado, deja una mano señalando en su sitio: se entiende igual. */
+function tutCaraSena(sena) {
+    const svg = (window.Senas4 && typeof window.Senas4.svgCara === 'function')
+        ? window.Senas4.svgCara() : null;
+    if (!svg) return `<span class="tut-sena-cara sena-muestra" style="font-size:1.6em;">☞</span>`;
+    // Las clases son las mismas que usa la chuleta de la ventana de denuncia.
+    return `<span class="tut-sena-cara sena-muestra">${
+        svg.replace('class="cara"', `class="cara en-bucle sena-${sena}"`)
+    }</span>`;
+}
+
+/** Una ficha de la lista de señas. */
+function tutFilaSena(sena, nombre, mano, gesto) {
+    return `
+        <div class="tut-sena">
+            ${tutCaraSena(sena)}
+            <span class="tut-sena-txt">
+                <span class="tut-sena-nom">${nombre}</span>
+                <span class="tut-sena-mano">${mano}</span>
+                <span class="tut-sena-gesto">${gesto}</span>
+            </span>
+        </div>`;
+}
+
+function tutListaSenas(filas) {
+    return `<div class="tut-senas">${filas.map(f => tutFilaSena(...f)).join('')}</div>`;
+}
+
+const dictTutSenas = {
+    es: [
+        {
+            title: "Qué son las señas",
+            content: `
+                <p class="tut-lead">Las señas son los gestos con los que avisas a tu pareja de lo que llevas — y con los que los rivales intentan pillarte.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Sólo en el 2 contra 2</span>
+                        <p>Se activan al crear la partida, con el interruptor <b>«Con señas»</b>. Sin él, la mesa es la de siempre.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">La mesa se mira de una en una</span>
+                        <p>Con señas <b>no ves la mesa entera</b>: giras la cabeza y sólo ves la cara —y por tanto la seña— de quien estés mirando. Tus cartas están boca abajo salvo mientras las miras.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">Y por eso hay riesgo</span>
+                        <p>Para que tu pareja vea tu seña tiene que estar mirándote <b>justo cuando la haces</b>. Y si te está mirando un rival, te ha pillado.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Mirar es medio juego",
+            content: `
+                <p class="tut-lead">Hay cuatro sitios a los que puedes mirar. Con las <b>flechas</b>, con <b>WASD</b> o <b>deslizando el dedo</b>.</p>
+
+                <div class="tut-mesa">
+                    <div class="tut-seat eqA s-t"><b>Tu pareja</b><small><span class="tut-key">↑</span> <span class="tut-key">W</span></small></div>
+                    <div class="tut-seat eqB s-l"><b>Rival</b><small><span class="tut-key">←</span> <span class="tut-key">A</span></small></div>
+                    <div class="tut-mesa-centro s-c">sólo ves<br>a uno a la vez</div>
+                    <div class="tut-seat eqB s-r"><b>Rival</b><small><span class="tut-key">→</span> <span class="tut-key">D</span></small></div>
+                    <div class="tut-seat yo s-b"><b>Tus cartas</b><small><span class="tut-key">↓</span> <span class="tut-key">S</span></small></div>
+                </div>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Se lee a quién mira cada uno</span>
+                        <p>En la cara que ves, las <b>pupilas</b> se desplazan y la cabeza se inclina hacia su objetivo. Si te está mirando a ti, <b>la cara se enciende en oro</b>.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#4c566a;">
+                        <span class="tt">La vista vagabundea sola</span>
+                        <p>Si no tocas nada, tu mirada se pasea sola entre el frente y los dos lados — nunca hacia tus cartas: mirarlas es siempre decisión tuya.</p>
+                    </div>
+                </div>
+
+                <span class="tut-nota">Hay un botón <b>?</b> junto a «Con señas», al crear la partida, que repasa estos mandos.</span>
+            `
+        },
+        {
+            title: "La regla de oro: la más alta",
+            content: `
+                <p class="tut-lead">El botón de <b>Seña</b> no te deja elegir: sale <b>la seña más alta que permita tu mano</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Una seña nunca miente</span>
+                        <p>Con tres reyes no puedes señalar «dos reyes» para disimular: saldrá <b>tres reyes</b>. Lo que decides es <b>cuándo</b> señalar y <b>si</b> te arriesgas, no qué dices.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">El orden de prioridad</span>
+                        <p>solomillo · duples · 31 · tres reyes · tres ases · medias · dos reyes · dos ases · 30 · ciego</p>
+                        <p>Manda la primera de la lista que cumpla tu mano. Con tres reyes y un as sale <b>solomillo</b>, que es la mejor noticia que puedes dar.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Una cada 3 segundos</span>
+                        <p>El botón se recarga: no se puede repetir la seña sin parar hasta que alguien mire.</p>
+                    </div>
+                </div>
+
+                <div class="tut-tip">Recuerda que los <b>3 valen como reyes</b> y los <b>2 como ases</b>: la mano <b>Rey · 3 · 7 · 6</b> lleva dos reyes.</div>
+            `
+        },
+        {
+            title: "Las señas fuertes",
+            content: () => `
+                <p class="tut-lead">Las cinco que cuentan las mejores manos. Las caras hacen el gesto en bucle.</p>
+                ${tutListaSenas([
+                    ['solomillo',  'Solomillo',  'Tres reyes y un as',            'un beso'],
+                    ['duples',     'Duples',     'Dos parejas (o cuatro iguales)', 'levantar las cejas'],
+                    ['31',         '31',         'Juego de 31 justo',             'un guiño'],
+                    ['tres_reyes', 'Tres reyes', 'Tres reyes (los 3 cuentan)',    'morderse un lado del labio'],
+                    ['tres_ases',  'Tres ases',  'Tres ases (los 2 cuentan)',     'sacar la lengua de lado'],
+                ])}
+            `
+        },
+        {
+            title: "Las demás señas",
+            content: () => `
+                <p class="tut-lead">Y las cinco que quedan, hasta el <b>ciego</b> — que también es información.</p>
+                ${tutListaSenas([
+                    ['medias',    'Medias',    'Trío de cualquier otra cosa',  'torcer la boca'],
+                    ['dos_reyes', 'Dos reyes', 'Dos reyes (los 3 cuentan)',   'morderse el centro del labio'],
+                    ['dos_ases',  'Dos ases',  'Dos ases (los 2 cuentan)',    'sacar la lengua'],
+                    ['30',        '30',        'Suma de 30, sin llegar a 31', 'encoger los hombros'],
+                    ['ciego',     'Ciego',     'Nada de lo anterior',         'cerrar los ojos'],
+                ])}
+                <span class="tut-nota">Los gestos son los tradicionales, salvo el solomillo, que es de la casa.</span>
+            `
+        },
+        {
+            title: "Cuándo se puede señalar",
+            content: `
+                <p class="tut-lead">El botón de <b>Seña</b> no está siempre vivo.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Sí: en el mus y en las apuestas</span>
+                        <p>Que son los momentos en los que tu pareja puede hacer algo con lo que le cuentes.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">No: durante el descarte</span>
+                        <p>Mientras se descarta, <b>tu foco se clava en tus cartas</b> y no se puede mover: hay que verlas para elegir, y así nadie señala mientras los demás están a otra cosa.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#4c566a;">
+                        <span class="tt">No: en el recuento</span>
+                        <p>Con las cuatro manos sobre la mesa el juego de mirar <b>se apaga entero</b>: no hay caras, no se puede denunciar y <b>tus cartas se destapan</b> como las demás. Ya no hay nada que esconder.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "«¡Te he visto!»",
+            content: `
+                <p class="tut-lead">Si pillas a un rival haciendo una seña, puedes <b>denunciarla</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Cómo se hace</span>
+                        <p>Toca al rival en la mesa y elige de la lista qué seña le has visto. Sólo se puede denunciar a un <b>rival</b>: a tu pareja no, claro.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#b48ead;">
+                        <span class="tt">Esa lista es la chuleta</span>
+                        <p>Cada opción enseña su gesto animándose en bucle. Si dudas de cuál era, ábrela y compara.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">No da ni quita puntos</span>
+                        <p>Es puro tanteo social: sale un aviso en la mesa que nombra al acusado («¡Le he visto DOS REYES a Marta!») y poco más. Pero a partir de ahí ya sabes que te miran… y ellos, que les miras.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Cuatro trucos",
+            content: `
+                <p class="tut-lead">Lo que separa a una pareja que se entiende de otra que sólo hace muecas.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Señala cuando la cara esté en oro</span>
+                        <p>Es la única señal de que tu pareja te está mirando de verdad. Señalar al aire no cuenta.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">Apartar la vista no te salva del todo</span>
+                        <p>Durante <b>un segundo</b> después de dejar de mirar a alguien, sigues viéndole. Los rivales también: señalar justo cuando apartan la mirada no es tan seguro como parece.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">El ciego también dice algo</span>
+                        <p>Avisar de que no llevas nada le ahorra a tu pareja envidar por los dos.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Los bots también señalan</span>
+                        <p>Mueven los ojos y hacen su seña una vez por mano. Si les miras a tiempo, se les pilla igual que a cualquiera.</p>
+                    </div>
+                </div>
+            `
+        }
+    ],
+
+    en: [
+        {
+            title: "What signs are",
+            content: `
+                <p class="tut-lead">Signs are the gestures you use to tell your partner what you are holding — and the ones your opponents try to catch.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">2 vs 2 only</span>
+                        <p>They are switched on when creating the game, with the <b>"With signs"</b> toggle. Without it, the table is the usual one.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">You look at one player at a time</span>
+                        <p>With signs you <b>don't see the whole table</b>: you turn your head and only see the face — and therefore the sign — of whoever you are looking at. Your cards lie face down except while you look at them.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">And that is the risk</span>
+                        <p>For your partner to see your sign they must be looking at you <b>exactly when you make it</b>. And if an opponent is watching you, you are caught.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Looking is half the game",
+            content: `
+                <p class="tut-lead">There are four places you can look at. With the <b>arrows</b>, with <b>WASD</b> or by <b>swiping</b>.</p>
+
+                <div class="tut-mesa">
+                    <div class="tut-seat eqA s-t"><b>Your partner</b><small><span class="tut-key">↑</span> <span class="tut-key">W</span></small></div>
+                    <div class="tut-seat eqB s-l"><b>Opponent</b><small><span class="tut-key">←</span> <span class="tut-key">A</span></small></div>
+                    <div class="tut-mesa-centro s-c">one face<br>at a time</div>
+                    <div class="tut-seat eqB s-r"><b>Opponent</b><small><span class="tut-key">→</span> <span class="tut-key">D</span></small></div>
+                    <div class="tut-seat yo s-b"><b>Your cards</b><small><span class="tut-key">↓</span> <span class="tut-key">S</span></small></div>
+                </div>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">You can read where they look</span>
+                        <p>On the face you see, the <b>pupils</b> shift and the head tilts towards their target. If they are looking at you, <b>the face lights up gold</b>.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#4c566a;">
+                        <span class="tt">Your gaze wanders on its own</span>
+                        <p>If you don't touch anything, your view drifts between the front and the two sides — never towards your cards: looking at them is always your decision.</p>
+                    </div>
+                </div>
+
+                <span class="tut-nota">There is a <b>?</b> button next to "With signs", when creating the game, that goes over these controls.</span>
+            `
+        },
+        {
+            title: "The golden rule: the highest one",
+            content: `
+                <p class="tut-lead">The <b>Sign</b> button doesn't let you choose: out comes <b>the highest sign your hand allows</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">A sign never lies</span>
+                        <p>With three Kings you cannot sign "two Kings" to hide it: <b>three Kings</b> will come out. What you decide is <b>when</b> to sign and <b>whether</b> to risk it, not what you say.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">The priority order</span>
+                        <p>solomillo · two pairs · 31 · three kings · three aces · three of a kind · two kings · two aces · 30 · blind</p>
+                        <p>The first one on the list your hand matches is the one that comes out. With three Kings and an Ace you get <b>solomillo</b>, the best news you can give.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">One every 3 seconds</span>
+                        <p>The button reloads: you can't spam the same sign until somebody happens to look.</p>
+                    </div>
+                </div>
+
+                <div class="tut-tip">Remember that <b>3s count as Kings</b> and <b>2s as Aces</b>: the hand <b>King · 3 · 7 · 6</b> holds two Kings.</div>
+            `
+        },
+        {
+            title: "The strong signs",
+            content: () => `
+                <p class="tut-lead">The five that announce the best hands. The faces play each gesture on a loop.</p>
+                ${tutListaSenas([
+                    ['solomillo',  'Solomillo',      'Three Kings and an Ace',       'a kiss'],
+                    ['duples',     'Two pairs',      'Two pairs (or four alike)',    'raise both eyebrows'],
+                    ['31',         '31',             'A game of exactly 31',         'a wink'],
+                    ['tres_reyes', 'Three kings',    'Three Kings (3s count too)',   'bite one side of your lip'],
+                    ['tres_ases',  'Three aces',     'Three Aces (2s count too)',    'stick your tongue out sideways'],
+                ])}
+            `
+        },
+        {
+            title: "The rest of the signs",
+            content: () => `
+                <p class="tut-lead">And the remaining five, down to <b>blind</b> — which is information too.</p>
+                ${tutListaSenas([
+                    ['medias',    'Three of a kind', 'Three of anything else',    'twist your mouth'],
+                    ['dos_reyes', 'Two kings',       'Two Kings (3s count too)',  'bite the middle of your lip'],
+                    ['dos_ases',  'Two aces',        'Two Aces (2s count too)',   'stick your tongue out'],
+                    ['30',        '30',              'A sum of 30, short of 31',  'shrug your shoulders'],
+                    ['ciego',     'Blind',           'None of the above',      'close your eyes'],
+                ])}
+                <span class="tut-nota">The gestures are the traditional ones, except the solomillo, which is ours.</span>
+            `
+        },
+        {
+            title: "When you may sign",
+            content: `
+                <p class="tut-lead">The <b>Sign</b> button is not always live.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Yes: during Mus and betting</span>
+                        <p>Which are the moments when your partner can actually do something with what you tell them.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">No: while discarding</span>
+                        <p>During the discard <b>your focus is locked on your own cards</b> and cannot move: you need to see them to choose, and this way nobody signs while the others are busy.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#4c566a;">
+                        <span class="tt">No: at the showdown</span>
+                        <p>With all four hands on the table the looking game <b>shuts down entirely</b>: no faces, no accusations, and <b>your cards are revealed</b> like everyone else's. There is nothing left to hide.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "\"I saw that!\"",
+            content: `
+                <p class="tut-lead">If you catch an opponent signing, you can <b>call them out</b>.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">How it works</span>
+                        <p>Tap the opponent at the table and pick from the list which sign you saw. You can only accuse an <b>opponent</b>: not your partner, obviously.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#b48ead;">
+                        <span class="tt">That list is the cheat sheet</span>
+                        <p>Every option plays its gesture on a loop. If you are not sure which one it was, open it and compare.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">It scores nothing either way</span>
+                        <p>It is pure table talk: a notice pops up naming the accused ("I caught Marta signing TWO KINGS!") and little else. But from then on you know they are watching you… and they know you are watching them.</p>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Four tips",
+            content: `
+                <p class="tut-lead">What separates a pair that understands each other from one that just pulls faces.</p>
+
+                <div class="tut-col">
+                    <div class="tut-box" style="--tc:#ebcb8b;">
+                        <span class="tt">Sign when the face turns gold</span>
+                        <p>It is the only proof that your partner is really looking at you. Signing into thin air counts for nothing.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#bf616a;">
+                        <span class="tt">Looking away doesn't fully save you</span>
+                        <p>For <b>one second</b> after you stop looking at somebody, you still see them. So do your opponents: signing right as they turn away is not as safe as it looks.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#88c0d0;">
+                        <span class="tt">Blind says something too</span>
+                        <p>Telling your partner you have nothing saves them from bidding for the two of you.</p>
+                    </div>
+                    <div class="tut-box" style="--tc:#a3be8c;">
+                        <span class="tt">Bots sign as well</span>
+                        <p>They move their eyes and make their sign once per hand. Look at them in time and they get caught like anyone else.</p>
+                    </div>
+                </div>
+            `
+        }
+    ]
+};
+
+// ==========================================
+// EL ÍNDICE: las tres pistas
+// ==========================================
+const PISTAS = ['1v1', '2v2', 'senas'];
+
+const CONTENIDO = {
+    '1v1': dictTut1v1,
+    '2v2': dictTut2v2,
+    'senas': dictTutSenas,
+};
+
+const dictIndice = {
+    es: {
+        title: "Cómo se juega",
+        intro: "Tres caminos. Empieza por donde te haga falta.",
+        pistas: {
+            '1v1': { color: '#a3be8c', icono: '⚔️', nombre: '1 contra 1',
+                     sub: 'El mus desde cero: la baraja, los cuatro lances, las apuestas y el recuento.' },
+            '2v2': { color: '#81a1c1', icono: '👥', nombre: '2 contra 2',
+                     sub: 'Lo que cambia al jugar por parejas: equipos, declaraciones y premios que se suman.' },
+            'senas': { color: '#ebcb8b', icono: '☞', nombre: 'Las señas',
+                     sub: 'Los diez gestos, cuándo se pueden hacer y cómo se pillan.' },
+        },
+        nota: "El 1 contra 1 explica las reglas del mus; las otras dos pistas las dan por sabidas.",
+    },
+    en: {
+        title: "How to play",
+        intro: "Three paths. Start wherever you need to.",
+        pistas: {
+            '1v1': { color: '#a3be8c', icono: '⚔️', nombre: '1 vs 1',
+                     sub: 'Mus from scratch: the deck, the four phases, the betting and the showdown.' },
+            '2v2': { color: '#81a1c1', icono: '👥', nombre: '2 vs 2',
+                     sub: 'What changes with partners: teams, declarations and bonuses that add up.' },
+            'senas': { color: '#ebcb8b', icono: '☞', nombre: 'The signs',
+                     sub: 'The ten gestures, when you may use them and how you get caught.' },
+        },
+        nota: "The 1 vs 1 track explains the rules of Mus; the other two take them for granted.",
+    }
+};
+
+// Etiquetas de los botones de navegación (fuera de las slides).
+const tutBtns = {
+    es: { next: "Siguiente &rarr;", prev: "&larr; Anterior", finish: "Finalizar",
+          indice: "&larr; Índice", volver: "Volver al índice" },
+    en: { next: "Next &rarr;",      prev: "&larr; Prev",     finish: "Finish",
+          indice: "&larr; Index",  volver: "Back to the index" }
+};
+
+// Devuelve el contenido del idioma activo (fallback a español).
+function getIndice() {
+    return dictIndice[langActual] || dictIndice.es;
+}
+
+// Diapositivas de la pista abierta ([] en el índice).
 function getSlides() {
-    return dictTutorial[langActual] || dictTutorial.es;
+    if (!pistaActual) return [];
+    const pista = CONTENIDO[pistaActual];
+    return pista[langActual] || pista.es;
 }
 
 // Devuelve las etiquetas de botones del idioma activo (fallback a español).
@@ -962,31 +1967,75 @@ function getTutBtns() {
     return tutBtns[langActual] || tutBtns.es;
 }
 
+let pistaActual = null;         // null = índice; si no, '1v1' | '2v2' | 'senas'
 let currentSlideIndex = 0;
 let openedFromGame = false;
+
+// En la pista del 1v1, la diapositiva 8 invita a practicar: no pinta nada
+// enseñarla a quien ya está jugando, así que se salta al abrir desde la mesa.
+const IDX_PRACTICA_1V1 = 8;
+
+function saltaPractica(i) {
+    return openedFromGame && pistaActual === '1v1' && i === IDX_PRACTICA_1V1;
+}
 
 // Variables del DOM
 const modalTutorial = document.getElementById('modal-tutorial');
 const tutorialContent = document.getElementById('tutorial-content');
 const btnPrev = document.getElementById('tut-prev');
 const btnNext = document.getElementById('tut-next');
+const btnIndice = document.getElementById('btn-tutorial-indice');
 const dotsContainer = document.getElementById('tut-dots');
+const navTutorial = document.getElementById('tut-nav');
+
+/** El índice: las tres pistas, cada una con su color. */
+function renderIndice() {
+    const idx = getIndice();
+    const botones = PISTAS.map(id => {
+        const p = idx.pistas[id];
+        return `
+            <button class="tut-hub-btn" data-tut-pista="${id}" style="--tc:${p.color};">
+                <span class="tut-hub-ico">${p.icono}</span>
+                <span><b>${p.nombre}</b><small>${p.sub}</small></span>
+            </button>`;
+    }).join('');
+
+    tutorialContent.innerHTML = `
+        <h2 class="tut-titulo" style="color: #a3be8c; font-size: 1.8em; margin-bottom: 8px; margin-top: 0;">${idx.title}</h2>
+        <p style="color: #d8dee9; font-size: 0.98em; margin: 0 0 22px;">${idx.intro}</p>
+        <div class="tut-hub">${botones}</div>
+        <span class="tut-nota">${idx.nota}</span>
+    `;
+
+    // En el índice la barra de abajo no pinta nada: se quita entera.
+    dotsContainer.innerHTML = '';
+    if (navTutorial) navTutorial.classList.add('hidden');
+    if (btnIndice) btnIndice.classList.add('hidden');
+}
 
 // Inicializar el carrusel
 function renderSlide(index) {
     const slides = getSlides();
     const btns = getTutBtns();
     const slide = slides[index];
+    if (!slide) return renderIndice();
+
+    // El contenido puede ser una función (las señas, que necesitan la cara SVG).
+    const cuerpo = (typeof slide.content === 'function') ? slide.content() : slide.content;
 
     // Inyectar HTML
     tutorialContent.innerHTML = `
-        <h2 style="color: #a3be8c; font-size: 1.8em; margin-bottom: 20px; margin-top: 0;">${slide.title}</h2>
-        <div>${slide.content}</div>
+        <h2 class="tut-titulo" style="color: #a3be8c; font-size: 1.8em; margin-bottom: 20px; margin-top: 0;">${slide.title}</h2>
+        <div>${cuerpo}</div>
     `;
 
-    // Actualizar visibilidad y texto de botones (localizado)
-    btnPrev.style.visibility = index === 0 ? 'hidden' : 'visible';
-    btnPrev.innerHTML = btns.prev;
+    if (btnIndice) btnIndice.classList.remove('hidden');
+    if (navTutorial) navTutorial.classList.remove('hidden');
+    btnNext.style.visibility = 'visible';
+
+    // En la primera diapositiva, "atrás" devuelve al índice.
+    btnPrev.style.visibility = 'visible';
+    btnPrev.innerHTML = index === 0 ? btns.indice : btns.prev;
 
     if (index === slides.length - 1) {
         btnNext.innerHTML = btns.finish;
@@ -1000,7 +2049,7 @@ function renderSlide(index) {
     dotsContainer.innerHTML = '';
     slides.forEach((_, i) => {
         // Omitimos el puntito de la diapositiva de práctica si venimos del juego
-        if (openedFromGame && i === 8) return;
+        if (saltaPractica(i)) return;
 
         const dot = document.createElement('div');
         dot.style.width = '10px';
@@ -1012,16 +2061,39 @@ function renderSlide(index) {
     });
 }
 
+/** Pinta lo que toque: el índice o la diapositiva en la que estemos. */
+function renderTutorial() {
+    if (pistaActual) renderSlide(currentSlideIndex);
+    else renderIndice();
+}
+
+/** Abre una pista por su nombre. La usan el índice, los enlaces entre pistas y
+ *  la ayuda de las señas del menú (`window.tutorialAbrirPista`). */
+function irAPista(id, index) {
+    if (!CONTENIDO[id]) return;
+    pistaActual = id;
+    currentSlideIndex = index || 0;
+    if (saltaPractica(currentSlideIndex)) currentSlideIndex++;
+    tutorialContent.scrollTop = 0;
+    renderSlide(currentSlideIndex);
+}
+
+function volverAlIndice() {
+    pistaActual = null;
+    tutorialContent.scrollTop = 0;
+    renderIndice();
+}
+
 // Eventos de botones con salto inteligente
 btnNext.addEventListener('click', () => {
+    if (!pistaActual) return;
     if (currentSlideIndex < getSlides().length - 1) {
         currentSlideIndex++;
 
-        // Si venimos del juego y toca la slide 8, saltamos directo a la 9 (Ejemplo 1)
-        if (openedFromGame && currentSlideIndex === 8) {
-            currentSlideIndex++;
-        }
+        // Si venimos del juego, la diapositiva de práctica se salta.
+        if (saltaPractica(currentSlideIndex)) currentSlideIndex++;
 
+        tutorialContent.scrollTop = 0;
         renderSlide(currentSlideIndex);
     } else {
         cerrarTutorial();
@@ -1029,23 +2101,28 @@ btnNext.addEventListener('click', () => {
 });
 
 btnPrev.addEventListener('click', () => {
-    if (currentSlideIndex > 0) {
-        currentSlideIndex--;
+    if (!pistaActual) return;
+    if (currentSlideIndex === 0) { volverAlIndice(); return; }
 
-        // Si venimos del juego y retrocedemos a la slide 8, saltamos directo a la 7
-        if (openedFromGame && currentSlideIndex === 8) {
-            currentSlideIndex--;
-        }
+    currentSlideIndex--;
+    if (saltaPractica(currentSlideIndex)) currentSlideIndex--;
 
-        renderSlide(currentSlideIndex);
-    }
+    tutorialContent.scrollTop = 0;
+    renderSlide(currentSlideIndex);
+});
+
+if (btnIndice) btnIndice.addEventListener('click', volverAlIndice);
+
+// Los botones que llevan de una pista a otra viven dentro del contenido.
+tutorialContent.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-tut-pista]');
+    if (btn) irAPista(btn.dataset.tutPista);
 });
 
 document.getElementById('btn-cerrar-tutorial').addEventListener('click', cerrarTutorial);
 
-// Abrir desde el menú principal
-document.getElementById('btn-tutorial').addEventListener('click', () => {
-    openedFromGame = false;
+/** Deja el tutorial a la vista (y esconde lo demás). No decide qué se pinta. */
+function abrirTutorial() {
     document.getElementById('modal-overlay').style.display = 'flex';
     document.getElementById('modal-overlay').classList.remove('hidden');
 
@@ -1057,10 +2134,13 @@ document.getElementById('btn-tutorial').addEventListener('click', () => {
     const mj = document.getElementById('modal-play'); if(mj) mj.classList.add('hidden');
 
     modalTutorial.classList.remove('hidden');
+}
 
-    // Empezar desde el principio siempre
-    currentSlideIndex = 0;
-    renderSlide(currentSlideIndex);
+// Abrir desde el menú principal: siempre por el índice.
+document.getElementById('btn-tutorial').addEventListener('click', () => {
+    openedFromGame = false;
+    abrirTutorial();
+    volverAlIndice();
 });
 
 function cerrarTutorial() {
@@ -1070,11 +2150,21 @@ function cerrarTutorial() {
 }
 
 // Exponer la función para que los botones dentro del HTML puedan usarla
+// (los ejemplos del 1v1 saltan con ella desde la diapositiva de práctica).
 window.goToSlide = function(index) {
     if (index >= 0 && index < getSlides().length) {
         currentSlideIndex = index;
+        tutorialContent.scrollTop = 0;
         renderSlide(currentSlideIndex);
     }
+};
+
+/** Abre el tutorial directamente en una pista. La usa menu.js desde la ayuda
+ *  de las señas. */
+window.tutorialAbrirPista = function(id, index) {
+    openedFromGame = false;
+    abrirTutorial();
+    irAPista(id, index);
 };
 
 // Re-renderizar el tutorial cuando se cambia de idioma (si está abierto).
@@ -1084,7 +2174,7 @@ const btnLangTut = document.getElementById('btn-lang');
 if (btnLangTut) {
     btnLangTut.addEventListener('click', () => {
         if (modalTutorial && !modalTutorial.classList.contains('hidden')) {
-            renderSlide(currentSlideIndex);
+            renderTutorial();
         }
     });
 }
@@ -1116,29 +2206,21 @@ document.addEventListener('click', function(e) {
         }
     }
 
-    // 2. Botón de ayuda durante la partida [?]
-    if (e.target && (e.target.id === 'btn-help-game' || e.target.closest('#btn-help-game'))) {
-        openedFromGame = true; // Desde el juego NO se muestra la slide de práctica
-        const overlay = document.getElementById('modal-overlay');
-        const modalTut = document.getElementById('modal-tutorial');
+    // 2. Botón de ayuda durante la partida [?] — abre la pista del modo que se
+    //    esté jugando. Desde la mesa NO se enseña la diapositiva de práctica.
+    const btnAyuda = e.target && e.target.closest
+        ? e.target.closest('#btn-help-game, #btn-help-game-4') : null;
+    if (btnAyuda) {
+        openedFromGame = true;
+        abrirTutorial();
 
-        if (overlay && modalTut) {
-            overlay.style.display = 'flex';
-            overlay.classList.remove('hidden');
-
-            const modalesAOcultar = ['modal-login', 'modal-signup', 'modal-leaderboard', 'modal-privacy'];
-            modalesAOcultar.forEach(id => {
-                const m = document.getElementById(id);
-                if (m) m.classList.add('hidden');
-            });
-
-            modalTut.classList.remove('hidden');
-
-            // Si estaba en la slide de práctica por el menú, lo movemos a la siguiente por seguridad
-            if (currentSlideIndex === 8) {
-                currentSlideIndex = 9;
-            }
+        const pistaDelJuego = (btnAyuda.id === 'btn-help-game-4') ? '2v2' : '1v1';
+        // Si ya estaba en esa pista, se sigue donde se dejó.
+        if (pistaActual === pistaDelJuego) {
+            if (saltaPractica(currentSlideIndex)) currentSlideIndex++;
             renderSlide(currentSlideIndex);
+        } else {
+            irAPista(pistaDelJuego);
         }
     }
 });

@@ -63,6 +63,9 @@
         play_public_sub: 'Cualquiera puede verla en la lista y unirse',
         play_senas: 'Con señas',
         play_senas_sub: 'Avisar a tu pareja de lo que llevas',
+        senas_ayuda_tooltip: 'Cómo funcionan las señas',
+        senas_ayuda_cerrar: 'Entendido',
+        senas_ayuda_mas: 'Ver las diez señas',
         play_seat_note: 'Los asientos 0 y 2 son el equipo A; el 1 y el 3, el equipo B. Tu pareja se sienta enfrente de ti.',
         play_create: 'Crear la partida',
         play_start_bot: 'Empezar contra la IA',
@@ -148,6 +151,9 @@
         play_public_sub: 'Anyone can see it in the list and join',
         play_senas: 'With signs',
         play_senas_sub: 'Signal your partner what you are holding',
+        senas_ayuda_tooltip: 'How signs work',
+        senas_ayuda_cerrar: 'Got it',
+        senas_ayuda_mas: 'See the ten signs',
         play_seat_note: 'Seats 0 and 2 are team A; seats 1 and 3, team B. Your partner sits across the table.',
         play_create: 'Create the game',
         play_start_bot: 'Start against the AI',
@@ -218,6 +224,155 @@
         e.stopPropagation();
         avisar(MOTIVOS[soon.id] || MOTIVOS[soon.dataset.rival] || 'pronto_generico');
     }, true);
+
+    // ======================================================================
+    // 2 bis. Ayuda de las señas — el [?] de al lado del interruptor
+    // ======================================================================
+    // Explica la MECÁNICA (a dónde se mira, con qué, cuánto dura), no los diez
+    // gestos: ésos están en el tutorial, a un botón de aquí. El texto va entero
+    // en esta constante porque es prosa, no etiquetas sueltas; se repinta al
+    // cambiar de idioma como el resto de la ventana.
+
+    const AYUDA_SENAS = {
+        es: `
+            <h3>Cómo funcionan las señas</h3>
+            <p class="cm-ayuda-sub">Los mandos de la mesa. Los diez gestos están en el tutorial.</p>
+
+            <div class="cm-ayuda-bloque">
+                <b>La mesa se mira de una en una</b>
+                <div class="cm-ayuda-mesa">
+                    <div class="cm-ayuda-reg r-t">Tu pareja<small><span class="cm-tecla">↑</span> <span class="cm-tecla">W</span></small></div>
+                    <div class="cm-ayuda-reg r-l">Rival<small><span class="cm-tecla">←</span> <span class="cm-tecla">A</span></small></div>
+                    <div class="cm-ayuda-reg centro r-c">sólo ves<br>a quien miras</div>
+                    <div class="cm-ayuda-reg r-r">Rival<small><span class="cm-tecla">→</span> <span class="cm-tecla">D</span></small></div>
+                    <div class="cm-ayuda-reg r-b">Tus cartas<small><span class="cm-tecla">↓</span> <span class="cm-tecla">S</span></small></div>
+                </div>
+                <p>Flechas o <em>WASD</em>; en el móvil, <em>desliza el dedo</em> en esa dirección.</p>
+            </div>
+
+            <div class="cm-ayuda-bloque">
+                <b>Sólo se ve la cara del asiento enfocado</b>
+                <p>Y por tanto su seña. Si esa cara <em>se enciende en oro</em>, te está mirando a ti: es el momento de señalar.</p>
+                <p>Tus cartas están boca abajo salvo mientras las miras. Mirarlas es siempre decisión tuya.</p>
+            </div>
+
+            <div class="cm-ayuda-bloque">
+                <b>La vista se mueve sola, y con freno</b>
+                <p>Si no tocas nada, tu mirada vagabundea entre el frente y los dos lados — nunca hacia tus cartas. Lo que elijas a mano manda unos <em>2,5 s</em>.</p>
+                <p><em>1 s</em> mínimo mirando a un sitio antes de poder cambiar: no vale barrer las flechas para verlo todo.</p>
+                <p><em>1 s</em> de solape: después de apartar la vista sigues viendo un momento a quien mirabas… y los rivales a ti.</p>
+            </div>
+
+            <div class="cm-ayuda-bloque">
+                <b>Señalar y denunciar</b>
+                <p>El botón <em>Seña</em> sale abajo a la derecha: una cada <em>3 s</em>, y sólo durante el mus y las apuestas. No eliges cuál: sale la más alta que permita tu mano.</p>
+                <p>Toca a un rival para denunciarle una seña. En el descarte el foco se clava en tus cartas, y en el recuento se apaga todo.</p>
+            </div>
+        `,
+        en: `
+            <h3>How signs work</h3>
+            <p class="cm-ayuda-sub">The table controls. The ten gestures are in the tutorial.</p>
+
+            <div class="cm-ayuda-bloque">
+                <b>You look at one player at a time</b>
+                <div class="cm-ayuda-mesa">
+                    <div class="cm-ayuda-reg r-t">Your partner<small><span class="cm-tecla">↑</span> <span class="cm-tecla">W</span></small></div>
+                    <div class="cm-ayuda-reg r-l">Opponent<small><span class="cm-tecla">←</span> <span class="cm-tecla">A</span></small></div>
+                    <div class="cm-ayuda-reg centro r-c">you only see<br>who you look at</div>
+                    <div class="cm-ayuda-reg r-r">Opponent<small><span class="cm-tecla">→</span> <span class="cm-tecla">D</span></small></div>
+                    <div class="cm-ayuda-reg r-b">Your cards<small><span class="cm-tecla">↓</span> <span class="cm-tecla">S</span></small></div>
+                </div>
+                <p>Arrows or <em>WASD</em>; on mobile, <em>swipe</em> in that direction.</p>
+            </div>
+
+            <div class="cm-ayuda-bloque">
+                <b>Only the focused seat shows its face</b>
+                <p>And therefore its sign. If that face <em>lights up gold</em>, they are looking at you: that is the moment to sign.</p>
+                <p>Your cards lie face down except while you look at them. Looking at them is always your own choice.</p>
+            </div>
+
+            <div class="cm-ayuda-bloque">
+                <b>Your gaze moves on its own, with a brake</b>
+                <p>If you don't touch anything, it drifts between the front and the two sides — never towards your cards. A choice you make by hand holds for about <em>2.5 s</em>.</p>
+                <p><em>1 s</em> minimum looking somewhere before you can switch: sweeping the arrows won't show you everything.</p>
+                <p><em>1 s</em> of overlap: after you look away you still see them for a moment… and your opponents still see you.</p>
+            </div>
+
+            <div class="cm-ayuda-bloque">
+                <b>Signing and calling out</b>
+                <p>The <em>Sign</em> button sits bottom right: one every <em>3 s</em>, and only during Mus and betting. You don't pick which one: out comes the highest your hand allows.</p>
+                <p>Tap an opponent to call out a sign. While discarding your focus is locked on your cards, and at the showdown everything shuts down.</p>
+            </div>
+        `
+    };
+
+    let ayudaEl = null;
+    let ayudaVelo = null;
+
+    function montarAyudaSenas() {
+        if (ayudaEl) return;
+
+        ayudaVelo = document.createElement('div');
+        ayudaVelo.id = 'cm-ayuda-velo';
+        // El aspecto lo pone la clase (pantalla.js monta otro velo igual para
+        // la ayuda del iPhone); el id se queda porque es de quien tira este
+        // archivo para abrirlo y cerrarlo.
+        ayudaVelo.className = 'cm-ayuda-velo';
+        ayudaVelo.addEventListener('click', cerrarAyudaSenas);
+        document.body.appendChild(ayudaVelo);
+
+        ayudaEl = document.createElement('div');
+        ayudaEl.className = 'cm-ayuda';
+        ayudaEl.setAttribute('role', 'dialog');
+        document.body.appendChild(ayudaEl);
+    }
+
+    function pintarAyudaSenas() {
+        if (!ayudaEl) return;
+        ayudaEl.innerHTML = (AYUDA_SENAS[langActual] || AYUDA_SENAS.es) + `
+            <div class="cm-ayuda-pie">
+                <button type="button" class="cm-ayuda-mas">${t('senas_ayuda_mas')}</button>
+                <button type="button" class="cm-ayuda-ok">${t('senas_ayuda_cerrar')}</button>
+            </div>`;
+        ayudaEl.querySelector('.cm-ayuda-ok').addEventListener('click', cerrarAyudaSenas);
+        ayudaEl.querySelector('.cm-ayuda-mas').addEventListener('click', () => {
+            cerrarAyudaSenas();
+            // El tutorial se abre por su pista de señas (tutorial.js). Si por lo
+            // que sea no está cargado, el botón simplemente cierra la ayuda.
+            if (typeof window.tutorialAbrirPista === 'function') {
+                window.tutorialAbrirPista('senas');
+            }
+        });
+    }
+
+    function abrirAyudaSenas() {
+        montarAyudaSenas();
+        pintarAyudaSenas();
+        ayudaEl.classList.add('abierta');
+        ayudaVelo.classList.add('abierto');
+    }
+
+    function cerrarAyudaSenas() {
+        if (ayudaEl) ayudaEl.classList.remove('abierta');
+        if (ayudaVelo) ayudaVelo.classList.remove('abierto');
+    }
+
+    const btnAyudaSenas = $('btn-ayuda-senas');
+    if (btnAyudaSenas) {
+        btnAyudaSenas.addEventListener('click', (e) => {
+            // El botón vive dentro de la fila del interruptor: sin esto, el clic
+            // acabaría marcando o desmarcando «Con señas».
+            e.preventDefault();
+            e.stopPropagation();
+            abrirAyudaSenas();
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && ayudaEl && ayudaEl.classList.contains('abierta')) {
+            cerrarAyudaSenas();
+        }
+    });
 
     // ======================================================================
     // 3. Estado de la ventana de Jugar
@@ -472,6 +627,7 @@
         btnLang.addEventListener('click', () => {
             pintarIdentidad();
             pintarResumen();
+            pintarAyudaSenas();            // prosa montada desde JS: no lleva data-i18n
             marcarEspera(esperandoSala);   // aplicarTraduccion() ha repuesto el subtítulo
             if (modo === 4 && typeof renderSeatPicker4 === 'function') renderSeatPicker4();
             if (modo === 4 && rival4 !== 'humano' && typeof renderBotPicker4 === 'function') {

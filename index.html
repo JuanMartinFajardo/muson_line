@@ -2,7 +2,10 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover: el tapete llega hasta el borde físico de la pantalla
+         (sin franjas negras junto a la muesca). El aire de los recortes lo pone
+         game.css con env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>CallMus</title>
     <meta name="description" content="Play the traditional 2-player Mus card game online. Simple, fast, and free. Challenge a friend or an advanced AI bot. No registration required.">
     
@@ -12,21 +15,40 @@
     <!-- Aquí es donde carga el diseño. Si esto falla, se ve todo blanco -->
     <link rel="stylesheet" href="/static/style.css?=v4">
     <!-- Mus 4 jugadores (Roadmap #6): estilos propios, cargados tras style.css -->
-    <link rel="stylesheet" href="/static/style4.css?=v3">
+    <link rel="stylesheet" href="/static/style4.css?=v4">
     <!-- Menú y ventana de Jugar: se carga al final para poder redefinir la paleta -->
-    <link rel="stylesheet" href="/static/menu.css?=v2">
+    <link rel="stylesheet" href="/static/menu.css?=v4">
     <!-- El tapete (1v1 y 2v2) con el mismo lenguaje visual que el menú -->
-    <link rel="stylesheet" href="/static/game.css?=v4">
+    <link rel="stylesheet" href="/static/game.css?=v5">
     <!-- Señas del 2v2: caras, foco e iluminación. Después de game.css, que es
          quien fija el aspecto de los asientos. -->
-    <link rel="stylesheet" href="/static/senas.css?=v1">
+    <link rel="stylesheet" href="/static/senas.css?=v3">
     <!-- Librería de WebSockets (Actualizada a la v4.7.5) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- Añadir a la pantalla de inicio. En el iPhone es la ÚNICA forma de jugar
+         a pantalla completa: Safari no tiene la API de pantalla completa fuera
+         de los vídeos, así que el botón ⛶ nunca podrá funcionar ahí (ver
+         static/pantalla.js). Abierta desde su icono, la web se ve sin la barra
+         del navegador. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="CallMus">
+    <meta name="theme-color" content="#0B0C0E">
+
     <link rel="apple-touch-icon" sizes="180x180" href="static/favicon_io/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="static/favicon_io/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="static/favicon_io/favicon-16x16.png">
 <link rel="manifest" href="static/favicon_io/site.webmanifest">
 
+    <!-- Ritmo del oro que recorre las pintas bajo el logo. Lo fija el
+         administrador con `menu_pintas_ms`; 0 = sin animación. -->
+    <style>:root { --cm-orn-paso: {{ pintas_ms|default(1000) }}ms; }</style>
+
+    <!-- ¿Se entra solo a pantalla completa al empezar una partida? Lo decide el
+         administrador con `pantalla_completa_auto`; salir es siempre a mano con
+         el botón ⛶. Donde no hay API (iPhone) da igual lo que valga. -->
+    <script>window.CM_AUTO_FULLSCREEN = {{ 'true' if auto_pantalla|default(true) else 'false' }};</script>
 </head>
 <body>
 
@@ -97,7 +119,7 @@
             <img class="cm-logo" src="/static/img/callmus2logo_193.jpg" alt="CallMus">
 
             <div class="cm-rule">
-                <span class="cm-orn">
+                <span class="cm-orn cm-orn-ciclo">
                     <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-oros"/></svg>
                     <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-copas"/></svg>
                     <svg class="pinta" viewBox="0 0 24 24" aria-hidden="true"><use href="#pinta-espadas"/></svg>
@@ -276,17 +298,25 @@
 
         <div id="mesa-4">
             <!-- Compañero (arriba) -->
+            <!-- .seat-cuerpo envuelve nombre+chips+cartas porque el asiento
+                 ocupa toda su celda de la rejilla y el contenido va centrado:
+                 el rótulo de lo que canta cada jugador se ancla al cuerpo, y
+                 así sale junto al nombre y no en lo alto de la columna. -->
             <div id="seat-top" class="seat-4" data-slot="top">
-                <div class="seat-name"></div>
-                <div class="seat-chips"></div>
-                <div class="seat-cards"></div>
+                <div class="seat-cuerpo">
+                    <div class="seat-name"></div>
+                    <div class="seat-chips"></div>
+                    <div class="seat-cards"></div>
+                </div>
             </div>
 
             <!-- Oponente izquierda -->
             <div id="seat-left" class="seat-4" data-slot="left">
-                <div class="seat-name"></div>
-                <div class="seat-chips"></div>
-                <div class="seat-cards"></div>
+                <div class="seat-cuerpo">
+                    <div class="seat-name"></div>
+                    <div class="seat-chips"></div>
+                    <div class="seat-cards"></div>
+                </div>
             </div>
 
             <!-- Mesa central -->
@@ -323,16 +353,20 @@
 
             <!-- Oponente derecha -->
             <div id="seat-right" class="seat-4" data-slot="right">
-                <div class="seat-name"></div>
-                <div class="seat-chips"></div>
-                <div class="seat-cards"></div>
+                <div class="seat-cuerpo">
+                    <div class="seat-name"></div>
+                    <div class="seat-chips"></div>
+                    <div class="seat-cards"></div>
+                </div>
             </div>
 
             <!-- Tú (abajo) -->
             <div id="seat-bottom" class="seat-4" data-slot="bottom">
-                <div class="seat-name"></div>
-                <div class="seat-chips"></div>
-                <div class="seat-cards" id="my-cards-4"></div>
+                <div class="seat-cuerpo">
+                    <div class="seat-name"></div>
+                    <div class="seat-chips"></div>
+                    <div class="seat-cards" id="my-cards-4"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -667,11 +701,15 @@
 
         <div id="modal-tutorial" class="hidden" style="position: relative; background: #2e3440; padding: 0; border-radius: 12px; border: 1px solid #4c566a; width: 600px; max-width: 95vw; height: 80vh; max-height: 700px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden;">
             <button id="btn-cerrar-tutorial" style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.5); border: none; color: #eceff4; font-size: 1.5em; cursor: pointer; font-weight: bold; line-height: 1; width: 35px; height: 35px; border-radius: 50%; z-index: 10;">&times;</button>
-            
+
+            <!-- Vuelve al índice de las tres pistas (1v1 / 2v2 / señas).
+                 tutorial.js lo enseña sólo cuando hay una pista abierta. -->
+            <button id="btn-tutorial-indice" class="hidden" title="Índice" style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.5); border: none; color: #eceff4; font-size: 1.2em; cursor: pointer; font-weight: bold; line-height: 1; width: 35px; height: 35px; border-radius: 50%; z-index: 10;">&#9776;</button>
+
             <div id="tutorial-content" style="flex-grow: 1; overflow-y: auto; padding: 30px 20px; display: flex; flex-direction: column; justify-content: center;">
                 </div>
 
-            <div style="background: #3b4252; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #4c566a;">
+            <div id="tut-nav" style="background: #3b4252; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #4c566a;">
                 <button id="tut-prev" style="background: #4c566a; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; visibility: hidden;">&larr; Prev</button>
                 
                 <div id="tut-dots" style="display: flex; gap: 8px;">
@@ -836,15 +874,21 @@
                         </span>
                     </label>
 
-                    <!-- Señas: propias del 2v2 y todavía sin implementar -->
-                    <label class="cm-switch hidden" id="set-senas">
-                        <input type="checkbox" id="in-senas">
-                        <span class="cm-switch-box" aria-hidden="true"></span>
-                        <span class="cm-switch-txt">
-                            <b data-i18n="play_senas">Con señas</b>
-                            <small data-i18n="play_senas_sub">Avisar a tu pareja de lo que llevas</small>
-                        </span>
-                    </label>
+                    <!-- Señas: propias del 2v2. El [?] de al lado abre la ayuda
+                         que explica los mandos (la monta menu.js). -->
+                    <div class="cm-switch-fila hidden" id="set-senas">
+                        <label class="cm-switch">
+                            <input type="checkbox" id="in-senas">
+                            <span class="cm-switch-box" aria-hidden="true"></span>
+                            <span class="cm-switch-txt">
+                                <b data-i18n="play_senas">Con señas</b>
+                                <small data-i18n="play_senas_sub">Avisar a tu pareja de lo que llevas</small>
+                            </span>
+                        </label>
+                        <button type="button" id="btn-ayuda-senas" class="cm-help-dot"
+                                data-i18n-title="senas_ayuda_tooltip"
+                                title="Cómo funcionan las señas">?</button>
+                    </div>
 
                     <!-- Asiento (2v2): las parejas se sientan enfrente -->
                     <div class="cm-seats hidden" id="set-asiento">
@@ -1014,7 +1058,7 @@
         </div>
     </div>
 
-    <script src="/static/app.js?=v13"></script>
+    <script src="/static/app.js?=v14"></script>
     <!-- Barajas temáticas (Roadmap #5). Antes que auth.js: éste le pide que
          recargue el catálogo en cuanto se confirma la sesión. -->
     <script src="/static/decks.js?=v2"></script>
@@ -1025,18 +1069,22 @@
     <!-- Soporte y avisos del administrador (Roadmap #13). Tras settings.js: se
          engancha a la ventana de ajustes y reutiliza su _post/_traducir. -->
     <script src="/static/soporte.js?=v1"></script>
-    <script src="/static/tutorial.js?=v2"></script>
+    <script src="/static/tutorial.js?=v3"></script>
     <!-- Mus 4 jugadores (Roadmap #6): app4 (lógica) + table4 (render). Cargan tras app.js para reusar socket/dict/t. -->
-    <script src="/static/table4.js?=v4"></script>
-    <script src="/static/app4.js?=v5"></script>
+    <script src="/static/table4.js?=v5"></script>
+    <script src="/static/app4.js?=v7"></script>
     <!-- Señas del 2v2: foco, caras y denuncias. Tras app4.js, que es quien le
          pasa cada estado de la mesa (Senas4.sincronizar). -->
-    <script src="/static/senas4.js?=v2"></script>
+    <script src="/static/senas4.js?=v4"></script>
     <!-- Menú principal y ventana de Jugar. Va al final: usa dict/t/socket de
          app.js y reengancha los paneles 2v2 que app4.js acaba de localizar. -->
-    <script src="/static/menu.js?=v1"></script>
+    <script src="/static/menu.js?=v3"></script>
+    <!-- Pantalla completa y «modo mesa» (la página se congela mientras se juega
+         para que deslizar sea un mando del juego y no del navegador). El
+         último: se apoya en dict/t y en los botones de todos los anteriores. -->
+    <script src="/static/pantalla.js?=v1"></script>
     <!-- Medición de audiencia (Roadmap #24). Al final y sin dependencias: no
          guarda nada en el dispositivo, así que no necesita consentimiento. -->
-    <script src="/static/analitica.js?=v1" defer></script>
+    <script src="/static/analitica.js?=v2" defer></script>
 </body>
 </html>

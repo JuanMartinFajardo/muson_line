@@ -1,6 +1,6 @@
 
 # CallMus
-CallMus is an online app to play the 2 player version of the Spanish card game Mus.
+CallMus is an online app to play the Spanish card game Mus.
 You can find the most recent deployed version in [CallMus](https://callmus.com)
 In this readme you will find:
 

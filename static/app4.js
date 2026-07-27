@@ -15,6 +15,9 @@ Object.assign(dict.es, {
     elige_asiento: 'Elige un asiento',
     pares_si: 'Pares sí', pares_no: 'Pares no',
     juego_si: 'Juego sí', juego_no: 'Juego no',
+    // Pares y juego son de cada uno, no de la pareja: sin ellos no se apuesta.
+    sin_pares_aviso_4: 'No tienes pares: en este lance apuesta tu compañero.',
+    sin_juego_aviso_4: 'No tienes juego: en este lance apuesta tu compañero.',
     public_games_4: '🌐 Salas 4 jugadores',
     un_ordago: 'un ÓRDAGO',
     msg_baraja_agotada: '¡Se ha acabado la baraja! Se barajan los descartes.',
@@ -69,6 +72,9 @@ Object.assign(dict.en, {
     elige_asiento: 'Pick a seat',
     pares_si: 'Pairs', pares_no: 'No pairs',
     juego_si: 'Game', juego_no: 'No game',
+    // Pairs and game are each player's own, not the team's: no play, no bet.
+    sin_pares_aviso_4: 'You have no pairs: your partner bets this round.',
+    sin_juego_aviso_4: 'You have no game: your partner bets this round.',
     public_games_4: '🌐 4-Player rooms',
     un_ordago: 'an ÓRDAGO',
     msg_baraja_agotada: 'The deck ran out! Reshuffling the discards.',
@@ -455,7 +461,7 @@ function actualizarMensajeYBotones4(d) {
     } else if (d.fase === 'espera_reparto') {
         log.innerText = d.es_mi_turno ? '' : t('esperando_jugadores_4');
     } else {
-        log.innerText = '';
+        log.innerText = avisoSinJugada4(d);
     }
 
     // Botones de acción
@@ -487,6 +493,14 @@ function textoTransicion4(mt) {
     return t('msg_' + mt.code);
 }
 
+// Qué se puede pulsar lo decide el servidor (`acciones_legales`), no el cliente:
+// además de los topes de 40 ahí está la regla que Pares y Juego son jugadas
+// INDIVIDUALES —sin ellas sólo se pasa o se rehúsa, aunque las tenga tu
+// compañero—. Si un servidor viejo no manda la lista se muestra todo, como antes.
+function _puede4(d, accion) {
+    return !d.acciones_legales || d.acciones_legales.includes(accion);
+}
+
 function mostrarPanelApuesta4(d) {
     document.getElementById('action-buttons-4').classList.remove('hidden');
     const ap = d.apuestas;
@@ -495,18 +509,32 @@ function mostrarPanelApuesta4(d) {
         const inEnv = document.getElementById('in-envidar-4');
         const max = 40 - Math.max(d.mis_puntos_equipo, d.puntos_rival_equipo);
         inEnv.max = max > 0 ? max : 1;
+        const puedeEnvidar = _puede4(d, 'envidar');
+        inEnv.classList.toggle('hidden', !puedeEnvidar);
+        document.getElementById('btn-envidar-4').classList.toggle('hidden', !puedeEnvidar);
+        document.getElementById('btn-pasar-4').classList.toggle('hidden', !_puede4(d, 'pasar'));
+        document.getElementById('btn-ordago-4').classList.toggle('hidden', !_puede4(d, 'ordago'));
     } else {
         document.getElementById('apuesta-responder-4').classList.remove('hidden');
-        const esOrdago = ap.subida === 'ÓRDAGO';
-        const total = ap.apuesta_vista + (esOrdago ? 0 : ap.subida);
-        const yaPasaDe40 = (d.mis_puntos_equipo + total >= 40 || d.puntos_rival_equipo + total >= 40);
-        const ocultarSubir = esOrdago || yaPasaDe40;
-        document.getElementById('in-subir-4').classList.toggle('hidden', ocultarSubir);
-        document.getElementById('btn-subir-4').classList.toggle('hidden', ocultarSubir);
-        document.getElementById('btn-ordago-resp-4').classList.toggle('hidden', esOrdago);
-        const deje = ap.apuesta_vista > 0 ? ap.apuesta_vista : 1;
-        document.getElementById('btn-nover-4').classList.toggle('hidden', (d.puntos_rival_equipo + deje >= 40));
+        const puedeSubir = _puede4(d, 'subir');
+        document.getElementById('btn-ver-4').classList.toggle('hidden', !_puede4(d, 'ver'));
+        document.getElementById('in-subir-4').classList.toggle('hidden', !puedeSubir);
+        document.getElementById('btn-subir-4').classList.toggle('hidden', !puedeSubir);
+        document.getElementById('btn-ordago-resp-4').classList.toggle('hidden', !_puede4(d, 'ordago'));
+        document.getElementById('btn-nover-4').classList.toggle('hidden', !_puede4(d, 'nover'));
     }
+}
+
+// Por qué la mesa sólo te deja pasar (o no querer) en Pares/Juego: no llevas la
+// jugada. Sin este aviso el jugador ve los botones a medias y no sabe por qué.
+// Quien no tiene la jugada nunca puede echar un órdago: ese es el indicador.
+function avisoSinJugada4(d) {
+    if (d.fase !== 'apuestas' || !d.es_mi_turno || !d.acciones_legales) return '';
+    if (d.acciones_legales.includes('ordago')) return '';
+    const lance = d.apuestas && d.apuestas.fase_actual;
+    if (lance === 'Pares') return t('sin_pares_aviso_4');
+    if (lance === 'Juego') return t('sin_juego_aviso_4');
+    return '';
 }
 
 function ocultarPanelesApuesta4() {
@@ -646,10 +674,7 @@ document.getElementById('btn-next-round-4').addEventListener('click', () => {
     emit4('listo_siguiente_ronda');
 });
 document.getElementById('btn-volver-menu-4').addEventListener('click', volverMenu4);
-document.getElementById('btn-help-game-4').addEventListener('click', () => {
-    const btnTut = document.getElementById('btn-tutorial');
-    if (btnTut) btnTut.click();
-});
+// El [?] de la mesa lo recoge tutorial.js, que abre la pista del 2 contra 2.
 
 // ==========================================
 // 9. Desconexión / reconexión / sustituciones

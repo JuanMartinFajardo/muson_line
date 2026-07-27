@@ -191,8 +191,13 @@ function animarPuntos4(prev, next) {
 // que cada acción deja un rótulo un momento donde corresponde.
 // El texto lo compone app4.js (que es quien tiene el diccionario); aquí sólo se
 // pinta. `clase` marca los cantes que merecen destacar (órdago, no hay mus…).
+// Va DENTRO de `.seat-cuerpo` (no del asiento, que ocupa toda su celda de la
+// rejilla) para que salga junto al nombre de quien canta, no en lo alto de la
+// columna: en los asientos de los lados quedaba tan arriba que no se sabía de
+// quién era, y en el móvil llegaba a pisar el marcador.
 function mostrarAccion4(miAsiento, asiento, texto, clase) {
-    const el = document.getElementById('seat-' + slotDeAsiento4(miAsiento, asiento));
+    const asientoEl = document.getElementById('seat-' + slotDeAsiento4(miAsiento, asiento));
+    const el = asientoEl && (asientoEl.querySelector('.seat-cuerpo') || asientoEl);
     if (!el || !texto) return;
     // Una sola por asiento: si canta otra vez, sustituye a la anterior.
     const previa = el.querySelector('.accion-burbuja');

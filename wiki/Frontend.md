@@ -72,9 +72,63 @@ duplicating the "is anyone logged in?" logic, and it adds a **second** `socket.o
 are not its own (`anuncio`, `soporte_respuesta` here; friends and chat in `social.js`).
 The link to `/admin` in the settings window only appears when `usuarioActual.is_admin`.
 
-## `static/tutorial.js` (~700 lines)
+## `static/pantalla.js` — fullscreen and "table mode"
 
-An interactive step-by-step tutorial launched by the *How to Play* button: injected styles for card-zoom effects (hover on desktop, tap on mobile), staged explanations of the deck, lances, and betting. **Fully bilingual (ES/EN)** since Roadmap #2: slide content lives in a `dictTutorial` object keyed by the global `langActual` variable defined in `app.js` (single source of truth, persisted to `localStorage['callmus_lang']`); `getSlides()` / `getTutBtns()` return the active-language content, and a listener on `#btn-lang` re-renders the open tutorial when the language is toggled. Both `es` and `en` arrays keep the same slide count/order so the practice-slide skip logic (index 8) stays valid. The *How to Play* launcher button is translated via `data-i18n="btn_tutorial"` in `app.js`.
+Loaded **last**. It owns everything about how much screen the game gets, and it exists
+because of one phone problem: on the table, a swipe is a **game control** (the 2v2 signs
+turn your head with it), but the browser reads that same gesture as its own — it scrolls
+the page, bounces, or pulls to refresh. Fullscreen used to be the only way around it, and
+**Safari on the iPhone has no Fullscreen API at all** (outside `<video>`), so the ⛶ button
+could never work there. Both halves are fixed here:
+
+1. **Table mode.** A `MutationObserver` on `#game-screen` / `#game-screen-4` puts
+   `.modo-mesa` on `<html>` while a table is on screen. `game.css` then freezes the
+   document (`position: fixed` body — the only thing Safari really honours —
+   `overflow: hidden`, `overscroll-behavior: none`, `touch-action: manipulation`), and a
+   **non-passive** `touchmove` listener cancels any drag that is not inside something that
+   can actually scroll (`desplazable()` walks up looking for a real overflow). The 1v1
+   recuento, the signs cheat sheet and the tutorial keep scrolling; the table does not.
+   **The game plays the same with or without fullscreen** — that was the point.
+2. **Fullscreen**, in one place, with the vendor prefixes. The ⛶ button toggles it and
+   repaints its own tooltip on `fullscreenchange`; it hides itself when the page is already
+   running from the home screen (`enApp()`).
+3. **Automatic entry** on the click that starts a game (`#btn-crear`, `#btn-jugar-bot`,
+   `#btn-unirse`, `#btn-crear-sala-4`, `#btn-unirse-4` and the join buttons of the public
+   lists). It has to be *that* click: the API needs a user gesture and the table only opens
+   later, when the server says so. `arranqueValido()` skips it when the name or the code is
+   missing, so a click that only produces an error message does not go fullscreen either.
+   The admin switch is the `pantalla_completa_auto` `Config` variable (default `1`,
+   editable from `/admin` like `bot_delay` or `menu_pintas_ms`), which `server.py` reads in
+   `index()` and `index.html` injects as `window.CM_AUTO_FULLSCREEN`; leaving is always
+   manual.
+4. **The iPhone.** Where there is no API, ⛶ opens a floating `.cm-ayuda` window explaining
+   *Share → Add to Home Screen*, which is the only real fullscreen Safari offers, and says
+   that the table already works without it. `index.html` carries the
+   `apple-mobile-web-app-*` tags and `viewport-fit=cover`, and
+   `static/favicon_io/site.webmanifest` was filled in (it had an empty name and icon paths
+   that pointed nowhere).
+
+`env(safe-area-inset-*)` is applied in `game.css` to the tables and to the fixed corner
+buttons: with `viewport-fit=cover` the table reaches the physical edge of the screen, so
+the notch and the gesture bar have to be dodged by the content.
+
+## `static/tutorial.js` (~2200 lines)
+
+An interactive step-by-step tutorial launched by the *How to Play* button: injected styles for card-zoom effects (hover on desktop, tap on mobile), staged explanations of the deck, lances, and betting. **Fully bilingual (ES/EN)** since Roadmap #2: slide content is keyed by the global `langActual` variable defined in `app.js` (single source of truth, persisted to `localStorage['callmus_lang']`), and a listener on `#btn-lang` re-renders the open tutorial when the language is toggled. The *How to Play* launcher button is translated via `data-i18n="btn_tutorial"` in `app.js`.
+
+**Three tracks and an index (July 2026).** The tutorial no longer is one long carousel: it opens on an **index** (`dictIndice`) with three buttons, each leading to its own slide array.
+
+| Track | Constant | Slides | What it covers |
+| :--- | :--- | :--- | :--- |
+| `1v1` | `dictTut1v1` | 13 | The rules of Mus from scratch (the original carousel, untouched) |
+| `2v2` | `dictTut2v2` | 9 | Only what changes with partners: teams, cutting the Mus with four, public Pares/Juego declarations, team betting (both partners answer), showdown with bonuses that add up, two worked examples |
+| `senas` | `dictTutSenas` | 8 | The ten gestures, the "highest sign only" rule, when the button is live, calling out a sign, tips |
+
+- `CONTENIDO` maps the track name to its dictionary; `pistaActual` (null = index) plus `currentSlideIndex` are the whole navigation state. `renderTutorial()` paints whichever applies — used by the language toggle so a track keeps its position across languages.
+- Both `es` and `en` arrays of a track keep the same slide count/order, so the practice-slide skip logic (index 8 **of the 1v1 track**, `IDX_PRACTICA_1V1`) stays valid.
+- A slide's `content` may be a **function** instead of a string: the sign slides are generated at paint time because they borrow the face SVG from `senas4.js` (`window.Senas4.svgCara()`), which loads after this file. The faces replay each gesture on a loop with the same `sena-<name>` + `en-bucle` classes as the in-game cheat sheet (`.sena-muestra` in `senas.css`).
+- Navigation: `#btn-tutorial-indice` (the ☰ in the modal's top-left corner) and *Prev* on the first slide both return to the index; the footer (`#tut-nav`) is hidden on the index. Buttons carrying `data-tut-pista="…"` inside a slide jump between tracks (the 2v2 track links to both 1v1 and señas).
+- The in-game `?` opens the track of the mode being played: `#btn-help-game` → `1v1`, `#btn-help-game-4` → `2v2`, both with `openedFromGame = true` so the "start practising" slide is skipped. `window.tutorialAbrirPista(id, index)` is the public entry point (used by the señas help in `menu.js`).
 
 ## The menu and the Play window
 
@@ -88,6 +142,14 @@ the only accent, red only for errors — plus the four Spanish suits (oros, copa
 bastos) hand-drawn as SVG `<symbol>`s at the top of `index.html` and reused with
 `<use href="#pinta-…">`. `menu.css` also **reassigns the old `--menu-*` variables**, so the
 windows that have not been redesigned inherit the new palette instead of clashing.
+
+The row of four suits under the logo (`.cm-orn.cm-orn-ciclo`) passes the gold from one to
+the next — oros → copas → espadas → bastos and round again — with a CSS animation
+(`@keyframes cm-orn-oro`, one shared 4-step cycle plus a negative `animation-delay` per
+suit). The step is the `--cm-orn-paso` variable, which `index.html` injects from the
+`menu_pintas_ms` `Config` variable (default 1000 ms, 0–10000, editable from `/admin`);
+`0` stops the animation and leaves the gold parked on espadas, as it was before. The lone
+suit inside `#modal-play` does not carry `.cm-orn-ciclo`, so it stays quiet.
 
 **`#modal-play` — one window for every way of starting a game:**
 
@@ -113,6 +175,18 @@ capturing listener in `menu.js` turns any click on them into a floating explanat
 The 2v2 lost its own window: `#modal-4` no longer exists and `app4.js` points `modal4`,
 `panelSetup4` and `msg4` at `#modal-play`, `#play-setup` and `#play-msg`.
 
+**The señas help (`#btn-ayuda-senas`).** The *Con señas* switch is wrapped in a
+`.cm-switch-fila` together with a round `?` (`.cm-help-dot`) — a `<button>` cannot live
+inside the `<label>` without becoming a second labelable control, so the row is the wrapper
+and it keeps the id `#set-senas` that `pintarPlay()` shows and hides. The `?` opens a light
+floating window (`.cm-ayuda` + `#cm-ayuda-velo`, built by `menu.js`) that explains the
+**mechanics**, not the gestures: the four focus regions with their keys, arrows/WASD/swipe,
+the gold face that means "they are looking at you", the automatic wandering and the 2.5 s
+manual hold, the 1 s focus cut and the 1 s overlap, and when the *Seña* button is live. Its
+prose lives in the `AYUDA_SENAS` constant (one HTML block per language, repainted on the
+language toggle, since it carries no `data-i18n`), and its *See the ten signs* button calls
+`window.tutorialAbrirPista('senas')`. It closes with the veil, the *Got it* button or `Esc`.
+
 ## The tables (1v1 and 2v2)
 
 Both tables were redesigned to continue the menu's "midnight ink" language, and the look of
@@ -137,6 +211,20 @@ under it. Buttons follow one rule: the action that moves the game on (deal, disc
 next round) is solid gold, everything else is a hairline, **órdago** is the only red thing
 on the table, and *back to menu* is a quiet outline. The bet amount is glued to its button
 (`2 | ENVIDAR`) so the number reads as part of the action.
+
+In the 2v2, each seat's name, chips and cards live inside a `.seat-cuerpo`: the
+seat itself fills its whole grid cell — the side columns are as tall as the table —
+so the label of what a player just called (`.accion-burbuja`, `mostrarAccion4`) is
+anchored to the *cuerpo* and lands right above that player's name instead of high
+up in the column. It sits just clear of the name (the plate is opaque), and only
+under 640 px does it anchor to the outer edge of the side columns and grow towards
+the centre, because a 60 px column cannot hold it centred.
+
+The betting buttons of the 2v2 are not decided by the client: the payload's
+`acciones_legales` (built by the engine, the same list the bots use) says which of
+*envidar/pasar/órdago/ver/subir/no ver* to show, which is how the table stops
+offering a Pares or Juego bet to a player who does not have the combination — see
+[Implementing Mus 4 Players](Implementing-Mus-4-Players.md) §4.3 ter.
 
 Two layout traps worth remembering: `#center-table` is a flex column with its own scroll,
 so its children need `flex: 0 0 auto` (otherwise the growing recuento text overlaps the

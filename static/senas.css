@@ -16,6 +16,25 @@
 }
 
 /* ============================================================
+   0. En una mesa con señas, el dedo es un mando
+   ============================================================ */
+
+/* Deslizar sobre la mesa gira la cabeza. Si el navegador entiende además ese
+   mismo gesto como suyo (desplazar, rebotar, tirar hacia abajo para recargar),
+   el foco se mueve a trompicones y la página se va de sitio — que es por lo que
+   sólo se jugaba bien a pantalla completa. `touch-action: none` se lo quita en
+   toda la mesa; del resto de la pantalla se encarga el «modo mesa» de
+   pantalla.js. Los toques y los clics siguen funcionando igual.
+
+   Se apaga la selección de texto y el menú de "copiar" del toque largo: un
+   deslizamiento lento acababa marcando el nombre de un rival en azul. */
+#game-screen-4.con-senas #mesa-4 {
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* ============================================================
    1. El asiento enfocado
    ============================================================ */
 
@@ -361,6 +380,12 @@
 }
 .den-op .cara { --sena-dur: 2.4s; }
 .den-op .cara.en-bucle * { animation-iteration-count: infinite !important; }
+
+/* Muestras de seña fuera de la mesa (el tutorial y la ayuda del menú): la misma
+   cara, más lenta y repitiéndose, que es como se aprende cuál es cuál. */
+.sena-muestra { display: block; }
+.sena-muestra .cara { --sena-dur: 2.4s; width: 100%; height: 100%; }
+.sena-muestra .cara.en-bucle * { animation-iteration-count: infinite !important; }
 
 #senas-denuncia .den-cerrar {
     display: block;

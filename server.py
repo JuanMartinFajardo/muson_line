@@ -314,7 +314,15 @@ def generar_codigo():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # El oro que recorre las cuatro pintas del menú late al ritmo que fije el
+    # administrador (`menu_pintas_ms`); 0 lo deja quieto en las espadas.
+    paso = base_datos.config_get_float('menu_pintas_ms', 1000.0)
+    # ¿La partida entra sola a pantalla completa al empezar? (`pantalla_completa_auto`,
+    # editable desde /admin). Salir es siempre cosa del jugador, con el botón ⛶.
+    auto_pantalla = base_datos.config_get_float('pantalla_completa_auto', 1.0) != 0
+    return render_template('index.html',
+                           pintas_ms=int(max(0, min(paso, 10000))),
+                           auto_pantalla=auto_pantalla)
 
 
 # ==========================================

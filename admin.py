@@ -56,6 +56,17 @@ CONFIG_CONOCIDA = {
         'defecto': '1.5',
         'ayuda': 'Segundos que "piensa" el bot antes de mover (Roadmap #15).',
     },
+    'menu_pintas_ms': {
+        'defecto': '1000',
+        'ayuda': ('Milisegundos que el oro pasa en cada pinta del menú (oros → copas → '
+                  'espadas → bastos y vuelta). 0 = sin animación, oro fijo en las espadas.'),
+    },
+    'pantalla_completa_auto': {
+        'defecto': '1',
+        'ayuda': ('1 = la partida entra sola a pantalla completa al crearla o al unirse '
+                  '(Android y escritorio). Salir es siempre a mano con el botón ⛶. '
+                  'En el iPhone da igual: Safari no tiene pantalla completa para webs.'),
+    },
     'mantenimiento_activo': {
         'defecto': '0',
         'ayuda': '1 = enseña el cartel de mantenimiento a todos los jugadores.',
@@ -478,6 +489,21 @@ def init_admin(app, socketio, ctx):
                 return jsonify({'exito': False, 'mensaje': 'valor_invalido'})
             if not (0 <= v <= 10):
                 return jsonify({'exito': False, 'mensaje': 'fuera_de_rango'})
+
+        if clave == 'menu_pintas_ms':
+            try:
+                v = int(float(valor))
+            except (TypeError, ValueError):
+                return jsonify({'exito': False, 'mensaje': 'valor_invalido'})
+            if not (0 <= v <= 10000):
+                return jsonify({'exito': False, 'mensaje': 'fuera_de_rango'})
+            valor = v
+
+        # Interruptor: se guarda como 0/1 aunque llegue "true", "sí" o vacío, que
+        # es lo que lee el cliente (window.CM_AUTO_FULLSCREEN).
+        if clave == 'pantalla_completa_auto':
+            texto = str(valor).strip().lower()
+            valor = 1 if texto in ('1', 'true', 'si', 'sí', 'on', 'yes') else 0
 
         # El orden de las señas se normaliza al guardarlo: así lo que queda en la
         # base de datos es exactamente lo que va a usar el juego (sin erratas ni

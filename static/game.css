@@ -24,11 +24,66 @@
 #game-screen:not(.hidden),
 #game-screen-4:not(.hidden) {
     max-width: 100%;
-    padding-top: 18px;   /* aire para el aviso de turno y las esquinas */
+    /* Arriba, aire para el aviso de turno y las esquinas. Alrededor, el recorte
+       de la pantalla: con viewport-fit=cover el tapete llega hasta el borde
+       físico del teléfono, así que la muesca, la barra de gestos y las esquinas
+       redondeadas las esquiva el contenido. Fuera del móvil env() vale 0 y todo
+       queda exactamente como estaba. */
+    padding-top: max(18px, env(safe-area-inset-top));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    padding-left: max(10px, env(safe-area-inset-left));
     background: var(--cm-ink);
     color: var(--cm-bone);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+
+/* La mesa de 2v2 se medía en 100vh, que en el móvil es la pantalla ENTERA
+   incluida la barra del navegador: la fila de abajo se iba por debajo del
+   pliegue. Con dvh mide lo que de verdad se ve (el 1v1 ya lo hacía). */
+#game-screen-4:not(.hidden) { height: 100dvh; }
+
+/* ============================================================
+   1 bis. Modo mesa: el tapete se comporta como una aplicación
+   ============================================================ */
+
+/* Lo enciende pantalla.js mientras se ve una mesa. Sirve para lo mismo que
+   servía la pantalla completa: que deslizar el dedo sobre el tapete sea un
+   mando del juego (las señas del 2v2) y no el gesto del navegador de mover la
+   página, rebotar o tirar hacia abajo para recargar. Con esto se juega igual de
+   bien sin pantalla completa, que en el iPhone no existe.
+
+   `position: fixed` en el body es lo único que congela de verdad el documento
+   en Safari; `overflow: hidden` a secas no le basta. */
+html.modo-mesa, html.modo-mesa body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    /* manipulation = se conservan los toques y el pellizco, se pierde el
+       "doble toque para acercar", que es el que se comía el segundo golpe. */
+    touch-action: manipulation;
+}
+html.modo-mesa body {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+}
+
+/* Lo que sí se desplaza por dentro (el recuento largo del 1v1, la chuleta de
+   señas, una ventana que no cabe) sigue haciéndolo, pero sin contagiarle el
+   gesto a la página cuando llega a su tope. */
+html.modo-mesa #center-table,
+html.modo-mesa .cm-win-body,
+html.modo-mesa .cm-ayuda,
+html.modo-mesa #senas-denuncia,
+html.modo-mesa #modal-overlay {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Los botones fijos de las esquinas también esquivan el recorte: en apaisado
+   la muesca del iPhone se come justo esa franja. */
+html.modo-mesa .cm-corner { margin-right: env(safe-area-inset-right); }
 
 /* Un halo de luz muy tenue en el centro, como una lámpara sobre el tapete:
    da profundidad sin recurrir a degradados de color ni a texturas. */
@@ -70,12 +125,13 @@
     border-color: var(--cm-gold);
     color: var(--cm-gold-hi);
 }
-.cm-mesa-ayuda { left: 15px; }
+.cm-mesa-ayuda { left: max(15px, env(safe-area-inset-left)); top: max(13px, env(safe-area-inset-top)); }
 
 /* El «✕» de abandonar: mismo hueco de siempre (a la izquierda del de pantalla
    completa), pero en rojo al pasar por encima porque es una salida. */
 .btn-salir-mesa {
-    right: 62px;
+    right: calc(62px + env(safe-area-inset-right));
+    top: max(13px, env(safe-area-inset-top));
     width: 34px; height: 34px;
     background: rgba(237, 233, 220, 0.03);
     border: 1px solid var(--cm-hair-2); border-radius: 2px;

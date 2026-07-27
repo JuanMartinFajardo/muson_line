@@ -48,7 +48,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [bench_env.py](../bench_env.py) | Simulator throughput benchmark (`fork()` vs `deepcopy`) — the Phase 1 performance gate |
 | [arena.py](../arena.py) | Pits two model checkpoints against each other over thousands of games to measure progress |
 | [global_trainer.py](../global_trainer.py) | Legacy pipeline: compiles `logs/` into a CSV and trains the old random-forest models |
-| `tools/` | `log_verify.py` (replay integrity), `selftest_log.py` (log round trip, CI-style), `logs2dataset.py` (v2 → Parquet), `fuzz_env4.py`, `arena4.py` (2v2 arena, seat-permuted), `lbr_probe.py` (2p exploitability bound), `soak_bots4.py`, `soak_server_bots4.py`, `test_analitica.py` (30 checks over `analitica.py`, incl. "no IP ever hits disk"), `decks/` |
+| `tools/` | `log_verify.py` (replay integrity), `selftest_log.py` (log round trip, CI-style), `logs2dataset.py` (v2 → Parquet), `fuzz_env4.py`, `arena4.py` (2v2 arena, seat-permuted), `lbr_probe.py` (2p exploitability bound), `soak_bots4.py`, `soak_server_bots4.py`, `test_analitica.py` (39 checks over `analitica.py`, incl. "no IP ever hits disk"), `decks/` |
 | `learn/` | Training assets: `probability_calculator.py`, `dataset_generator.py`, `procesar_carpeta.py`, `entrenar_*.py`, CFR checkpoints (`learn/cfr/*.pth`), precomputed tables (`learn/global_variables/mus_data.json`), datasets, old models |
 
 ### Frontend
@@ -66,6 +66,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [static/analitica.js](../static/analitica.js) | Audience measurement beacon: visible-tab time and menu events. Stores nothing on the device ([Analytics](Analytics.md)) |
 | [static/senas4.js](../static/senas4.js) | Señas (2v2): focus state machine, controls, SVG faces, sign and report UI (`window.Senas4`) |
 | [static/senas.css](../static/senas.css) | Señas: the face, the lit seat and the ten sign animations |
+| [static/pantalla.js](../static/pantalla.js) | Fullscreen (with prefixes, auto-entry on the start click) and "table mode": the page freezes while a table is on screen so a swipe is a game control, not a browser gesture ([Frontend](Frontend.md)) |
 | [static/style.css](../static/style.css) | Nord-palette styling |
 | `static/img/` | Card images (`card_<suit>_<value>.webp`), logo, favicon |
 

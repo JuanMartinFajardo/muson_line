@@ -74,7 +74,11 @@
     'btn-decks': 'menu_barajas',
     'btn-show-signup': 'registro_abierto',
     'btn-show-login': 'login_abierto',
-    'btn-amigos': 'amigos_abierto'
+    'btn-amigos': 'amigos_abierto',
+    // Ko-fi es un <a target="_blank">: la pestaña actual no se descarga, así
+    // que el fetch normal llega de sobra. La etiqueta («tras jugar» / «sin
+    // jugar») la decide el servidor, aquí no se manda nada más.
+    'btn-kofi': 'kofi'
   };
 
   function evento(tipo, etiqueta) {

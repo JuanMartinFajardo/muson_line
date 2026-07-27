@@ -210,6 +210,9 @@
     async function cargar() {
         let datos = null;
         try {
+            // El catálogo sólo tiene nombre en castellano y en inglés (dos
+            // columnas en la base de datos): en euskera se piden en castellano
+            // hasta que los temas tengan su propio nombre.
             const idioma = (typeof langActual !== 'undefined' && langActual === 'en') ? 'en' : 'es';
             const res = await fetch('/api/decks?lang=' + idioma,
                                     { credentials: 'same-origin', cache: 'no-store' });
@@ -286,7 +289,8 @@
     }
 
     /** El catálogo trae los dos nombres, así que cambiar de idioma con la
-     *  ventana abierta no necesita volver a preguntar al servidor. */
+     *  ventana abierta no necesita volver a preguntar al servidor. En euskera
+     *  se enseña el nombre en castellano: los temas no tienen nombre propio. */
     function nombreTema(tema) {
         if (!tema) return '—';
         return (langActual === 'en' ? tema.nombre_en : tema.nombre_es) || tema.nombre;

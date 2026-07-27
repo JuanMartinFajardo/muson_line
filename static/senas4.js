@@ -502,17 +502,47 @@
     });
 
     let toque = null;
-    function montarGestos() {
-        const mesa = document.getElementById('mesa-4');
-        if (!mesa || mesa.dataset.senasGestos) return;
-        mesa.dataset.senasGestos = '1';
 
-        mesa.addEventListener('touchstart', (e) => {
+    /** Tocar a un RIVAL abre la ventana de denuncia (a la pareja no: no vas a
+     *  denunciar a quien le haces las señas). Lo llaman los dos caminos: el
+     *  dedo (touchend) y el ratón (click). */
+    function tocarAsiento(destino) {
+        if (!activo || enPausa) return;
+        const asientoEl = destino && destino.closest && destino.closest('.seat-4');
+        if (!asientoEl) return;
+        const slot = asientoEl.dataset.slot;
+        if (slot !== 'left' && slot !== 'right') return;       // los rivales
+        abrirDenuncia(asientoDeRegion(slot === 'left' ? 'izquierda' : 'derecha'));
+    }
+
+    function montarGestos() {
+        // Los gestos se escuchan en la PANTALLA entera, no sólo en la retícula
+        // de la mesa: con el teléfono en la mano el dedo empieza donde empieza,
+        // y un deslizamiento que arranca sobre el marcador vale igual.
+        const zona = document.getElementById('game-screen-4');
+        if (!zona || zona.dataset.senasGestos) return;
+        zona.dataset.senasGestos = '1';
+
+        zona.addEventListener('touchstart', (e) => {
             if (e.touches.length !== 1) { toque = null; return; }
-            toque = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: ahora() };
+            toque = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: ahora(), movido: false };
         }, { passive: true });
 
-        mesa.addEventListener('touchend', (e) => {
+        // NO pasivo a propósito. Éste es el arreglo de fondo: en cuanto el dedo
+        // se mueve de verdad hay que quitarle el gesto al navegador, que si no
+        // lo entiende como suyo —mover la página, el rebote, tirar hacia abajo
+        // para recargar— y el deslizamiento se pierde por el camino. Hasta
+        // ahora sólo se jugaba fino a pantalla completa por esto mismo.
+        zona.addEventListener('touchmove', (e) => {
+            if (!toque || !activo) return;
+            const p = e.touches[0];
+            if (!p) return;
+            if (!toque.movido && Math.hypot(p.clientX - toque.x, p.clientY - toque.y) < 8) return;
+            toque.movido = true;
+            if (e.cancelable) e.preventDefault();
+        }, { passive: false });
+
+        zona.addEventListener('touchend', (e) => {
             if (!toque || !activo) { toque = null; return; }
             const fin = e.changedTouches && e.changedTouches[0];
             if (!fin) { toque = null; return; }
@@ -521,26 +551,29 @@
             const dist = Math.hypot(dx, dy);
             const dur = ahora() - toque.t;
             toque = null;
-            // Por debajo de 40 px es un toque (seleccionar carta, denunciar);
+            // Por debajo de 34 px es un toque (seleccionar carta, denunciar);
             // por encima de 700 ms ya no es un gesto, es arrastrar sin querer.
-            if (dist < 40 || dur > 700) return;
-            gestoHasta = ahora() + 400;           // que el "click" no cuente
-            const r = Math.abs(dx) > Math.abs(dy)
-                ? (dx > 0 ? 'derecha' : 'izquierda')
-                : (dy > 0 ? 'abajo' : 'frente');
-            pedirFoco(r, true);
+            if (dist >= 34 && dur <= 700) {
+                gestoHasta = ahora() + 400;       // que el "click" no cuente
+                const r = Math.abs(dx) > Math.abs(dy)
+                    ? (dx > 0 ? 'derecha' : 'izquierda')
+                    : (dy > 0 ? 'abajo' : 'frente');
+                pedirFoco(r, true);
+                return;
+            }
+            // Toque limpio: se atiende aquí y se anula el "click" que vendrá
+            // detrás. Al cancelar el desplazamiento hay navegadores que ya no
+            // lo mandan, y la denuncia no puede depender de eso.
+            gestoHasta = ahora() + 400;
+            tocarAsiento(fin.target);
         }, { passive: true });
 
-        // Tocar a un RIVAL abre la ventana de denuncia (a la pareja no: no vas a
-        // denunciar a quien le haces las señas).
-        mesa.addEventListener('click', (e) => {
-            if (!activo || enPausa || ahora() < gestoHasta) return;
-            const asientoEl = e.target.closest && e.target.closest('.seat-4');
-            if (!asientoEl) return;
-            const slot = asientoEl.dataset.slot;
-            if (slot !== 'left' && slot !== 'right') return;   // los rivales
-            const asiento = asientoDeRegion(slot === 'left' ? 'izquierda' : 'derecha');
-            abrirDenuncia(asiento);
+        zona.addEventListener('touchcancel', () => { toque = null; }, { passive: true });
+
+        // Con ratón no hay touchend que valga: aquí es donde se denuncia.
+        zona.addEventListener('click', (e) => {
+            if (ahora() < gestoHasta) return;
+            tocarAsiento(e.target);
         });
     }
 
@@ -670,5 +703,8 @@
         salir,
         /** table4.js pregunta esto para saber si pinta el dorso de mis cartas. */
         activas: () => activo,
+        /** La cara en crudo, para las muestras de fuera de la mesa (el tutorial
+         *  de las señas). Quien la use le pone la clase `sena-<nombre>`. */
+        svgCara,
     };
 })();

@@ -4,6 +4,147 @@ Historial cronológico de cambios relevantes del proyecto. El más reciente arri
 
 ---
 
+## 2026-07-27 — El móvil: deslizar sin que se mueva la página, y la pantalla completa del iPhone
+
+Las señas se juegan deslizando el dedo, pero el navegador entendía ese mismo gesto
+como suyo: movía la página, rebotaba o la recargaba de un tirón hacia abajo. Sólo a
+pantalla completa se jugaba bien… y en el iPhone la pantalla completa no llegaba a
+funcionar, porque **Safari no tiene la API de pantalla completa para webs**. Se
+arreglan las dos cosas, y la de fondo primero: que no haga falta.
+
+- **Modo mesa (`static/pantalla.js`, nuevo).** Mientras se ve una mesa, el
+  documento se congela: `<html>` lleva `.modo-mesa` y el body pasa a `position:
+  fixed` (lo único que Safari respeta de verdad), sin desbordamiento, sin rebote y
+  sin el doble toque para acercar. Un `touchmove` **no pasivo** cancela cualquier
+  arrastre que no caiga dentro de algo que de verdad se pueda desplazar — el
+  recuento largo del 1v1, la chuleta de señas o el tutorial siguen bajando; la
+  mesa, no. **Se juega igual de bien con y sin pantalla completa.**
+- **Las señas ya no dependen del navegador.** `senas4.js` escucha los gestos en la
+  pantalla de 2v2 entera (antes sólo en la retícula) y llama a `preventDefault()`
+  en cuanto el dedo se mueve 8 px; `senas.css` le pone `touch-action: none` a la
+  mesa. El toque de denuncia se atiende ahora en `touchend` además de en `click`,
+  porque al cancelar el desplazamiento hay navegadores que ya no mandan el `click`.
+- **Pantalla completa, en un solo sitio.** El bloque suelto de `app.js` se va a
+  `pantalla.js`, ahora con los prefijos de cada navegador, el botón ⛶ repintándose
+  al entrar y salir, y escondiéndose solo si la web ya se abrió desde la pantalla
+  de inicio.
+- **Entrada automática al empezar la partida**, en el clic de *crear* / *unirse* /
+  *jugar contra la IA* (la API exige un gesto, y la mesa se abre mucho después,
+  cuando lo dice el servidor). No entra si falta el nombre o el código, que sólo
+  daría un aviso. Se sale siempre a mano con el ⛶. Interruptor del administrador:
+  **`pantalla_completa_auto`** (por defecto 1).
+- **iPhone.** Donde no hay API, el ⛶ abre una ventanita que explica *Compartir →
+  Añadir a pantalla de inicio*, que es la única pantalla completa de verdad que da
+  Safari, y aclara que la mesa ya funciona sin ella. Se añaden las etiquetas
+  `apple-mobile-web-app-*` y `viewport-fit=cover`, y se rellena el
+  `site.webmanifest`, que estaba **sin nombre y con las rutas de los iconos rotas**
+  (apuntaban a la raíz, no a `static/favicon_io/`).
+- De propina: la mesa de 2v2 se mide en `dvh` en vez de `vh` (la fila de abajo se
+  iba por debajo de la barra del navegador) y los tapetes y los botones de las
+  esquinas esquivan la muesca y la barra de gestos con `env(safe-area-inset-*)`.
+
+---
+
+## 2026-07-27 — El tutorial, en tres pistas (1v1, 2v2 y señas)
+
+El tutorial era un carrusel único que solo contaba el mus a dos, y ni el juego por
+parejas ni las señas se explicaban en ninguna parte.
+
+- **Un índice y tres caminos.** *Cómo se juega* abre ahora en un índice con tres
+  botones: **1 contra 1** (las 13 diapositivas de siempre, intactas), **2 contra 2**
+  (9 nuevas) y **Las señas** (8 nuevas). Cada pista es su propio array por idioma
+  (`dictTut1v1` / `dictTut2v2` / `dictTutSenas`), así que los índices internos —el
+  salto de la diapositiva de práctica, por ejemplo— siguen valiendo. Se vuelve al
+  índice con el ☰ de la esquina o con *Anterior* en la primera diapositiva, y hay
+  botones que enlazan una pista con otra (del 2v2 al repaso del 1v1 y a las señas).
+- **La pista del 2v2 cuenta solo lo que cambia:** los equipos y el asiento de
+  enfrente, que el mus solo sigue si lo quieren los cuatro, que Pares y Juego se
+  declaran en voz alta, que responde la pareja entera (tu «no quiero» no cierra el
+  lance hasta que tu compañero también dice que no) y que en el recuento los
+  premios de las dos manos del equipo **se suman**. Con dos ejemplos con cartas.
+- **La pista de las señas enseña los diez gestos animándose en bucle**, con la
+  misma cara de la mesa: `senas4.js` exporta ahora `Senas4.svgCara()` y el tutorial
+  la reutiliza con las clases de siempre, de modo que un gesto nuevo se anima solo
+  en los tres sitios (mesa, chuleta de denuncia y tutorial). Además: la regla de
+  que sale la seña **más alta** y no se elige, cuándo está vivo el botón, la
+  denuncia y cuatro trucos.
+- **Un `?` junto a *Con señas*, al crear la partida de cuatro.** Abre una ventanita
+  flotante que explica la **mecánica** —las cuatro regiones de foco con sus teclas,
+  flechas/WASD/deslizar, la cara que se enciende en oro, el vagabundeo y sus 2,5 s,
+  el corte de 1 s y el solape de 1 s, y cuándo se puede señalar— y lleva al
+  tutorial para ver los gestos. El interruptor pasa a vivir en una `.cm-switch-fila`
+  para que el botón no cuente como parte de la etiqueta.
+- De propina, el contenido del tutorial deja de recortarse **por arriba** cuando no
+  cabe (`justify-content: safe center`), y en móvil los puntitos y los botones de
+  la barra de abajo caben enteros.
+
+---
+
+## 2026-07-27 — 2v2: pares y juego son de cada uno, y quién canta qué se lee
+
+Dos arreglos de la mesa de cuatro.
+
+- **No se apuesta a Pares/Juego sin la jugada, aunque la tenga tu compañero.** El
+  motor ya lo sabía (`PartidaMus4.acciones_legales` lo aplica desde la Fase 0 y es
+  lo que consumen los bots), pero por el camino de las personas nadie lo miraba:
+  `procesar_accion_4` solo comprobaba el turno y la fase, y el cliente pintaba el
+  panel de apuestas entero a quien tuviera la palabra. Resultado: sin pares podías
+  envidar —o echar un órdago— a unos pares que no llevabas. Ahora
+  `procesar_accion_4` rechaza toda apuesta que no esté en `acciones_legales(seat)`
+  (misma lista, mismo juez para bots y personas) y el payload de
+  `actualizar_mesa_4` la incluye, así que `mostrarPanelApuesta4` enciende solo los
+  botones que el servidor va a aceptar: sin la jugada queda **Paso** (o **No
+  quiero** si te han envidado) y un aviso en el centro de la mesa explicando que
+  en ese lance apuesta tu compañero (ES/EN). De paso, el envite deja de ofrecerse
+  cuando ya no cabe antes de 40, que también salía de la lista.
+- **El rótulo de lo que canta cada jugador, junto a su nombre.** `.accion-burbuja`
+  se anclaba al borde superior del *asiento*, y los asientos de los lados ocupan
+  toda la altura de la mesa: la plaquita salía a media pantalla de distancia del
+  jugador y no se sabía de quién era. Nombre, chips y cartas van ahora dentro de
+  un `.seat-cuerpo`, que mide lo que ocupa el jugador y es el ancla del rótulo.
+  Además sube lo justo para **no tapar el nombre** (antes se le montaba encima, y
+  la plaquita es opaca), el asiento de arriba gana el hueco que necesita para no
+  pisar el marcador, y el anclaje al borde de fuera de las columnas laterales pasa
+  a ser cosa **solo del móvil** (≤640 px), que es donde una columna de 60 px lo
+  pedía; en pantalla ancha va centrado sobre el jugador.
+
+---
+
+## 2026-07-27 — El botón de Ko-fi, medido (Roadmap #24)
+
+La analítica ya cuenta el interés por el enlace de apoyo. Detalles en
+[Analytics](wiki/Analytics.md#the-ko-fi-button).
+
+- **Qué se mide.** Dos cosas distintas a propósito: *visitas que pulsan* (de ahí sale
+  el CTR) y *clics totales*, porque una misma visita puede pulsar dos veces. Ambas se
+  agregan por día, por valor de cada dimensión y por cuenta, así que el desglose
+  responde a «qué origen de tráfico apoya de verdad el proyecto» y la tabla por
+  usuario enseña quién lo hizo.
+- **Antes o después de jugar.** La etiqueta del evento la pone **el servidor**,
+  ignorando lo que mande el cliente: `tras jugar` si la visita ya había empezado una
+  partida, `sin jugar` si no. Es el nuevo desglose «Ko-fi», y es el número que dice si
+  la gente apoya el juego después de disfrutarlo o de pasada.
+- **Lo que no se puede saber, y se dice.** Si el clic acabó en donación, y de cuánto.
+  Eso pasa en ko-fi.com, un tercero con el que este servidor no habla. Añadido al
+  punto de *Medición de audiencia* de la política de privacidad (ES y EN) y a la caja
+  de privacidad del panel.
+- **Sin tocar nada del juego.** `#btn-kofi` es un `<a>` normal a un sitio externo: lo
+  recoge el mismo listener delegado que los demás botones de menú. Cero widgets, cero
+  scripts y cero píxeles de Ko-fi en la página, así que el argumento de «sin banner de
+  cookies» sigue intacto.
+- **Esquema con migración.** `analitica.py` gana un `_migrar()` (`PRAGMA table_info` +
+  `ALTER TABLE`, el patrón de `base_datos.py`): una `analitica.db` que ya existiera se
+  actualiza sin perder el histórico. Verificado sobre una base con el esquema anterior.
+- **Arreglado de paso:** el `<tbody id="an-usuarios">` de la analítica chocaba con el
+  `<input id="an-usuarios">` de los destinatarios de un anuncio, así que
+  `$('an-usuarios').value` era `undefined` y **no se podía enviar un aviso a jugadores
+  concretos**. La tabla pasa a `an-tabla-usuarios`.
+- **Pruebas:** `tools/test_analitica.py` sube a 39 comprobaciones (clics vs. visitas,
+  CTR, el corte tras jugar / sin jugar, atribución a la cuenta y descarte de la
+  etiqueta que manda el cliente).
+
+---
+
 ## 2026-07-26 — Analítica de uso en el panel (Roadmap #24)
 
 Un «Search Console» propio dentro de `/admin`: cuánta gente entra, de dónde viene,

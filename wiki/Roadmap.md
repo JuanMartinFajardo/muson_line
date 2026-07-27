@@ -806,7 +806,7 @@ that lands, and `obtener_jugador_publico()` is the hook it should use.
 
 ---
 
-## 24. Usage analytics in the admin panel — ✅ DONE (2026-07-26)
+## 24. Usage analytics in the admin panel — ✅ DONE (2026-07-26, extended 2026-07-27)
 
 **Goal:** a Search Console-style view of how the site is actually used — visits, time
 spent, how many people arrive and end up *playing*, signups, logins — sliceable by
@@ -852,6 +852,15 @@ the sum of daily uniques. The panel states this next to the figure.
 5. ✅ **Erasure.** `olvidar_usuario()` is wired into *both* account-deletion paths (the
    player's own and the panel's), so a GDPR request needs no extra step; plus a
    "wipe all analytics" button, audited like every other admin action.
+6. ✅ **Ko-fi interest** (2026-07-27). `#btn-kofi` is a plain outbound `<a>`, so the
+   same delegated listener measures it — no Ko-fi widget, script or pixel is added,
+   and the no-banner argument stands. Counted separately: *visits that clicked* (the
+   CTR) and *total clicks*, aggregated per day, per dimension value and per account.
+   The event's label is decided **server-side**, ignoring the client: `tras jugar` /
+   `sin jugar`, which is the number that says whether people support the game after
+   enjoying it or on the way in. What cannot be known — and is stated in the privacy
+   policy — is whether a click became a donation: that happens on ko-fi.com. New
+   columns arrive through `_migrar()`, so an existing `analitica.db` keeps its history.
 
 **Attribution subtlety worth remembering:** an event is normally charged to the visit
 making the request, which is wrong when one player's click starts something for someone
@@ -865,13 +874,17 @@ an external service would undo the privacy argument above. And after 90 days the
 rows are gone, so every number the panel shows survives but *new* cross-filters
 (country × device, say) cannot be invented retroactively.
 
-**Acceptance:** ✅ 30 scripted checks covering visit counting (crawlers and static
+**Acceptance:** ✅ 39 scripted checks covering visit counting (crawlers and static
 requests excluded), bounce/play rates, all nine dimension breakdowns, the funnel, the
 live view, account attribution and its erasure, cross-attribution, retention, CSV,
-maintenance, aggregate-only reads of a 200-day-old day, and rejection of forged client
-events and absurd heartbeats — plus explicit assertions that **no IP and no user-agent
-string ever reaches the database**. ✅ Verified in the browser against a seeded 57-day
+maintenance, aggregate-only reads of a 200-day-old day, rejection of forged client
+events and absurd heartbeats, and the Ko-fi metrics (clicks vs. clicking visits, CTR,
+the before/after-playing split, per-account attribution, and a client-supplied label
+being discarded) — plus explicit assertions that **no IP and no user-agent string ever
+reaches the database**. ✅ Verified in the browser against a seeded 57-day
 dataset: KPIs with deltas, chart, funnel, breakdowns, cohorts, per-user sorting and the
 live table all render, and every control (period, metric, dimension, sort) re-queries
 correctly. ✅ Verified against the real running server that a page load, a referrer, a
-heartbeat and a socket-side event all land in `analitica.db`.
+heartbeat and a socket-side event all land in `analitica.db`. ✅ Verified that a real
+browser click on the real `#btn-kofi` markup is recorded, labelled and shown live, and
+that the schema migration upgrades a pre-existing database without losing its rows.

@@ -46,7 +46,9 @@
     gap: 6px;
     min-height: 0;
 }
-#seat-top    { grid-area: top;    }
+/* El de arriba pega con el marcador: se le deja hueco para que el rótulo de lo
+   que canta quepa encima de su nombre sin montarse en el tanteo de equipos. */
+#seat-top    { grid-area: top; padding-top: 18px; }
 #seat-left   { grid-area: left;   }
 #seat-right  { grid-area: right;  }
 #seat-bottom { grid-area: bottom; }
@@ -60,6 +62,20 @@
     justify-content: center;
     gap: 4px;
     padding: 6px;
+    min-width: 0;
+}
+
+/* El cuerpo del asiento (nombre + chips + cartas). El asiento ocupa toda su
+   celda de la rejilla —las columnas laterales son altas— y centra su contenido;
+   el cuerpo, en cambio, mide justo lo que ocupa, así que es el ancla del rótulo
+   de lo que canta cada jugador (ver .accion-burbuja). */
+.seat-cuerpo {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
     min-width: 0;
 }
 
@@ -81,32 +97,30 @@
 #seat-left .seat-cards, #seat-right .seat-cards { flex-direction: row; }
 
 /* ---------- Lo que canta cada jugador ---------- */
-/* Rótulo momentáneo sobre el asiento de quien acaba de jugar (ver
-   mostrarAccion4 en table4.js). Va en el borde superior del asiento para no
-   taparle las cartas, y se le deja desbordar a lo ancho: las columnas de los
-   lados son estrechas y «No quiero» no cabe dentro de ellas. */
+/* Rótulo momentáneo sobre el nombre de quien acaba de jugar (ver mostrarAccion4
+   en table4.js). Va pegado al borde superior del CUERPO del asiento, no al del
+   asiento entero: en las columnas de los lados el asiento es tan alto como la
+   mesa y el rótulo salía muy por encima del jugador, sin saber de quién era.
+   Se le deja desbordar a lo ancho: esas columnas son estrechas —más aún en el
+   móvil— y «No quiero» no cabe dentro de ellas. */
 .seat-4 { position: relative; }
 .accion-burbuja {
     position: absolute;
     left: 50%; top: 0;
     --bx: -50%;                /* lo usan también los fotogramas de abajo */
-    transform: translate(var(--bx), -55%);
+    /* Justo encima del nombre, sin llegar a pisarlo: la plaquita es opaca y
+       tapaba media línea, y hay que poder leer a la vez QUIÉN y QUÉ ha cantado. */
+    transform: translate(var(--bx), -92%);
     z-index: 14;
     white-space: nowrap;
     pointer-events: none;
     animation: accionEntra4 2.6s ease-out forwards;
 }
-/* En las columnas de los lados el rótulo se ancla al borde de FUERA y crece
-   hacia el centro de la mesa: centrado sobre una columna de 60 px se salía
-   media plaquita de la pantalla en vertical. */
-#seat-left .accion-burbuja  { left: 0; right: auto; --bx: 0; }
-#seat-right .accion-burbuja { left: auto; right: 0; --bx: 0; }
-
 @keyframes accionEntra4 {
-    0%   { opacity: 0; transform: translate(var(--bx), -25%) scale(0.94); }
-    10%  { opacity: 1; transform: translate(var(--bx), -55%) scale(1); }
-    80%  { opacity: 1; transform: translate(var(--bx), -55%) scale(1); }
-    100% { opacity: 0; transform: translate(var(--bx), -80%) scale(1); }
+    0%   { opacity: 0; transform: translate(var(--bx), -62%) scale(0.94); }
+    10%  { opacity: 1; transform: translate(var(--bx), -92%) scale(1); }
+    80%  { opacity: 1; transform: translate(var(--bx), -92%) scale(1); }
+    100% { opacity: 0; transform: translate(var(--bx), -120%) scale(1); }
 }
 
 /* ---------- Mesa central ---------- */
@@ -177,6 +191,12 @@
 /* ---------- Responsive ---------- */
 @media (max-width: 640px) {
     #mesa-4 { grid-template-columns: minmax(60px, 0.8fr) 2fr minmax(60px, 0.8fr); }
+    /* Sólo aquí: con columnas laterales de 60-80 px el rótulo centrado se salía
+       media plaquita de la pantalla, así que se ancla al borde de FUERA y crece
+       hacia el centro de la mesa. En pantallas anchas sobra sitio y va centrado
+       sobre el jugador, que es donde se lee mejor de quién es. */
+    #seat-left .accion-burbuja  { left: 0; right: auto; --bx: 0; }
+    #seat-right .accion-burbuja { left: auto; right: 0; --bx: 0; }
     .seat-cards .carta-4 { width: 34px; }
     #seat-bottom .carta-4 { width: 58px; }
     #seat-left .seat-cards, #seat-right .seat-cards { flex-direction: column; }

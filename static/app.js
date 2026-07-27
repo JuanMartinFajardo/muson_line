@@ -244,9 +244,9 @@ const dict = {
         msg_inserta_nombre: "Por favor, inserta un nombre para jugar.",
         btn_privacy: "Acerca de CallMus",
         privacy_title: "Acerca de CallMus (v0.1)",
-        privacy_p1: "<strong>Información general</strong><br>CallMus es una aplicación web diseñada para jugar a la variante de dos jugadores del tradicional juego de cartas Mus. La plataforma permite a los usuarios disfrutar de partidas multijugador contra otras personas o enfrentarse a un bot avanzado, entrenado mediante el algoritmo de aprendizaje profundo Deep CFR.",
-        privacy_p2: "<strong>Desarrollo</strong><br>Este proyecto ha sido desarrollado en su totalidad por Juan Martín Fajardo. El código fuente es de código abierto y se distribuye bajo la licencia AGPL-3.0. Puedes consultar el repositorio oficial en GitHub a través del siguiente enlace: https://github.com/JuanMartinFajardo/muson_line. Para reportar errores o sugerencias, abre un Issue en el repositorio o envía un correo a callmus.contact@gmail.com.",
-        privacy_p3: "<strong>Política de Privacidad y Cookies</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Datos personales:</strong> Guardamos tu nombre de usuario, correo electrónico, país y fecha de nacimiento para crear tu cuenta y mostrarte en la clasificación. <strong>Únicamente el nombre de usuario es público</strong>; tu correo solo se usa para verificar la cuenta y recuperar la contraseña.</li> <li><strong>Contraseña:</strong> No almacenamos tu contraseña, sino un hash. Si la olvidas, puedes restablecerla mediante un código enviado a tu correo.</li><li><strong>Acceso con Google:</strong> Si entras con Google, recibimos tu correo y nombre para crear o vincular tu cuenta; nunca vemos tu contraseña de Google.</li><li><strong>Registro de partidas:</strong> Guardamos el registro de las jugadas para el entrenamiento de futuras versiones del bot.</li><li><strong>Medición de audiencia:</strong> Contamos visitas, tiempo de permanencia y partidas para saber cómo se usa el juego. La medición es <strong>propia y sin cookies</strong>: no guardamos nada en tu dispositivo para medir, no usamos servicios externos de analítica y <strong>nunca almacenamos tu dirección IP</strong> (solo se usa, junto a una clave aleatoria que cambia cada día y no se guarda, para agrupar las páginas de una misma visita). Los datos son agregados, no salen de nuestro servidor y los registros detallados se borran a los 90 días.</li><li><strong>Cookies:</strong> Usamos cookies técnicas estrictamente necesarias para mantener tu sesión iniciada y recordar tu idioma. No usamos cookies de rastreo publicitario ni de analítica.</li></ul>",
+        privacy_p1: "<strong>Información general</strong><br>CallMus es una aplicación web diseñada para jugar al tradicional juego de cartas Mus. La plataforma permite a los usuarios disfrutar de partidas multijugador contra otras personas o enfrentarse a un bot avanzado, entrenado mediante el algoritmo de aprendizaje profundo Deep CFR.",
+        privacy_p2: "<strong>Desarrollo</strong><br>Este proyecto ha sido desarrollado en su totalidad por Juan Martín Fajardo. El código fuente es de código abierto y se distribuye bajo la licencia AGPL-3.0. Puedes consultar el repositorio oficial en GitHub a través del siguiente enlace: https://github.com/JuanMartinFajardo/muson_line. Para reportar errores o sugerencias, abre un Issue en el repositorio, en la pantalla de ajustes o envía un correo a callmus.contact@gmail.com.",
+        privacy_p3: "<strong>Política de Privacidad y Cookies</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Datos personales:</strong> Guardamos tu nombre de usuario, correo electrónico, país y fecha de nacimiento para crear tu cuenta y mostrarte en la clasificación. <strong>Únicamente el nombre de usuario es público</strong>; tu correo solo se usa para verificar la cuenta y recuperar la contraseña.</li> <li><strong>Contraseña:</strong> No almacenamos tu contraseña, sino un hash. Si la olvidas, puedes restablecerla mediante un código enviado a tu correo.</li><li><strong>Acceso con Google:</strong> Si entras con Google, recibimos tu correo y nombre para crear o vincular tu cuenta; nunca vemos tu contraseña de Google.</li><li><strong>Registro de partidas:</strong> Guardamos el registro de las jugadas para el entrenamiento de futuras versiones del bot.</li><li><strong>Medición de audiencia:</strong> Contamos visitas, tiempo de permanencia, partidas y qué botones del menú se pulsan para saber cómo se usa el juego. La medición es <strong>propia y sin cookies</strong>: no guardamos nada en tu dispositivo para medir, no usamos servicios externos de analítica y <strong>nunca almacenamos tu dirección IP</strong> (solo se usa, junto a una clave aleatoria que cambia cada día y no se guarda, para agrupar las páginas de una misma visita). Los datos son agregados, no salen de nuestro servidor y los registros detallados se borran a los 90 días. Del botón de Ko-fi solo registramos que se ha pulsado; a partir de ahí sales a un sitio externo con su propia política, y no sabemos si donas ni cuánto.</li><li><strong>Cookies:</strong> Usamos cookies técnicas estrictamente necesarias para mantener tu sesión iniciada y recordar tu idioma. No usamos cookies de rastreo publicitario ni de analítica.</li></ul>",
         privacy_disclaimer: "Al registrarte aceptas las políticas de privacidad, que puedes encontrar en la sección Acerca de CallMus.",
         msg_link_copied: "¡Enlace copiado al portapapeles!",
         msg_nombre_invitacion: "Escribe tu nombre para entrar a la partida.",
@@ -414,7 +414,8 @@ const dict = {
         anuncio_cerrar: "Entendido",
         mantenimiento_titulo: "Mantenimiento",
         ajustes_soporte: "Soporte y contacto",
-        ajustes_panel_admin: "🛠 Panel de administración"
+        ajustes_panel_admin: "🛠 Panel de administración",
+        recon_jugador_caido: "Un jugador se ha caído. Esperando a que vuelva…"
     },
     en: {
         btn_login: "Log In",
@@ -579,9 +580,9 @@ const dict = {
         msg_inserta_nombre: "Please enter a name to play.",
         btn_privacy: "About CallMus",
         privacy_title: "About CallMus (v0.1)",
-        privacy_p1: "<strong>General Information</strong><br>CallMus is a web application designed for playing the 2-player variant of the traditional card game Mus. The platform allows users to enjoy multiplayer matches against others or challenge an advanced bot trained using the Deep CFR algorithm.",
+        privacy_p1: "<strong>General Information</strong><br>CallMus is a web application designed for playing the traditional Spanish card game Mus. The platform allows users to enjoy multiplayer matches against others or challenge an advanced bot trained using the Deep CFR algorithm.",
         privacy_p2: "<strong>Development</strong><br>This project has been entirely developed by Juan Martín Fajardo. The source code is open-source under the AGPL-3.0 license. Check out the official GitHub repository here: https://github.com/JuanMartinFajardo/muson_line. To report bugs or suggest improvements, please open an Issue or send a mail to callmus.contact@gmail.com.",
-        privacy_p3: "<strong>Privacy and Cookie Policy</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Personal Data:</strong> We collect your username, email, country, and birthdate to manage your account and global ranking. <strong>Only your username is publicly visible</strong>; your email is used only to verify your account and reset your password.</li> <li><strong>Password:</strong> We do not store your password, only a hash. If you forget it, you can reset it via a code sent to your email.</li><li><strong>Google Sign-in:</strong> If you sign in with Google, we receive your email and name to create or link your account; we never see your Google password.</li> <li><strong>Game Logs:</strong> We store game records to train future AI versions.</li><li><strong>Audience measurement:</strong> We count visits, time spent and games played to understand how the game is used. Measurement is <strong>first-party and cookieless</strong>: nothing is stored on your device for analytics, no third-party analytics service is used, and <strong>your IP address is never stored</strong> (it is only used, together with a random key that rotates daily and is never saved, to group the pages of a single visit). The data is aggregated, never leaves our server, and detailed records are deleted after 90 days.</li><li><strong>Cookies:</strong> We strictly use technical cookies essential for keeping your session active and remembering your language. We do not use tracking or analytics cookies.</li></ul>",
+        privacy_p3: "<strong>Privacy and Cookie Policy</strong><br><ul style='margin-top:5px; padding-left: 20px;'><li><strong>Personal Data:</strong> We collect your username, email, country, and birthdate to manage your account and global ranking. <strong>Only your username is publicly visible</strong>; your email is used only to verify your account and reset your password.</li> <li><strong>Password:</strong> We do not store your password, only a hash. If you forget it, you can reset it via a code sent to your email.</li><li><strong>Google Sign-in:</strong> If you sign in with Google, we receive your email and name to create or link your account; we never see your Google password.</li> <li><strong>Game Logs:</strong> We store game records to train future AI versions.</li><li><strong>Audience measurement:</strong> We count visits, time spent, games played and which menu buttons are clicked to understand how the game is used. Measurement is <strong>first-party and cookieless</strong>: nothing is stored on your device for analytics, no third-party analytics service is used, and <strong>your IP address is never stored</strong> (it is only used, together with a random key that rotates daily and is never saved, to group the pages of a single visit). The data is aggregated, never leaves our server, and detailed records are deleted after 90 days. For the Ko-fi button we only record that it was clicked; from there you leave for an external site with its own policy, and we do not know whether or how much you donate.</li><li><strong>Cookies:</strong> We strictly use technical cookies essential for keeping your session active and remembering your language. We do not use tracking or analytics cookies.</li></ul>",
         privacy_disclaimer: "By signing up, you agree to the privacy policies, which you can find in the About CallMus section.",
         msg_link_copied: "Link copied to clipboard!",
         msg_nombre_invitacion: "Enter your name to join the game.",
@@ -749,16 +750,41 @@ const dict = {
         anuncio_cerrar: "Got it",
         mantenimiento_titulo: "Maintenance",
         ajustes_soporte: "Support & contact",
-        ajustes_panel_admin: "🛠 Admin panel"
+        ajustes_panel_admin: "🛠 Admin panel",
+        recon_jugador_caido: "A player dropped. Waiting for them to return…"
     }
 };
 
-// Recuperar idioma guardado o usar español por defecto
+// Idiomas disponibles, en el orden en que los recorre el botón de Ajustes.
+// El botón muestra SIEMPRE el siguiente de la rueda, no el actual.
+const LANGS = ['es', 'en', 'eu'];
+const LANG_ETIQUETA = { es: 'ES', en: 'EN', eu: 'EU' };
+
+// Recuperar idioma guardado o usar español por defecto. Si en localStorage hay
+// un idioma que ya no existe (o basura), se vuelve al español.
 let langActual = localStorage.getItem('callmus_lang') || 'es';
+if (!LANGS.includes(langActual)) langActual = 'es';
+
+// Siguiente idioma de la rueda: es → en → eu → es.
+function siguienteLang(lang) {
+    return LANGS[(LANGS.indexOf(lang) + 1) % LANGS.length];
+}
+
+// Busca la clave en el idioma activo y, si allí no está, en castellano, que es
+// el idioma completo por definición. Devuelve null si no está en ninguno: así
+// aplicarTraduccion() puede distinguir «no traducido» de «cadena vacía».
+// El castellano de reserva importa con tres idiomas: una clave que se añada y
+// no llegue a traducirse se ve en castellano, no como el nombre de la clave.
+function _resolver(clave) {
+    const propio = dict[langActual] && dict[langActual][clave];
+    if (propio) return propio;
+    const base = dict.es && dict.es[clave];
+    return base || null;
+}
 
 function t(clave) {
-    // Si la clave existe en el idioma actual, la devuelve. Si no, devuelve la propia clave para que te des cuenta del error.
-    return (dict[langActual] && dict[langActual][clave]) ? dict[langActual][clave] : clave;
+    // Si no está en ningún idioma devuelve la propia clave, para que se note el error.
+    return _resolver(clave) || clave;
 }
 
 // Traduce e inyecta variables dinámicas en la frase
@@ -791,14 +817,18 @@ function aplicarTraduccion() {
         if (dict[langActual] && dict[langActual][clave]) el.title = dict[langActual][clave];
     });
 
-    // 2. Cambiar el texto del botón de idioma para mostrar la alternativa
+    // 2. El botón de idioma anuncia a cuál se saltará al pulsarlo
     const btnLang = document.getElementById('btn-lang');
-    if(btnLang) btnLang.innerText = langActual === 'es' ? 'EN' : 'ES';
+    if(btnLang) btnLang.innerText = LANG_ETIQUETA[siguienteLang(langActual)];
+
+    // 3. El atributo lang del documento, para el navegador y los lectores de
+    //    pantalla (y para que la tipografía elija bien las reglas de guionado).
+    document.documentElement.setAttribute('lang', langActual);
 }
 
-// Escuchador del botón para alternar
+// Escuchador del botón: recorre la rueda de idiomas
 document.getElementById('btn-lang').addEventListener('click', () => {
-    langActual = langActual === 'es' ? 'en' : 'es';
+    langActual = siguienteLang(langActual);
     localStorage.setItem('callmus_lang', langActual); // Guardar preferencia
     aplicarTraduccion(); // Traducir todo al vuelo
 });
@@ -810,23 +840,9 @@ aplicarTraduccion();
 // ==========================================
 // PANTALLA COMPLETA
 // ==========================================
-const btnFullscreen = document.getElementById('btn-fullscreen');
-if (btnFullscreen) {
-    btnFullscreen.addEventListener('click', () => {
-        // Si NO estamos en pantalla completa, la pedimos
-        if (!document.fullscreenElement) {
-            // Se la pedimos al elemento raíz (toda la página)
-            document.documentElement.requestFullscreen().catch(err => {
-                console.log(`Error al intentar iniciar pantalla completa: ${err.message}`);
-            });
-        } else {
-            // Si ya estamos, salimos
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
-        }
-    });
-}
+// Vive en static/pantalla.js, que además congela la página mientras se juega
+// («modo mesa») y explica el caso del iPhone, donde Safari no tiene la API.
+// Aquí sólo queda la nota para no volver a montar otro botón por su cuenta.
 
 // Quitar el foco de cualquier botón tras hacer clic para evitar que se quede "atascado" (marcado en blanco)
 document.addEventListener('click', (e) => {
@@ -1205,9 +1221,7 @@ function mostrarOverlayReconexion(segundos) {
     const msg = document.getElementById('overlay-reconexion-msg');
     const cont = document.getElementById('overlay-reconexion-cont');
     if (!ov) return;
-    const en = (typeof langActual !== 'undefined' && langActual === 'en');
-    msg.innerText = en ? 'A player dropped. Waiting for them to return…'
-                       : 'Un jugador se ha caído. Esperando a que vuelva…';
+    msg.innerText = t('recon_jugador_caido');
     ov.classList.remove('hidden');
     clearInterval(_reconInterval);
     if (segundos && segundos > 0) {

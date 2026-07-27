@@ -298,6 +298,21 @@ Bots also mark themselves ready for the next round the moment the recuento is
 broadcast, instead of pressing their button one at a time on `bot_delay`: the
 next hand then starts as soon as the *people* press theirs.
 
+### 4.3 ter. One judge for bots and people — `acciones_legales`
+
+Turn-gating is not enough for the betting actions: `accion_apuesta` does not
+police the mus rule that **Pares and Juego are each player's own**, so a seat
+without the combination could bet on it just because their partner had it (the
+lance is only skipped when a whole *team* lacks it). `procesar_accion_4` therefore
+rejects any `pasar/envidar/subir/ver/nover/ordago` that is not in
+`motor.acciones_legales(seat)` — the very list the bots already pick from, so
+there is a single definition of what is legal. The payload carries it as
+`acciones_legales`, and `mostrarPanelApuesta4` builds the buttons from it, so the
+table never offers a move the server would drop (without the combination you get
+*Paso*, or *No quiero* when answering a bet, plus a line saying your partner is
+the one betting this lance). A missing field falls back to showing everything, so
+an old client against a new server is no worse off than before.
+
 ### 4.4 Connection handling (critical section)
 
 4p is far more sensitive to disconnects than 2p (four fragile sockets). Handle it explicitly:

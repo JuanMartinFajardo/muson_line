@@ -198,6 +198,7 @@ th.orden.activa{color:var(--amarillo)}
           <button class="chip" data-m="partidas">Partidas</button>
           <button class="chip" data-m="registros">Altas</button>
           <button class="chip" data-m="logins">Inicios de sesión</button>
+          <button class="chip" data-m="kofi">Ko-fi</button>
         </div>
       </div>
       <div id="an-grafico"></div>
@@ -245,13 +246,15 @@ th.orden.activa{color:var(--amarillo)}
           <button class="chip" data-d="baraja">Baraja</button>
           <button class="chip" data-d="landing">Página de entrada</button>
           <button class="chip" data-d="evento">Eventos</button>
+          <button class="chip" data-d="kofi">Ko-fi</button>
         </div>
       </div>
       <div class="tabla-scroll">
         <table>
           <thead><tr><th id="an-dim-cab">Valor</th><th>Visitas</th><th>%</th>
-            <th>Tiempo medio</th><th>Rebote</th><th>Juegan</th><th>Partidas</th><th>Altas</th></tr></thead>
-          <tbody id="an-dim"><tr><td colspan="8" class="nota">Cargando…</td></tr></tbody>
+            <th>Tiempo medio</th><th>Rebote</th><th>Juegan</th><th>Partidas</th><th>Altas</th>
+            <th>Ko-fi</th></tr></thead>
+          <tbody id="an-dim"><tr><td colspan="9" class="nota">Cargando…</td></tr></tbody>
         </table>
       </div>
       <p class="nota" id="an-dim-nota"></p>
@@ -290,9 +293,11 @@ th.orden.activa{color:var(--amarillo)}
             <th class="orden" data-o="partidas">Partidas</th>
             <th class="orden" data-o="partidas_fin">Terminadas</th>
             <th class="orden" data-o="segundos_juego">Tiempo jugando</th>
+            <th class="orden" data-o="kofi">Ko-fi</th>
             <th class="orden" data-o="ultima">Última visita</th>
           </tr></thead>
-          <tbody id="an-usuarios"><tr><td colspan="9" class="nota">Cargando…</td></tr></tbody>
+          <!-- ojo: `an-usuarios` ya lo usa el destinatario de los anuncios -->
+          <tbody id="an-tabla-usuarios"><tr><td colspan="10" class="nota">Cargando…</td></tr></tbody>
         </table>
       </div>
       <div id="an-detalle-usuario"></div>
@@ -314,7 +319,10 @@ th.orden.activa{color:var(--amarillo)}
         «medición de audiencia» que la guía de la AEPD y la CNIL dejan fuera del
         consentimiento previo. Lo único obligatorio es contarlo en la política de
         privacidad, y está en el punto «Medición de audiencia» de la ventana de
-        privacidad del juego (ES y EN).
+        privacidad del juego (ES y EN).<br>
+        Del botón de <b>Ko-fi</b> solo se registra el clic de salida: lo que pase
+        después ocurre en Ko-fi, que es un tercero, y este servidor no ve ni si
+        hubo donación ni de cuánto.
       </p>
       <div class="fila">
         <button class="b b-mal" id="an-borrar">Borrar toda la analítica</button>
@@ -747,7 +755,9 @@ const KPIS = [
   ['segundos_juego', 'Tiempo jugado', 'dur_total', 'Suma del tiempo dentro de una mesa.'],
   ['registros', 'Altas', null, 'Cuentas creadas durante la visita.'],
   ['logins', 'Inicios de sesión', null, 'Sin contar las sesiones que ya venían abiertas por cookie.'],
-  ['cuentas', 'Cuentas activas', null, 'Cuentas distintas con al menos una visita en el periodo.']
+  ['cuentas', 'Cuentas activas', null, 'Cuentas distintas con al menos una visita en el periodo.'],
+  ['kofi', 'Visitas que pulsan Ko-fi', null, 'Visitas en las que se abrió el enlace de Ko-fi al menos una vez. Mide interés, no donaciones: lo que pase en Ko-fi ya no lo ve este servidor.'],
+  ['tasa_kofi', 'Clics en Ko-fi', 'pct', 'Porcentaje de visitas que pulsan el botón. En el desglose «Ko-fi» se ve cuántas lo hicieron después de jugar.']
 ];
 
 function formatoKpi(v, tipo) {
@@ -875,14 +885,16 @@ function pintarEmbudo(pasos) {
 const NOMBRE_DIM = {
   fuente: 'Origen', medio: 'Medio', campana: 'Campaña', pais: 'País', idioma: 'Idioma',
   dispositivo: 'Dispositivo', navegador: 'Navegador', so: 'Sistema', modo: 'Modo',
-  baraja: 'Baraja', landing: 'Página de entrada', evento: 'Evento'
+  baraja: 'Baraja', landing: 'Página de entrada', evento: 'Evento',
+  kofi: 'Momento del clic'
 };
 const NOTA_DIM = {
   pais: 'El país llega en la cabecera CF-IPCountry: solo hay dato con Cloudflare delante (Roadmap #16). Sin proxy sale «desconocido», y a propósito no se consulta ningún servicio externo de geolocalización.',
   modo: 'Una visita puede aparecer en varios modos si jugó contra el bot y online.',
   evento: 'Cuenta eventos, no visitas: la columna «Visitas» es aquí el número de veces que ocurrió.',
   campana: 'Solo se rellena con enlaces que traigan utm_campaign.',
-  fuente: 'utm_source si viene en el enlace; si no, el dominio del referer. «directo» = sin referer (marcadores, apps, enlaces pegados).'
+  fuente: 'utm_source si viene en el enlace; si no, el dominio del referer. «directo» = sin referer (marcadores, apps, enlaces pegados).',
+  kofi: 'Clics en el enlace de Ko-fi, partidos por si la visita ya había empezado una partida cuando pulsó. La etiqueta la pone el servidor, no el cliente. Solo mide el clic de salida: si esa persona acabó donando o no, eso pasa en Ko-fi y este servidor no lo ve.'
 };
 
 async function cargarDimension() {
@@ -893,9 +905,12 @@ async function cargarDimension() {
   cuerpo.replaceChildren();
   if (!d || !d.exito || !d.filas.length) {
     const f = document.createElement('tr');
-    f.appendChild(td('Sin datos en este periodo.', 'nota')).colSpan = 8;
+    f.appendChild(td('Sin datos en este periodo.', 'nota')).colSpan = 9;
     cuerpo.appendChild(f); return;
   }
+  // «Eventos» y «Ko-fi» cuentan veces que pasó algo, no visitas: el resto de
+  // columnas no tiene sentido ahí y se deja en blanco en vez de mentir.
+  const porEvento = (AN.dim === 'evento' || AN.dim === 'kofi');
   const total = d.filas.reduce((a, f) => a + f.visitas, 0) || 1;
   d.filas.forEach(f => {
     const fila = document.createElement('tr');
@@ -903,11 +918,12 @@ async function cargarDimension() {
       td(f.valor),
       td(f.visitas.toLocaleString('es-ES')),
       td(((f.visitas / total) * 100).toFixed(1) + ' %'),
-      td(AN.dim === 'evento' ? '—' : duracion(Math.round(f.activo_medio))),
-      td(AN.dim === 'evento' ? '—' : f.tasa_rebote + ' %'),
-      td(AN.dim === 'evento' ? '—' : f.jugaron),
-      td(AN.dim === 'evento' ? '—' : f.partidas),
-      td(AN.dim === 'evento' ? '—' : f.registros));
+      td(porEvento ? '—' : duracion(Math.round(f.activo_medio))),
+      td(porEvento ? '—' : f.tasa_rebote + ' %'),
+      td(porEvento ? '—' : f.jugaron),
+      td(porEvento ? '—' : f.partidas),
+      td(porEvento ? '—' : f.registros),
+      td(porEvento ? '—' : (f.kofi || 0) + (f.kofi ? ` (${f.tasa_kofi} %)` : '')));
     cuerpo.appendChild(fila);
   });
 }
@@ -960,11 +976,11 @@ async function cargarRetencion() {
 async function cargarUsuariosAnalitica() {
   const q = encodeURIComponent($('an-q-usuario').value.trim());
   const d = await api(`/admin/api/analitica/usuarios?${qs()}&orden=${AN.orden}&q=${q}`);
-  const cuerpo = $('an-usuarios');
+  const cuerpo = $('an-tabla-usuarios');
   cuerpo.replaceChildren();
   if (!d || !d.exito || !d.usuarios.length) {
     const f = document.createElement('tr');
-    f.appendChild(td('Sin actividad de cuentas en este periodo.', 'nota')).colSpan = 9;
+    f.appendChild(td('Sin actividad de cuentas en este periodo.', 'nota')).colSpan = 10;
     cuerpo.appendChild(f); return;
   }
   d.usuarios.forEach(u => {
@@ -979,6 +995,7 @@ async function cargarUsuariosAnalitica() {
       td(u.partidas),
       td(u.partidas_fin),
       td(duracion(u.segundos_juego)),
+      td(u.kofi ? '♡ ' + u.kofi : ''),
       td(u.ultima));
     fila.addEventListener('click', () => verUsuarioAnalitica(u));
     cuerpo.appendChild(fila);
@@ -1004,12 +1021,13 @@ async function verUsuarioAnalitica(u) {
     const tabla = document.createElement('table');
     const thead = document.createElement('thead');
     thead.innerHTML = '<tr><th>Día</th><th>Visitas</th><th>Tiempo</th>' +
-                      '<th>Partidas</th><th>Terminadas</th><th>Jugando</th></tr>';
+                      '<th>Partidas</th><th>Terminadas</th><th>Jugando</th><th>Ko-fi</th></tr>';
     const tb = document.createElement('tbody');
     d.detalle.serie.slice().reverse().forEach(r => {
       const f = document.createElement('tr');
       f.append(td(r.dia), td(r.visitas), td(duracion(r.activo_total)),
-               td(r.partidas), td(r.partidas_fin), td(duracion(r.segundos_juego)));
+               td(r.partidas), td(r.partidas_fin), td(duracion(r.segundos_juego)),
+               td(r.kofi ? '♡ ' + r.kofi : ''));
       tb.appendChild(f);
     });
     tabla.append(thead, tb);
@@ -1039,7 +1057,7 @@ async function cargarEnVivo() {
   const k = $('an-vivo-kpis');
   k.replaceChildren();
   [['Visitas', d.vivo.visitas], ['Con cuenta', d.vivo.con_cuenta],
-   ['Jugando', d.vivo.jugando]].forEach(([et, n]) => {
+   ['Jugando', d.vivo.jugando], ['Ko-fi', d.vivo.kofi]].forEach(([et, n]) => {
     const t = document.createElement('div'); t.className = 'kpi';
     const e = document.createElement('div'); e.className = 'et'; e.textContent = et;
     const v = document.createElement('div'); v.className = 'n'; v.textContent = n;
@@ -1058,6 +1076,7 @@ async function cargarEnVivo() {
     if (v.username) quien.textContent = v.username;
     else { quien.appendChild(pill('invitado', 'p-del')); }
     if (v.jugo) quien.appendChild(pill(' jugando', 'p-ok'));
+    if (v.kofi) quien.appendChild(pill(' ♡ ko-fi', 'p-esp'));
     fila.append(quien, td(v.minutos + ' min'), td(v.pais),
                 td(v.dispositivo), td(v.fuente));
     cuerpo.appendChild(fila);
