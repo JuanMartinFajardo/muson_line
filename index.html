@@ -19,7 +19,7 @@
     <!-- Menú y ventana de Jugar: se carga al final para poder redefinir la paleta -->
     <link rel="stylesheet" href="/static/menu.css?=v4">
     <!-- El tapete (1v1 y 2v2) con el mismo lenguaje visual que el menú -->
-    <link rel="stylesheet" href="/static/game.css?=v7">
+    <link rel="stylesheet" href="/static/game.css?=v9">
     <!-- Señas del 2v2: caras, foco e iluminación. Después de game.css, que es
          quien fija el aspecto de los asientos. -->
     <link rel="stylesheet" href="/static/senas.css?=v3">
@@ -83,6 +83,12 @@
     <div class="cm-corner" style="right: 15px;">
         <button id="btn-fullscreen" class="cm-icon-btn" title="Pantalla Completa" data-i18n-title="fullscreen_tooltip">⛶</button>
     </div>
+
+    <!-- Silenciar la mesa. Vive fuera de las dos pantallas de juego porque las
+         dos lo quieren igual: game.css sólo lo enseña con .modo-mesa puesta (la
+         clase que pantalla.js pone en <html> mientras hay tapete a la vista),
+         así que en el menú no estorba. Su estado lo pinta sonido.js. -->
+    <button id="btn-sonido" class="cm-mesa-btn cm-mesa-sonido" data-i18n-title="sonido_quitar_tooltip" title="Silenciar la mesa" aria-pressed="false">🔊</button>
 
 
 
@@ -1062,7 +1068,7 @@
         </div>
     </div>
 
-    <script src="/static/app.js?=v16"></script>
+    <script src="/static/app.js?=v17"></script>
     <!-- Barajas temáticas (Roadmap #5). Antes que auth.js: éste le pide que
          recargue el catálogo en cuanto se confirma la sesión. -->
     <!-- El sorteo de la Mano (la ruleta de pintas al empezar la partida). Tras
@@ -1079,7 +1085,7 @@
     <script src="/static/tutorial.js?=v3"></script>
     <!-- Mus 4 jugadores (Roadmap #6): app4 (lógica) + table4 (render). Cargan tras app.js para reusar socket/dict/t. -->
     <script src="/static/table4.js?=v6"></script>
-    <script src="/static/app4.js?=v9"></script>
+    <script src="/static/app4.js?=v10"></script>
     <!-- Señas del 2v2: foco, caras y denuncias. Tras app4.js, que es quien le
          pasa cada estado de la mesa (Senas4.sincronizar). -->
     <script src="/static/senas4.js?=v4"></script>
@@ -1090,6 +1096,10 @@
          para que deslizar sea un mando del juego y no del navegador). El
          último: se apoya en dict/t y en los botones de todos los anteriores. -->
     <script src="/static/pantalla.js?=v1"></script>
+    <!-- La voz de la mesa: cada cante del rival suena (sintetizado con la Web
+         Audio API, sin un solo fichero de audio) y el botón 🔊 lo silencia. Al
+         final, junto a pantalla.js: usa dict/t y sólo mira el DOM. -->
+    <script src="/static/sonido.js?=v2"></script>
     <!-- Medición de audiencia (Roadmap #24). Al final y sin dependencias: no
          guarda nada en el dispositivo, así que no necesita consentimiento. -->
     <script src="/static/analitica.js?=v2" defer></script>

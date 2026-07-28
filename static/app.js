@@ -1787,9 +1787,33 @@ socket.on('baraja_rival', (d) => {
     if (enPartida) pintarCartasRival(ultimoEstadoMesa);
 });
 
+// ---------- Lo que canta el rival ----------
+// El servidor manda este aviso SÓLO al otro jugador (`_anunciar_accion_2p` en
+// server.py), así que aquí no hay nada que filtrar: si llega, no es tuyo. Suena
+// en el instante del cante, que es la gracia — contra la IA, con el tanteador
+// arriba y las cartas abajo, es fácil no ver que acaba de envidar.
+socket.on('accion', (d) => {
+    if (!enPartida || !d || !window.Sonido) return;
+    Sonido.jugar(d.accion, d.cantidad);
+});
+
+// Aviso de turno: suena en el FLANCO (cuando pasa a ser tuyo), no en cada
+// repintado, porque el mismo turno llega varias veces (cambio de baraja,
+// reconexión). Ni el recuento ni las transiciones cuentan como turno: ahí no
+// hay nada que decidir, sólo leer.
+let eraMiTurno = false;
+
+function avisarTurno(d) {
+    const miTurno = !!d.es_mi_turno && d.fase !== 'recuento' && !d.mensaje_transicion;
+    if (miTurno && !eraMiTurno && window.Sonido) Sonido.jugar('turno');
+    eraMiTurno = miTurno;
+}
+
 socket.on('actualizar_mesa', (datos) => {
     // 1. FILTRO: Si el paquete no es para mí, lo ignoro
     if (datos.para_sid !== socket.id) return;
+
+    avisarTurno(datos);
 
     // La baraja del rival, antes de pintar nada suyo.
     if (datos.baraja_rival) {

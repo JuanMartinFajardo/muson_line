@@ -70,6 +70,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [static/senas.css](../static/senas.css) | Señas: the face, the lit seat and the ten sign animations |
 | [static/sorteo.js](../static/sorteo.js) | The draw for the Mano: the suit roulette shown over the table when a match starts, in both 1v1 and 2v2 ([Frontend](Frontend.md)) |
 | [static/pantalla.js](../static/pantalla.js) | Fullscreen (with prefixes, auto-entry on the start click) and "table mode": the page freezes while a table is on screen so a swipe is a game control, not a browser gesture ([Frontend](Frontend.md)) |
+| [static/sonido.js](../static/sonido.js) | The voice of the table: every call the *other* players make is synthesised with the Web Audio API — no audio files at all — plus the 🔊 mute button ([Frontend](Frontend.md)) |
 | [static/style.css](../static/style.css) | Nord-palette styling |
 | `static/img/` | Card images (`card_<suit>_<value>.webp`), logo, favicon |
 

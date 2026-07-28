@@ -40,7 +40,7 @@ Differences from the 2p rules already documented in [Game-Rules](Game-Rules.md):
 - **Mano** is one seat; roles rotate **one seat per round** (mano → next seat). Turn order is fixed table order starting at mano.
 - **Mus phase:** going around the table from mano, each player says mus / no-mus. **Mus only continues if all four want it**; a single "no mus" (cut) ends the mus phase and betting begins with the cutter... — actually, standard rule: the player who cut speaks first in Grande. Keep that (`quien_corta_mus`).
 - **Discards:** every player who wants cards discards 1–4 and draws; deck reshuffles from discards when empty (same `robar` logic — trigger the deck-exhausted notice, Roadmap #14).
-- **Declarations:** for **Pares** and **Juego**, all four players declare (have / don't have). A lance is only bet if **both teams** have at least one qualifying player; otherwise it's skipped or auto-won by the qualifying team (bonuses still counted at showdown for each qualifying hand).
+- **Declarations:** for **Pares** and **Juego**, all four players declare (have / don't have). A lance is only bet if **both teams** have at least one qualifying player; otherwise it's skipped or auto-won by the qualifying team (bonuses still counted at showdown for each qualifying hand). When it *is* bet, only the **qualifying players** speak — the rest are skipped outright, they do not even pass (see §3.5).
 - **Betting is team-vs-team** (see §3.4 for the concrete v1 model). Actions: pasar, envidar, subir, ver, no ver, órdago — same vocabulary as 2p.
 - **Showdown / recuento:** for each lance, compare the **best hand of team A** against the **best hand of team B**; the winning team scores. **Bonuses (Pares/Juego) count for _every_ qualifying hand on the winning team** (e.g. if both partners have pairs, both pairs' premios add up). Ties resolved by proximity to mano (the hand belonging to the player closest to mano in turn order wins the tie).
 - **Señas (partner signals)** were excluded from v1 and **shipped later as an optional table setting** — see [Señas (2v2)](Senas-2v2.md). Partners still **never see each other's cards**: a sign transmits a *gesture*, and only to whoever happens to be looking at that moment.
@@ -165,7 +165,7 @@ The trickiest generalization. Use this concrete, well-defined model (a faithful-
 
 - Within a lance, players act in **table order from mano**. State tracks `turno_de` (seat) and `equipo_apostador` (the team with a live bet, or `None`).
 - **No live bet (`subida_pendiente == 0`):** the seat on turn may `pasar`, `envidar`, or `ordago`.
-  - `pasar` → advance `turno_de` to next seat. If all four pass consecutively, the lance closes "en paso" (1 "de paso" point to the eventual Grande/Chica winner, resolved at recuento; nothing for Pares/Juego). Reuse a `pases_consecutivos` counter that resets on any bet, but count **4** for a full pass-around.
+  - `pasar` → advance `turno_de` to the next seat **with a voice in the lance** (`_siguiente_apostador`, see §3.5). When everyone with a voice has passed consecutively the lance closes "en paso" (1 "de paso" point to the eventual Grande/Chica winner, resolved at recuento; nothing for Pares/Juego). Reuse a `pases_consecutivos` counter that resets on any bet, and compare it against `len(_asientos_apostadores())` — **4** in Grande/Chica/Punto, but only the qualifying seats in Pares/Juego.
   - `envidar(cantidad)` / `ordago` → set `subida_pendiente`, `quien_sube = equipo_de[seat]`, and pass control to **`siguiente_rival(seat)`** (the responding team).
 - **Live bet pending:** the responder (a member of the opposing team) may `ver`, `subir`, `nover`, or `ordago`.
   - `ver` → pot resolved; add `apuesta_vista + subida` to the lance's bote; advance to next lance.
@@ -181,9 +181,26 @@ The trickiest generalization. Use this concrete, well-defined model (a faithful-
 
 `preparar_subfase()` mirrors 2p but checks **teams**:
 
-- **Pares:** a team "has pares" if **any** of its two players has pares. If only one team has pares → skip the lance, auto-assign `ganadores_fase['Pares']` to that team (bonuses still added at recuento). If neither team → skip with the `nadie_pares` transition message. Turn starts at the first seat (from mano) whose team is eligible.
+- **Pares:** a team "has pares" if **any** of its two players has pares. If only one team has pares → skip the lance, auto-assign `ganadores_fase['Pares']` to that team (bonuses still added at recuento). If neither team → skip with the `nadie_pares` transition message. Turn starts at the first seat (from mano) that itself has pares (`_primer_asiento_eligible`).
 - **Juego:** a team "has juego" if any member reaches 31. If neither team has juego → **Punto** (`juego_es_punto=True`, `juego_a_punto` message), still bet. If exactly one team has juego → skip, auto-assign.
 - Declarations (`tiene_pares_dec`, `tiene_juego_dec`) are collected from all four during a short **declaration sub-step** before Pares/Juego betting; expose them in the payload so the UI can show "Pares sí/no" chips per seat (without revealing cards).
+
+#### Who has a voice in a lance
+
+Once the declaration round is done, the **betting in Pares and Juego happens only between the seats that actually declared the combination**. A seat without pares (or without juego) is skipped entirely: it does not pass, does not refuse, and is never asked anything — even though its partner may be betting.
+
+Example, seats in turn order `A1 → B1 → A2 → B2`, only `A1` and `B2` with pares: `A1` speaks, then `B2`, and **nobody in between**. If instead only `A2` and `B2` qualify and `B2` raises, the response goes to `A2`, not `A1`.
+
+Three engine helpers implement this, all keyed off the lance in play:
+
+| Helper | Answers |
+| :--- | :--- |
+| `_predicado_lance()` | who has a voice — `tiene_pares` in Pares, `tiene_juego` in Juego, `None` (everybody) in Grande, Chica and Punto |
+| `puede_apostar(seat)` | does this seat have a voice right now |
+| `_asientos_apostadores()` | the seats with a voice, in turn order from mano |
+| `_siguiente_apostador(seat)` | next seat with a voice, skipping the rest |
+
+`_siguiente_apostador` drives `pasar`, and `_abrir_respuesta` filters the responder queue through `puede_apostar`, so both the opening round and the answers to a bet stay among the qualifying seats. **Punto is not restricted** (`juego_es_punto` → nobody has juego, so all four bet). The log header records this as `rules.apuesta_lance = 'solo_jugada'`: logs written before the rule carry the extra `pasar` events of the non-qualifying seats and are not directly comparable.
 
 ### 3.6 Recuento (`calcular_recuento`)
 
@@ -308,10 +325,18 @@ rejects any `pasar/envidar/subir/ver/nover/ordago` that is not in
 `motor.acciones_legales(seat)` — the very list the bots already pick from, so
 there is a single definition of what is legal. The payload carries it as
 `acciones_legales`, and `mostrarPanelApuesta4` builds the buttons from it, so the
-table never offers a move the server would drop (without the combination you get
-*Paso*, or *No quiero* when answering a bet, plus a line saying your partner is
-the one betting this lance). A missing field falls back to showing everything, so
-an old client against a new server is no worse off than before.
+table never offers a move the server would drop. A missing field falls back to
+showing everything, so an old client against a new server is no worse off than
+before.
+
+Since the turn now **skips** the seats without the combination (see "Who has a
+voice in a lance", §3.5), the `acciones_legales` branch that used to hand them
+*Paso* / *No quiero* is a safety net rather than a normal path: nobody without
+the combination should ever hold the turn. What those players do need is an
+explanation for why they are never asked, so the payload also carries
+`sin_voz_lance` (`fase == 'apuestas' and not motor.puede_apostar(seat)`) and
+`avisoSinJugada4` shows *"No tienes pares: en este lance apuesta tu compañero"*
+for as long as the lance is being bet — without it the skip looks like a hang.
 
 ### 4.4 Connection handling (critical section)
 

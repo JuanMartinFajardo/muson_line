@@ -485,10 +485,26 @@ socket.on('actualizar_mesa_4', (datos) => {
 
     actualizarMensajeYBotones4(datos);
     actualizarTimer4(datos);
+    avisarTurno4(datos);
     // Las señas van DESPUÉS de pintar: renderMesa4 rehace las clases de cada
     // asiento y borraría el resaltado del foco.
     if (window.Senas4) Senas4.sincronizar(datos);
 });
+
+// Aviso de turno (sonido.js). Con tres asientos ajenos y un reloj corriendo, en
+// el móvil es fácil no enterarse de que la mesa te está esperando. Suena en el
+// FLANCO —cuando el turno pasa a ser tuyo—, no en cada repintado: el estado
+// llega muchas veces seguidas (una seña, un cambio de baraja) y con el mismo
+// turno dentro.
+let eraMiTurno4 = false;
+
+function avisarTurno4(d) {
+    // El recuento no es un turno: es leer el resultado con calma.
+    const miTurno = !!d.es_mi_turno && d.fase !== 'recuento' && !d.declarando &&
+                    !d.mensaje_transicion;
+    if (miTurno && !eraMiTurno4 && window.Sonido) Sonido.jugar('turno');
+    eraMiTurno4 = miTurno;
+}
 
 // Alguien de la mesa ha cambiado de baraja sin levantarse (Roadmap #5). Se
 // parchea el asiento y se repinta con el mismo estado: no llega uno nuevo, que
@@ -521,6 +537,12 @@ socket.on('accion_4', (d) => {
     // (tras reconectar puedes volver a un asiento distinto del que guardaste).
     const yo = estadoActual4 ? estadoActual4.mi_asiento : miAsiento4;
     if (yo === null || yo === undefined) return;
+    // La voz de la mesa (sonido.js): sólo los cantes AJENOS. El propio ya lo
+    // estás viendo, y duplicarlo con un sonido convierte la mesa en una
+    // recreativa. Va antes del `return` del texto porque hay acciones que suenan
+    // aunque no tengan burbuja escrita.
+    if (d.asiento !== yo && window.Sonido) Sonido.jugar(d.accion, d.cantidad);
+
     const clave = 'acc_' + d.accion;
     if (!_resolver(clave)) return;
     const texto = (d.cantidad === null || d.cantidad === undefined)
@@ -622,12 +644,18 @@ function mostrarPanelApuesta4(d) {
     }
 }
 
-// Por qué la mesa sólo te deja pasar (o no querer) en Pares/Juego: no llevas la
-// jugada. Sin este aviso el jugador ve los botones a medias y no sabe por qué.
-// Quien no tiene la jugada nunca puede echar un órdago: ese es el indicador.
+// Por qué la mesa te SALTA el turno en Pares/Juego: no llevas la jugada, y las
+// apuestas de esos lances son sólo entre quienes la cantaron. Sin este aviso el
+// jugador ve pasar los turnos sin que le pregunten y parece que se ha colgado.
+// El servidor manda `sin_voz_lance` ya resuelto (Punto incluido: ahí hablan los
+// cuatro); si un servidor viejo no lo manda, se cae al indicador de antes (quien
+// no tiene la jugada nunca puede echar un órdago).
 function avisoSinJugada4(d) {
-    if (d.fase !== 'apuestas' || !d.es_mi_turno || !d.acciones_legales) return '';
-    if (d.acciones_legales.includes('ordago')) return '';
+    if (d.fase !== 'apuestas') return '';
+    const sinVoz = (d.sin_voz_lance !== undefined)
+        ? d.sin_voz_lance
+        : (d.es_mi_turno && d.acciones_legales && !d.acciones_legales.includes('ordago'));
+    if (!sinVoz) return '';
     const lance = d.apuestas && d.apuestas.fase_actual;
     if (lance === 'Pares') return t('sin_pares_aviso_4');
     if (lance === 'Juego') return t('sin_juego_aviso_4');

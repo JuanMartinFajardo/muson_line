@@ -1,0 +1,11 @@
+{"v":2,"t":"hdr","match":"V6EXTF","mode":"2p","ts":"2026-07-28T07:49:20.076Z","rules":{"objetivo":40,"al_mejor_de":3,"team_response":"na","senas":false,"engine":"mus2"},"seats":[{"s":0,"kind":"human","code":null},{"s":1,"kind":"bot","pers":null}],"teams":[[0],[1]]}
+{"t":"deal","r":1,"mano":0,"hands":[[2,2,5,4],[7,7,1,11]]}
+{"t":"a","s":0,"a":"mus","ms":60894}
+{"t":"a","s":1,"a":"mus","ms":1503}
+{"t":"a","s":1,"a":"descarte","idx":[0,1,2,3],"ms":1507}
+{"t":"draw","s":1,"cards":[10,3,5,1]}
+{"t":"a","s":0,"a":"descarte","idx":[0,1,2,3],"ms":27641}
+{"t":"draw","s":0,"cards":[3,3,6,11]}
+{"t":"a","s":0,"a":"no_mus","ms":24682}
+{"t":"a","s":0,"a":"envidar","lance":"Grande","n":2,"ms":12002}
+{"t":"a","s":1,"a":"subir","lance":"Grande","n":2,"ms":1537}

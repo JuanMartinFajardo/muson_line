@@ -145,13 +145,22 @@ class PartidaMus4:
     def _abrir_respuesta(self, seat):
         """Tras una apuesta de `seat`, el equipo rival debe responder.
 
-        Encola a los DOS rivales en orden de turno y cede la palabra al primero.
-        Si ese rival da un 'no quiero', la decisión pasa a su compañero (ver
-        `accion_apuesta`) antes de conceder la apuesta: cualquiera de los dos
-        puede querer/subir por el equipo."""
+        Encola a los rivales CON VOZ en el lance (ver `puede_apostar`) en orden
+        de turno y cede la palabra al primero. Si ese rival da un 'no quiero',
+        la decisión pasa a su compañero (ver `accion_apuesta`) antes de conceder
+        la apuesta: cualquiera de los dos puede querer/subir por el equipo.
+
+        En Pares/Juego el compañero sin la jugada NO entra en la cola: no puede
+        querer ni rehusar, la apuesta se juega solo entre quienes la cantaron."""
         eq = self.equipo_de[seat]
-        self.respondedores = [s for s in self.orden_desde(self.siguiente_seat(seat))
-                              if self.equipo_de[s] != eq]
+        rivales = [s for s in self.orden_desde(self.siguiente_seat(seat))
+                   if self.equipo_de[s] != eq]
+        self.respondedores = [s for s in rivales if self.puede_apostar(s)]
+        if not self.respondedores:
+            # No debería pasar: a Pares/Juego solo se apuesta cuando AMBOS
+            # equipos tienen la jugada. Red de seguridad para no dejar la mesa
+            # sin turno si alguna vez se llega aquí.
+            self.respondedores = rivales
         self.turno_de = self.respondedores[0]
 
     def _dist_mano(self, seat):
@@ -194,8 +203,13 @@ class PartidaMus4:
         # lo que hará comparables los logs de antes y después de la Fase 2: hoy
         # responde el turno y, si rehúsa, su compañero ('companero'); la Fase 2.1
         # abre la respuesta a cualquiera de los dos en cualquier orden ('libre').
+        # `apuesta_lance` deja constancia de quién habla en Pares/Juego: en
+        # 'solo_jugada' (regla actual) el turno salta a los que no la cantaron, así
+        # que sus 'pasar' desaparecen del stream de acciones. Los logs anteriores
+        # ('todos') tienen esos pases y no son comparables sin filtrarlos.
         base = {'objetivo': 40, 'al_mejor_de': self.al_mejor_de,
-                'team_response': 'companero', 'senas': False, 'engine': 'mus4'}
+                'team_response': 'companero', 'apuesta_lance': 'solo_jugada',
+                'senas': False, 'engine': 'mus4'}
         if rules:
             base.update(rules)
         self.log = MatchLogger(self.match_id, '4p', enabled=enabled, dir_logs=dir_logs)
@@ -469,6 +483,41 @@ class PartidaMus4:
                 return s
         return self.mano
 
+    # ------------------------------------------------------------------
+    # Quién tiene voz en el lance en curso
+    # ------------------------------------------------------------------
+    # A Grande, Chica y Punto se apuesta entre los cuatro. A Pares y a Juego
+    # SOLO hablan los que cantaron la jugada: los demás no pasan, no rehúsan y
+    # no se les pide nada — el turno les salta por encima. La ronda de cantes
+    # (`_cantar_declaraciones`) sí la hacen los cuatro; es la apuesta la que
+    # queda reservada a quienes tienen pares (o juego).
+    def _predicado_lance(self):
+        """Predicado de voz del lance en curso, o None si hablan los cuatro."""
+        if self.fase != 'apuestas' or self.indice_fase >= len(self.FASES_APUESTA):
+            return None
+        nombre = self.FASES_APUESTA[self.indice_fase]
+        if nombre == 'Pares':
+            return tiene_pares
+        if nombre == 'Juego' and not self.juego_es_punto:
+            return tiene_juego
+        return None
+
+    def puede_apostar(self, seat):
+        """¿Tiene `seat` voz en el lance en curso?"""
+        predicado = self._predicado_lance()
+        return predicado is None or predicado(self.estado[seat]['cartas'])
+
+    def _asientos_apostadores(self):
+        """Asientos con voz en el lance, en orden de turno desde la mano."""
+        return [s for s in self.orden_desde(self.mano) if self.puede_apostar(s)]
+
+    def _siguiente_apostador(self, seat):
+        """Siguiente asiento con voz, saltando a los que no la tienen."""
+        for s in self.orden_desde(self.siguiente_seat(seat)):
+            if self.puede_apostar(s):
+                return s
+        return self.siguiente_seat(seat)
+
     def avanzar_subfase(self, bote_extra):
         nombre_fase = self.FASES_APUESTA[self.indice_fase]
         self.botes[nombre_fase] += bote_extra
@@ -485,13 +534,15 @@ class PartidaMus4:
 
         if accion == 'pasar':
             self.pases_consecutivos += 1
-            if self.pases_consecutivos >= 4:
-                # Pase corrido de los cuatro. Punto "de paso" solo en Grande/Chica
-                # (se resuelve en el recuento como bonus).
+            # Pase corrido de TODOS los que tienen voz en el lance: los cuatro en
+            # Grande/Chica/Punto, y solo los que cantaron la jugada en Pares/Juego.
+            if self.pases_consecutivos >= len(self._asientos_apostadores()):
+                # Punto "de paso" solo en Grande/Chica (se resuelve en el
+                # recuento como bonus).
                 punto_pase = 1 if nombre_fase in ['Grande', 'Chica'] else 0
                 self.avanzar_subfase(punto_pase)
             else:
-                self.turno_de = self.siguiente_seat(seat)
+                self.turno_de = self._siguiente_apostador(seat)
 
         elif accion == 'envidar' or accion == 'subir':
             self.pases_consecutivos = 0
@@ -617,14 +668,13 @@ class PartidaMus4:
         if self.fase != 'apuestas' or self.indice_fase >= len(self.FASES_APUESTA):
             return acciones
 
-        nombre_fase = self.FASES_APUESTA[self.indice_fase]
-        cartas = self.estado[seat]['cartas']
         respondiendo = (self.subida_pendiente != 0)
 
-        # Sin la jugada no se apuesta: solo se puede pasar (o rehusar).
-        if nombre_fase == 'Pares' and not tiene_pares(cartas):
-            return acciones + (['nover'] if respondiendo else ['pasar'])
-        if nombre_fase == 'Juego' and not tiene_juego(cartas) and not self.juego_es_punto:
+        # Sin la jugada no hay voz en el lance. El turno ya salta a estos asientos
+        # (`_siguiente_apostador` / `_abrir_respuesta`), así que en la práctica no
+        # se llega aquí; queda como red de seguridad para que un cliente con los
+        # botones desfasados no pueda apostar a unos pares que no tiene.
+        if not self.puede_apostar(seat):
             return acciones + (['nover'] if respondiendo else ['pasar'])
 
         eq = self.equipo_de[seat]

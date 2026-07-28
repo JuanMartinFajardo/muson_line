@@ -1296,6 +1296,32 @@ def handle_unirse_sala(datos):
 
 # --- 2. ACCIONES DE JUEGO AISLADAS ---
 
+# ==========================================
+# LO QUE CANTA EL RIVAL (evento `accion`)
+# ==========================================
+# El 2v2 ya anunciaba cada jugada a la mesa (`accion_4`) para poder pintarla en
+# el sitio de quien la hizo; el 1v1 no tenía nada parecido porque todo cabía en
+# `actualizar_mesa`. Ahora hace falta: la mesa SUENA (static/sonido.js) y el
+# sonido tiene que salir en el momento del cante, no en el repintado siguiente.
+#
+# Va SÓLO al otro jugador, no a la sala: así el cliente no tiene que averiguar
+# si la acción es suya —no suena lo que uno mismo pulsa— y de paso ningún sid
+# viaja dentro del mensaje. Contra el bot el destinatario es el humano, porque
+# el sid del bot ('BOT_XXXX') no es ninguna room de Socket.IO.
+#
+# Todo lo que se anuncia es información pública del mus: lo que se canta en voz
+# alta en una mesa de verdad y cuántas cartas se descartan.
+def _anunciar_accion_2p(codigo, sid_actor, accion, cantidad=None):
+    sala = salas.get(codigo)
+    if not sala:
+        return
+    for s in sala.get('sids', []):
+        # `None` = asiento caído; emitir con room=None sería difundir a TODO el
+        # servidor, así que el filtro no es cosmético.
+        if s and s != sid_actor:
+            socketio.emit('accion', {'accion': accion, 'cantidad': cantidad}, room=s)
+
+
 @socketio.on('accion_juego')
 def handle_accion_juego(datos):
     sid_jugador = request.sid
@@ -1316,6 +1342,7 @@ def procesar_accion_interna(sid_jugador, codigo, datos):
 
     if accion == 'pedrete':
         if partida_actual.procesar_pedrete(sid_jugador):
+            _anunciar_accion_2p(codigo, sid_jugador, 'pedrete')
             enviar_estado_a_jugadores(codigo)
         return
 
@@ -1323,12 +1350,15 @@ def procesar_accion_interna(sid_jugador, codigo, datos):
     if sid_jugador == partida_actual.turno_de:
         if accion == 'repartir':
             partida_actual.repartir_inicial()
+            _anunciar_accion_2p(codigo, sid_jugador, 'repartir')
             enviar_estado_a_jugadores(codigo)
         elif accion == 'mus':
             partida_actual.cantar_mus(sid_jugador, True)
+            _anunciar_accion_2p(codigo, sid_jugador, 'mus')
             enviar_estado_a_jugadores(codigo)
         elif accion == 'no_mus':
             partida_actual.cantar_mus(sid_jugador, False)
+            _anunciar_accion_2p(codigo, sid_jugador, 'no_mus')
             enviar_estado_a_jugadores(codigo)
         elif accion in ['pasar', 'envidar', 'subir', 'ver', 'ordago', 'nover']:
             # El motor ya topa la apuesta contra los puntos que quedan; esto es la
@@ -1336,12 +1366,26 @@ def procesar_accion_interna(sid_jugador, codigo, datos):
             # encima del juego entero.
             cantidad = seguridad.entero(datos.get('cantidad', 0), 0, 40, 0)
             partida_actual.accion_apuesta(sid_jugador, accion, cantidad)
+            # La cantidad se lee DESPUÉS de jugar: el motor recorta el envite al
+            # tope legal (lo que falta para 40) y lo convierte en órdago si ya no
+            # cabe, así que lo cantado no siempre es lo que se pidió. Mismo
+            # criterio que `procesar_accion_4` en server_mus4.py.
+            if accion in ('envidar', 'subir'):
+                if partida_actual.subida_pendiente == 'ÓRDAGO':
+                    _anunciar_accion_2p(codigo, sid_jugador, 'ordago')
+                else:
+                    _anunciar_accion_2p(codigo, sid_jugador, accion,
+                                        partida_actual.subida_pendiente)
+            else:
+                _anunciar_accion_2p(codigo, sid_jugador, accion)
             enviar_estado_a_jugadores(codigo)
 
     if accion == 'descartar' and partida_actual.fase == 'descarte':
         if not partida_actual.estado[sid_jugador]['descartes_listos']:
             indices_a_tirar = seguridad.indices(datos.get('indices'), 4)
+            n_tiradas = len(indices_a_tirar)
             partida_actual.procesar_descarte(sid_jugador, indices_a_tirar)
+            _anunciar_accion_2p(codigo, sid_jugador, 'descartar', n_tiradas)
             enviar_estado_a_jugadores(codigo)
 
     if accion == 'continuar_transicion':

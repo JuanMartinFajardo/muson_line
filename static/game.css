@@ -131,7 +131,12 @@ html.modo-mesa .cm-corner { margin-right: env(safe-area-inset-right); }
    completa), pero en rojo al pasar por encima porque es una salida. */
 .btn-salir-mesa {
     right: calc(62px + env(safe-area-inset-right));
-    top: max(13px, env(safe-area-inset-top));
+    /* `margin: 0` porque style.css se lo da de 5px a TODO input y button, y este
+       botón nunca lo reponía: quedaba 5px más bajo y 5px más a la izquierda que
+       sus vecinos. Con tres botones en la esquina (⛶ · ✕ · 🔊) la escalerilla ya
+       se veía, así que la fila se alinea en los 15px de .cm-corner. */
+    margin: 0;
+    top: max(15px, env(safe-area-inset-top));
     width: 34px; height: 34px;
     background: rgba(237, 233, 220, 0.03);
     border: 1px solid var(--cm-hair-2); border-radius: 2px;
@@ -146,6 +151,33 @@ html.modo-mesa .cm-corner { margin-right: env(safe-area-inset-right); }
     color: #E06862;
     transform: none;
 }
+
+/* El «🔊» de silenciar: tercer hueco de la fila (⛶ 15px · ✕ 62px · 🔊 109px).
+   Vive fuera de las dos pantallas de juego —lo quieren las dos igual—, así que
+   se enseña por la clase que pantalla.js pone en <html> mientras hay tapete:
+   en el menú no pinta nada. */
+.cm-mesa-sonido {
+    display: none;
+    right: calc(109px + env(safe-area-inset-right));
+    top: max(15px, env(safe-area-inset-top));
+    font-size: 0.95rem;
+    /* Un emoji trae su color de fábrica y no obedece a `color`, así que sus dos
+       vecinos (⛶ y ✕, glifos de texto) se ponen de oro al pasar por encima y
+       éste no. Se desatura para que no meta un color ajeno a la paleta y el
+       realce se hace con brillo, que a un emoji sí le llega. */
+    filter: grayscale(1);
+}
+.cm-mesa-sonido:hover { filter: grayscale(1) brightness(1.4); }
+html.modo-mesa .cm-mesa-sonido { display: inline-flex; }
+
+/* Silenciada: se apaga sola, sin tachados ni rojos. El icono ya dice que no
+   suena; el botón sólo tiene que dejar de pedir atención. */
+.cm-mesa-sonido.apagado {
+    color: var(--cm-dim);
+    border-color: var(--cm-hair);
+    opacity: 0.75;
+}
+.cm-mesa-sonido.apagado:hover { opacity: 1; }
 
 /* ============================================================
    3. La chapa del jugador (1v1)

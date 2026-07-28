@@ -109,6 +109,7 @@ The same pass drops orphan `jugadores` entries whose room exists in neither `sal
 - `reemplazo_encontrado {nombre}` — the seat was filled (by a substitute or by the original player reconnecting in time).
 - `iniciar_partida` — switch to the game screen.
 - `actualizar_mesa {payload}` — the full per-player game state (see below).
+- `accion {accion, cantidad}` — what the **rival** just called (`mus`, `no_mus`, `repartir`, `descartar` with the card count, `pasar`, `envidar`/`subir` with the amount actually staked, `ver`, `nover`, `ordago`, `pedrete`). This is the 1v1 twin of the 2v2's `accion_4`, added so the table can *sound* (`static/sonido.js`) at the instant of the call instead of at the next repaint. `_anunciar_accion_2p` emits it **only to the other seat** — the client has nothing to filter and no sid travels inside the message — and everything it carries is public information of mus. The amount is read *after* the engine plays, because a raise gets clipped to what is left to 40 and may turn into an órdago.
 - `error_sala {mensaje}`, `rival_desconectado`.
 
 ## `procesar_accion_interna(sid, room, datos)`

@@ -1060,6 +1060,10 @@ def enviar_estado_4(codigo):
             # botones a partir de ella, así que la mesa nunca ofrece una jugada
             # que el servidor vaya a rechazar.
             'acciones_legales': motor.acciones_legales(seat),
+            # Pares/Juego sin la jugada: el turno pasa POR ENCIMA de este asiento
+            # (no pasa ni rehúsa, ni se le pide nada). El cliente lo usa para
+            # explicar por qué se le salta, que si no parece un cuelgue.
+            'sin_voz_lance': (motor.fase == 'apuestas' and not motor.puede_apostar(seat)),
             'mensaje': mensaje,
             'mensaje_transicion': motor.mensaje_transicion,
             # Lance cuya ronda de cantes se está diciendo ahora mismo ('Pares' /

@@ -112,6 +112,60 @@ could never work there. Both halves are fixed here:
 buttons: with `viewport-fit=cover` the table reaches the physical edge of the screen, so
 the notch and the gesture bar have to be dodged by the content.
 
+## `static/sonido.js` — the voice of the table
+
+Loaded last, next to `pantalla.js`. It exists for one reason: on the table there
+is one (1v1) or there are three (2v2) players who are not you, and most of them are
+bots. What they call is painted for a moment — the 2v2 bubble, the 1v1 board — but if
+you are looking at your own cards you miss it: *did it pass or did it bet me?* Every
+call **someone else** makes now makes a sound.
+
+**No audio files.** Everything is synthesised with the Web Audio API: nothing to serve,
+no latency, and every timbre tuned by hand. Two ideas hold it together:
+
+1. **A palette of three timbres**, like the colour one: *campana* (a struck bell — the
+   interface's gold; an inharmonic ×3.51 FM modulator whose index collapses is what
+   makes it metal rather than a beep), *madera* (the felt table) and *aire* (the cards).
+   Everything goes through a short noise-built reverb, which is what separates a beep
+   from something played in a room.
+2. **One scale: Phrygian on E** — the Spanish mode. Two calls in a row never clash, and
+   the descending semitone (fa→mi) is reserved for *no quiero*, where it sounds exactly
+   like a refusal. Órdago is a gong on the tonic two octaves down, the only thing on the
+   table allowed to be loud.
+
+The gains in `RECETAS` are **measured, not eyeballed**: peak and integrated energy were
+read off the real output until the hierarchy holds — órdago ≫ envite > cante > mus >
+turn cue > pass > cards, with the cards about 4× below an envite (background, but not
+inaudible) and no clipping even when two voices overlap.
+
+**Only what is not yours sounds.** What you click you are already looking at; doubling it
+with a sound turns the table into an arcade machine. The one exception is the **turn cue**,
+information about you that you did not cause, and it is the quietest thing there is. It
+fires on the *edge* (when the turn becomes yours), not on every repaint, because the same
+turn arrives several times (a sign, a deck change, a reconnection).
+
+The `🔊` button lives in `index.html` **outside** both game screens, because both want it
+identically: `game.css` only shows it under `html.modo-mesa` (the class `pantalla.js` puts
+on `<html>` while a table is on screen), so it never appears in the menu. It is the third
+slot of the corner row — `⛶ 15px · ✕ 62px · 🔊 109px` — and fixing it revealed that
+`.btn-salir-mesa` never reset the global `input, button { margin: 5px }` of `style.css`, so
+the ✕ had always sat 5 px low; the three are now aligned on `.cm-corner`'s 15 px. An emoji
+carries its own colour and ignores `color`, so it is desaturated and its hover highlight is
+done with `brightness`, which does reach it.
+
+State persists in `localStorage['callmus_sonido']` and **defaults to on** — otherwise
+nobody finds the button. Browsers block audio until the player touches the page, so opening
+the page never surprises anyone; the first gesture (any gesture) prepares the context.
+Nothing is scheduled while muted or while the tab is in the background.
+
+**Where the calls come from.** The 2v2 already announced every play to the table
+(`accion_4`, added for the bubble); the 1v1 had nothing like it, because everything fitted
+inside `actualizar_mesa`. It does now: `_anunciar_accion_2p()` in `server.py` emits an
+`accion` event **only to the other player** — so the client has nothing to filter (if it
+arrives, it is not yours) and no sid travels inside the message. Against the bot the
+recipient is the human, since `BOT_XXXX` is not a Socket.IO room. Everything announced is
+public information of mus: what is called out loud and how many cards are discarded.
+
 ## `static/tutorial.js` (~2200 lines)
 
 An interactive step-by-step tutorial launched by the *How to Play* button: injected styles for card-zoom effects (hover on desktop, tap on mobile), staged explanations of the deck, lances, and betting. **Fully translated (ES/EN/EU)**, bilingual since Roadmap #2 and trilingual with the Basque pass: slide content is keyed by the global `langActual` variable defined in `app.js` (single source of truth, persisted to `localStorage['callmus_lang']`), and a listener on `#btn-lang` re-renders the open tutorial when the language is toggled. The *How to Play* launcher button is translated via `data-i18n="btn_tutorial"` in `app.js`.
@@ -283,4 +337,5 @@ still inline in `index.html` (candidate for cleanup).
 - Menu-side work goes in `menu.css` / `menu.js` with the `.cm-` prefix and the tokens of the "midnight ink" palette — no new hard-coded hex values, no inline `style=""`. Table-side work goes in `game.css` under the same rules; keep `style.css` / `style4.css` for layout only, so there is one place per screen that decides how it looks.
 - Anything the two tables show the same way (the lance board, the piedras) belongs in a helper in `app.js` that `table4.js` calls, not copied into both.
 - A feature that is not ready yet gets a visible `data-soon` marker and a reason in `MOTIVOS` (`menu.js`), never a hidden or dead button.
+- Anything the table should *say* goes through `Sonido.jugar(nombre, cantidad)` and gets its recipe in `RECETAS` (`sonido.js`) — built from the three timbres and the Phrygian scale, never a new audio file. A new server-side call needs its announcement too (`_anunciar_accion_2p` in `server.py`, `_anunciar_accion_4` in `server_mus4.py`), and only what is *not* yours may sound.
 - Bump the `?=vN` query string of any `static/` file you change in `index.html`: browsers cache them and stale JS is very confusing to debug.

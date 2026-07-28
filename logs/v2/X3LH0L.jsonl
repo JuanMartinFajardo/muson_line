@@ -1,0 +1,4 @@
+{"v":2,"t":"hdr","match":"X3LH0L","mode":"2p","ts":"2026-07-28T07:37:32.703Z","rules":{"objetivo":40,"al_mejor_de":3,"team_response":"na","senas":false,"engine":"mus2"},"seats":[{"s":0,"kind":"human","code":null},{"s":1,"kind":"bot","pers":null}],"teams":[[0],[1]]}
+{"t":"deal","r":1,"mano":1,"hands":[[1,7,12,11],[12,3,7,10]]}
+{"t":"a","s":1,"a":"no_mus","ms":127362}
+{"t":"a","s":1,"a":"pasar","lance":"Grande","ms":1534}
