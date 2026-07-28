@@ -36,7 +36,20 @@ To test online play locally, open two browser windows (one normal, one private) 
   `gunicorn --worker-class eventlet -w 1 server:app -b 0.0.0.0:5001`
   (More than one worker breaks Socket.IO rooms unless a message queue like Redis is added.)
 - Static card images get 1-year immutable cache headers from the `after_request` hook.
-- The Socket.IO **client** library is loaded from the cdnjs CDN in `index.html`; production behind a strict CSP would need it self-hosted.
+- The Socket.IO **client** is self-hosted at `static/vendor/socket.io-4.7.5.min.js` (it used to come from cdnjs), which is what allows the strict `script-src 'self'` policy. Bump the file and the `<script src>` in `index.html` together.
+- **nginx** must forward `X-Forwarded-For` and `X-Forwarded-Proto`; the reference config and the Cloudflare checklist are in [tools/nginx-callmus.conf](../tools/nginx-callmus.conf). Also raise `client_max_body_size` to 32m or deck uploads hit nginx's 1 MB default before Flask sees them.
+- The server **backs up `mus.db` and `analitica.db` by itself** into `backups/` at startup and daily, keeping 7 copies ([Security](Security.md#6-backups)). No cron needed.
+
+### Security
+
+The hardening layer ([seguridad.py](../seguridad.py), Roadmap #16) needs **no
+configuration**: security headers, CSP, rate limits, the origin allowlist and
+backups are on by default, and the TLS-dependent parts (`Secure` cookie, HSTS)
+switch themselves on the moment the proxy reports HTTPS. On the first request
+after a restart the server prints what it detected and, if a proxy header is
+missing, the exact nginx line that fixes it — read it with
+`journalctl -u callmus -n 50`. Full description and the escape-hatch variables:
+[Security](Security.md).
 
 ## Configuration (environment variables / `.env`)
 
@@ -56,6 +69,7 @@ root (loaded by a tiny built-in parser — python-dotenv is **not** required). C
 | `ANALYTICS_DB` | Optional: path of the analytics database ([Analytics](Analytics.md)). Created on first start; needs no setup | `analitica.db` |
 | `ANALYTICS_RETENCION_DIAS` | Optional: days of **raw** analytics rows kept before pruning. Daily aggregates never expire, so long-range charts survive | `90` |
 | `SISTEMA_RETENCION_DIAS` | Optional: days of hourly server-health history kept (`SistemaHora`, stored in the analytics DB). Nothing to set up; see [Backend-Server](Backend-Server.md#server-health-sistemapy) | `180` |
+| `CORS_ORIGINS`, `CSP_MODO`, `LIMITES_ACTIVOS`, `PROXIES_DE_CONFIANZA`, `FORZAR_HTTPS`, `HSTS_MAX_AGE`, `BACKUP_ACTIVO`, `BACKUP_DIR`, `BACKUP_COPIAS` | All optional, all with working defaults. They exist to switch a hardening measure off from the environment instead of editing code — see [Security](Security.md) | leave unset |
 
 The CFR checkpoint the bot uses is **no longer hardcoded**: it is the `bot_checkpoint` row
 of the `Config` table, chosen from `/admin` → *Variables y bot*, with the value in

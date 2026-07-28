@@ -35,6 +35,7 @@ from flask import (render_template, request, session, jsonify,
 import base_datos
 import decks
 import mus_senas
+import seguridad
 
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 DIR_LOGS = os.path.join(RAIZ, 'logs')
@@ -150,10 +151,14 @@ def _rate_ok(bucket_key, max_n, ventana):
 # ==========================================================================
 
 def _ip():
-    """IP real del cliente. Detrás de nginx/Cloudflare (Roadmap #16) el proxy
-    manda la original en X-Forwarded-For; el primer valor es el cliente."""
-    reenviada = request.headers.get('X-Forwarded-For', '')
-    return (reenviada.split(',')[0].strip() or request.remote_addr) if reenviada else request.remote_addr
+    """IP real del cliente, resuelta en un único sitio (seguridad.ip_cliente).
+
+    Antes se leía aquí el PRIMER valor de X-Forwarded-For, que es precisamente
+    el que puede inventarse el cliente mandando su propia cabecera: nginx añade
+    la real al final de la lista, no al principio. Ahora lo resuelve ProxyFix
+    (Roadmap #16), que coge el valor correcto, y Cloudflare aporta además
+    CF-Connecting-IP."""
+    return seguridad.ip_cliente()
 
 
 def es_admin_actual():

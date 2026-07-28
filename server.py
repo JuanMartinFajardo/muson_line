@@ -19,6 +19,7 @@ import base_datos
 import decks
 import social
 import analitica          # medición de audiencia (Roadmap #24); nunca lanza
+import seguridad          # endurecimiento (Roadmap #16): cabeceras, CSP, límites, copias
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from mus_mecanicas import PartidaMus
 from bot_ml import SmartBot
@@ -77,7 +78,21 @@ app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 # ping_timeout/interval holgados: minimizar/cambiar de pestaña en el móvil suspende
 # los temporizadores del navegador; con umbrales altos un parón breve NO cuenta como
 # desconexión y ni siquiera hace falta reconectar. Compatible con eventlet.
-socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=60, ping_interval=25)
+#
+# cors_allowed_origins deja de ser "*" (Roadmap #16.5): el socket solo acepta
+# conexiones abiertas desde callmus.com o desde el propio equipo. La lista sale de
+# seguridad.origenes_permitidos() y se puede sustituir con CORS_ORIGINS sin tocar
+# código (incluido CORS_ORIGINS=* para volver al comportamiento de antes).
+socketio = SocketIO(app,
+                    cors_allowed_origins=seguridad.origenes_permitidos(
+                        int(os.environ.get('PORT', '5001'))),
+                    ping_timeout=60, ping_interval=25)
+
+# Cabeceras de seguridad + CSP, cookie de sesión (HttpOnly/SameSite, y Secure en
+# cuanto el proxy diga que hay TLS), límite de peticiones en /auth/* y copia diaria
+# de las dos bases. Se instala pronto: su before_request debe correr el primero.
+seguridad.init_seguridad(app, socketio,
+                         bases=(base_datos.DB_NAME, analitica.DB_ANALITICA))
 
 # --- Google OAuth (Authlib). Solo se registra si hay credenciales. ---
 oauth = None
@@ -311,6 +326,14 @@ def _sentar_reemplazo_2p(codigo, sid, nombre, username):
 def generar_codigo():
     letras = string.ascii_uppercase + string.digits
     return ''.join(random.choice(letras) for _ in range(4))
+
+
+def _mejor_de(valor):
+    """El «al mejor de» que llega del cliente, saneado (Roadmap #16.6): impar y
+    entre 1 y 21, que es lo que ofrece el selector. Un valor par o disparatado
+    no rompía nada en el motor, pero descuadraba el marcador de piedras."""
+    n = seguridad.entero(valor, 1, 21, 3)
+    return n if n % 2 else min(21, n + 1)
 
 
 # --- El sorteo de la Mano (static/sorteo.js) ---------------------------------
@@ -1052,10 +1075,11 @@ def handle_mi_baraja(datos):
 @socketio.on('crear_sala')
 def handle_crear_sala(datos):
     sid = request.sid
-    nombre = datos.get('nombre', 'Jugador 1')
-    es_publico = datos.get('publico', False)
-    al_mejor_de_valor = datos.get('al_mejor_de', 3)
-    
+    datos = seguridad.dic(datos)
+    nombre = seguridad.texto(datos.get('nombre'), 20, 'Jugador 1')
+    es_publico = bool(datos.get('publico', False))
+    al_mejor_de_valor = _mejor_de(datos.get('al_mejor_de'))
+
     # Como ya está importado en la línea 1, lo usamos directamente
     real_username = session.get('username')
 
@@ -1082,8 +1106,9 @@ def handle_crear_sala(datos):
 @socketio.on('crear_partida_bot')
 def handle_crear_partida_bot(datos):
     sid = request.sid
-    nombre = datos.get('nombre', 'Humano')
-    al_mejor_de_valor = datos.get('al_mejor_de', 3)
+    datos = seguridad.dic(datos)
+    nombre = seguridad.texto(datos.get('nombre'), 20, 'Humano')
+    al_mejor_de_valor = _mejor_de(datos.get('al_mejor_de'))
     real_username = session.get('username')
 
     codigo = generar_codigo()
@@ -1139,9 +1164,12 @@ def handle_crear_partida_bot(datos):
 @socketio.on('unirse_sala')
 def handle_unirse_sala(datos):
     sid = request.sid
+    datos = seguridad.dic(datos)
     # Quitamos espacios accidentales al inicio o final
-    nombre = datos.get('nombre', 'Jugador').strip()
-    codigo = datos.get('codigo', '').upper()
+    nombre = seguridad.texto(datos.get('nombre'), 20, 'Jugador')
+    # Un código que no tiene la forma de un código (4 letras o dígitos) ni se
+    # busca: cae por el mismo camino que uno inexistente.
+    codigo = seguridad.codigo_sala(datos.get('codigo'))
 
     # --- Partida EN CURSO con hueco: el recién llegado entra de sustituto ---
     if codigo in salas and salas[codigo]['estado'] == 'esperando_reemplazo':
@@ -1283,8 +1311,9 @@ def procesar_accion_interna(sid_jugador, codigo, datos):
 
     # Extraemos el motor específico de la sala donde está este jugador
     partida_actual = salas[codigo]['motor']
+    datos = seguridad.dic(datos)
     accion = datos.get('accion')
-    
+
     if accion == 'pedrete':
         if partida_actual.procesar_pedrete(sid_jugador):
             enviar_estado_a_jugadores(codigo)
@@ -1302,13 +1331,16 @@ def procesar_accion_interna(sid_jugador, codigo, datos):
             partida_actual.cantar_mus(sid_jugador, False)
             enviar_estado_a_jugadores(codigo)
         elif accion in ['pasar', 'envidar', 'subir', 'ver', 'ordago', 'nover']:
-            cantidad = datos.get('cantidad', 0)
+            # El motor ya topa la apuesta contra los puntos que quedan; esto es la
+            # aduana previa (Roadmap #16.6): entero, nunca negativo, nunca por
+            # encima del juego entero.
+            cantidad = seguridad.entero(datos.get('cantidad', 0), 0, 40, 0)
             partida_actual.accion_apuesta(sid_jugador, accion, cantidad)
             enviar_estado_a_jugadores(codigo)
 
     if accion == 'descartar' and partida_actual.fase == 'descarte':
         if not partida_actual.estado[sid_jugador]['descartes_listos']:
-            indices_a_tirar = datos.get('indices', [])
+            indices_a_tirar = seguridad.indices(datos.get('indices'), 4)
             partida_actual.procesar_descarte(sid_jugador, indices_a_tirar)
             enviar_estado_a_jugadores(codigo)
 
@@ -1677,8 +1709,9 @@ def handle_reanudar_partida(datos):
     reasigna el sid dentro del motor y reanuda. Funciona aunque el asiento siga
     ocupado por un sid muerto (refresco que se adelanta a la detección de la caída)."""
     sid = request.sid
-    codigo = (datos.get('codigo') or '').upper()
-    token = datos.get('token')
+    datos = seguridad.dic(datos)
+    codigo = seguridad.codigo_sala(datos.get('codigo'))
+    token = seguridad.texto(datos.get('token'), 64)
     username = session.get('username')
 
     sala = salas.get(codigo)

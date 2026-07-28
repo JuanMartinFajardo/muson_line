@@ -54,6 +54,7 @@ from datetime import datetime, timedelta, date
 from flask import request, session, jsonify, Response
 
 import base_datos
+import seguridad
 
 DB_ANALITICA = os.environ.get('ANALYTICS_DB', 'analitica.db')
 
@@ -270,11 +271,12 @@ def _sal_de_hoy():
 
 
 def _ip_cruda():
-    """Solo se usa para calcular el hash; nunca se guarda."""
-    cabecera = request.headers.get('X-Forwarded-For', '')
-    if cabecera:
-        return cabecera.split(',')[0].strip()
-    return request.remote_addr or '0.0.0.0'
+    """Solo se usa para calcular el hash; nunca se guarda.
+
+    La resuelve seguridad.ip_cliente() (Roadmap #16): el primer valor de
+    X-Forwarded-For lo escribe el cliente si quiere, y con él bastaba una
+    cabecera distinta en cada petición para contarse como mil visitantes."""
+    return seguridad.ip_cliente() or '0.0.0.0'
 
 
 def _clave_visitante():

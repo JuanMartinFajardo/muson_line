@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>CallMus · Administración</title>
-<style>
+<style nonce="{{ csp_nonce() }}">
 /* Paleta Nord, la misma del juego. Hoja propia: el panel no comparte nada con
    la SPA para poder tocarlo sin riesgo de romper la mesa. */
 :root{
@@ -675,7 +675,7 @@ th.orden.activa{color:var(--amarillo)}
   </section>
 </main>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 // ==========================================================================
 // Panel de administración (Roadmap #13). Vanilla JS, sin dependencias.
 // Todo el texto que entra de la base de datos se pinta con textContent para

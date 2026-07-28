@@ -2326,7 +2326,7 @@ const dictTutSenas = {
                     ['30',        '30',        'Suma de 30, sin llegar a 31', 'encoger los hombros'],
                     ['ciego',     'Ciego',     'Nada de lo anterior',         'cerrar los ojos'],
                 ])}
-                <span class="tut-nota">Los gestos son los tradicionales, salvo el solomillo, que es de la casa.</span>
+                <span class="tut-nota">Los gestos son los tradicionales.</span>
             `
         },
         {
@@ -2495,7 +2495,7 @@ const dictTutSenas = {
                     ['30',        '30',              'A sum of 30, short of 31',  'shrug your shoulders'],
                     ['ciego',     'Blind',           'None of the above',      'close your eyes'],
                 ])}
-                <span class="tut-nota">The gestures are the traditional ones, except the solomillo, which is ours.</span>
+                <span class="tut-nota">The gestures are the traditional ones.</span>
             `
         },
         {

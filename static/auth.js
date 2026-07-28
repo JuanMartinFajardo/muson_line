@@ -14,6 +14,13 @@ function _t(clave) {
     return (typeof t === 'function') ? t(clave) : clave;
 }
 
+// El logotipo de Google se esconde si no carga, en vez de dejar el icono roto
+// dentro del botón. Estaba como onerror= en el HTML; la CSP (Roadmap #16) no
+// admite manejadores en línea, así que vive aquí.
+document.querySelectorAll('img.cm-ocultar-si-falla').forEach(img => {
+    img.addEventListener('error', () => { img.style.display = 'none'; });
+});
+
 // --- Utilidad para mostrar un modal concreto ocultando los demás ---
 function mostrarModalAuth(id) {
     const overlay = document.getElementById('modal-overlay');

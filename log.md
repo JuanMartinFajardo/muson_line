@@ -4,6 +4,77 @@ Historial cronológico de cambios relevantes del proyecto. El más reciente arri
 
 ---
 
+## 2026-07-28 — Endurecimiento del servidor (Roadmap #16)
+
+Todo lo que se puede blindar desde el código, blindado, y en un solo módulo nuevo:
+[`seguridad.py`](seguridad.py). La regla con la que está escrito —y la razón de que
+se pueda desplegar sin tocar nginx el mismo día— es que **ninguna protección puede
+dejar el sitio peor de como estaba**: cada una detecta si se dan las condiciones
+(TLS, IP real del cliente) y se enciende sola, o se queda callada.
+
+- **Cabeceras y CSP.** `X-Content-Type-Options`, `Referrer-Policy`,
+  `X-Frame-Options`, `Permissions-Policy` siempre; **CSP con nonce por petición**
+  (`{{ csp_nonce() }}` en los cuatro bloques en línea de `index.html` y
+  `admin.html`). Para que `script-src` pudiera ser `'self'` sin `'unsafe-inline'`,
+  **el cliente de Socket.IO deja el CDN y se sirve de
+  `static/vendor/socket.io-4.7.5.min.js`**, y los dos `onerror=` del logo de Google
+  se han convertido en un `addEventListener` dentro de `auth.js`. `style-src`
+  conserva `'unsafe-inline'`: hay ~95 atributos `style="…"` en la página y un nonce
+  no cubre atributos. `CSP_MODO=report` deja un modo de solo aviso para probar
+  cambios en las páginas.
+- **Cookie de sesión.** `HttpOnly` y `SameSite=Lax` siempre. `Secure` **no** es una
+  constante de configuración sino una decisión por petición (subclase de
+  `SecureCookieSessionInterface`): puesto a mano sobre HTTP habría dejado a todo el
+  mundo sin poder entrar; así aparece solo el día que nginx mande
+  `X-Forwarded-Proto`. HSTS (180 días) va con la misma condición, que prometerle
+  "solo HTTPS" a un navegador desde un servidor que aún no lo tiene es la única
+  cabecera capaz de tirar un sitio.
+- **La IP real, y un fallo que había.** `admin.py` y `analitica.py` leían el
+  **primer** valor de `X-Forwarded-For`. nginx añade la real al **final**, así que
+  el primero es el que escriba el cliente: el hash de visitante de la analítica era
+  falsificable y cualquier límite por IP se habría saltado con una cabecera. Ahora
+  los dos usan `seguridad.ip_cliente()` (ProxyFix, un salto, y `CF-Connecting-IP` si
+  algún día hay Cloudflare).
+- **Límite de intentos en `/auth/*`**, en memoria y sin dependencias nuevas —
+  Flask-Limiter en una máquina de 1 GB no compensa para esto. 10/min y 60/h en
+  `/auth/login`, más estrecho en los códigos y el reseteo; `429` con `Retry-After` y
+  un `codigo` que los `fetch()` de `auth.js` ya saben pintar. `/auth/sesion` y
+  `/admin/*` quedan fuera a propósito: los sondea el propio cliente y limitarlos
+  rompería el uso normal sin frenar nada. **Lo importante:** si el proxy no reenvía
+  la IP, *todos* llegan como `127.0.0.1` y un límite por IP se vuelve un límite
+  global (diez logins fallidos y el sitio deja de aceptar ninguno), así que en ese
+  caso la clave pasa a ser el usuario/correo enviado.
+- **CORS.** `cors_allowed_origins` deja de ser `"*"`: callmus.com, www y localhost,
+  con `CORS_ORIGINS` para sustituir la lista desde el entorno (incluido `*` para
+  volver atrás sin desplegar).
+- **Validación en el borde** en los dos servidores: nombres recortados y sin
+  caracteres de control ni marcas bidi, códigos de sala `^[A-Z0-9]{4}$`, asientos y
+  apuestas como enteros acotados, índices de descarte únicos y en rango,
+  `al_mejor_de` forzado impar 1–21, y todo *payload* convertido a diccionario
+  (mandar `null` a varios manejadores reventaba dentro del greenlet).
+- **Copias de seguridad** diarias de `mus.db` y `analitica.db` en `backups/`, con la
+  API `backup()` de sqlite3 —consistente con escrituras a la vez y correcta con el
+  WAL de la analítica, cosa que un `cp` no— rotando 7 y saltándose la vuelta si
+  quedan menos de 500 MB de disco. Sin cron.
+- **Dependencias**: `requirements.txt` pasa a rangos acotados (mínimo probado, techo
+  por debajo de la siguiente mayor) con la receta de `pip freeze` para el candado
+  exacto desde el servidor, y `.github/dependabot.yml` abre una PR agrupada por
+  semana.
+- **Comprobado** levantando el servidor: cabeceras y CSP con nonces que coinciden en
+  `index.html` y `admin.html`; Socket.IO conectado por **websocket** desde el archivo
+  propio y cero scripts externos; una mano completa contra la IA (mus, descarte,
+  envite) y una mesa 2v2 con bots repartida; reanudación tras recargar con el código
+  y el token ya saneados; `429` al undécimo login, por IP cuando llega
+  `X-Forwarded-For` (y **ignorando** un prefijo falsificado dentro de él); `Secure` y
+  HSTS solo bajo `X-Forwarded-Proto: https`; un `Origin` ajeno rechazado con `400`.
+- **Queda a mano**: dos líneas en nginx (`X-Forwarded-For`, `X-Forwarded-Proto`) y
+  Cloudflare. Ambas explicadas paso a paso en
+  [`tools/nginx-callmus.conf`](tools/nginx-callmus.conf); el servidor imprime en la
+  primera petición tras arrancar qué ha detectado y qué línea falta. Detalle
+  completo en la wiki (`Security.md`).
+
+---
+
 ## 2026-07-27 — Se acabó la baraja: ahora se avisa (Roadmap #14)
 
 Cuando muchas rondas de mus seguidas agotaban el mazo, el motor rebarajaba los

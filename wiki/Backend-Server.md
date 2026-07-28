@@ -37,6 +37,12 @@ and `/api/`. The second half is not optional: without it a browser could reuse a
 `/auth/sesion` response and show you as logged out right after logging in, or as logged
 in right after logging out (Roadmap #22).
 
+A second `after_request`, from [seguridad.py](../seguridad.py), adds the security
+headers and the nonce CSP; a `before_request` from the same module applies the
+`/auth/*` rate limits before any route runs, and `ProxyFix` wraps `app.wsgi_app` so
+`request.remote_addr` and `request.is_secure` reflect what nginx reports rather than
+the proxy itself. All of it is described in [Security](Security.md).
+
 ### Account settings (`/auth/cuenta/*`)
 
 All six routes take the target user from `session['username']` — never from the request —

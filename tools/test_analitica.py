@@ -21,9 +21,22 @@ os.environ['ANALYTICS_DB'] = os.path.join(tmp, 'analitica_test.db')
 
 from flask import Flask
 import analitica
+import seguridad
 
 app = Flask(__name__, template_folder='.')
 app.config['SECRET_KEY'] = 'test'
+
+# La prueba distingue visitantes por su X-Forwarded-For, igual que producción.
+# Desde Roadmap #16 esa cabecera la resuelve ProxyFix (que coge el valor que añadió
+# nginx, no el primero, que lo escribe el cliente), y quien lo instala es
+# seguridad.init_seguridad: sin esta llamada todas las peticiones llegarían como
+# 127.0.0.1 y los tres visitantes se contarían como uno. Se desactivan los límites
+# y la copia de seguridad, que aquí no pintan nada.
+os.environ['LIMITES_ACTIVOS'] = '0'
+os.environ['BACKUP_ACTIVO'] = '0'
+seguridad.LIMITES_ACTIVOS = False
+seguridad.BACKUP_ACTIVO = False
+seguridad.init_seguridad(app)
 
 
 class FakeSocketIO:
@@ -72,8 +85,8 @@ print('\n1. Visitas y dimensiones')
 c.get('/', headers={'User-Agent': UA_MOVIL, 'Referer': 'https://www.reddit.com/r/mus/',
                     'X-Forwarded-For': '10.0.0.1', 'Accept-Language': 'es-ES,es;q=0.9',
                     'CF-IPCountry': 'ES'})
-with app.test_request_context('/', headers={'User-Agent': UA_MOVIL,
-                                            'X-Forwarded-For': '10.0.0.1'}):
+with app.test_request_context('/', headers={'User-Agent': UA_MOVIL},
+                              environ_base={'REMOTE_ADDR': '10.0.0.1'}):
     analitica.evento('partida_inicio', modo='bot')
     analitica.evento('partida_fin', modo='bot', valor=420)
 c.post('/api/a/latido', json={'activo': 90},
@@ -178,8 +191,8 @@ if uid is None:
     base_datos.registrar_usuario(USUARIO_PRUEBA, 'Passw0rd!x', 'ES', '1990-01-01',
                                  'analitica_test@example.com')
     uid = base_datos.obtener_id_usuario(USUARIO_PRUEBA)
-with app.test_request_context('/', headers={'User-Agent': UA_ESCRITORIO,
-                                            'X-Forwarded-For': '10.0.0.7'}):
+with app.test_request_context('/', headers={'User-Agent': UA_ESCRITORIO},
+                              environ_base={'REMOTE_ADDR': '10.0.0.7'}):
     analitica.pagina('/')
     analitica.evento('login', username=USUARIO_PRUEBA)
     analitica.evento('partida_inicio', modo='online2', username=USUARIO_PRUEBA)
@@ -204,10 +217,12 @@ comprobar('tras olvidar, la cuenta desaparece del panel',
 
 print('\n7. Atribución cruzada (por_usuario no roba el evento a quien pulsa)')
 analitica.borrar_todo()
-with app.test_request_context('/', headers={'User-Agent': UA_MOVIL, 'X-Forwarded-For': '10.0.1.1'}):
+with app.test_request_context('/', headers={'User-Agent': UA_MOVIL},
+                              environ_base={'REMOTE_ADDR': '10.0.1.1'}):
     analitica.pagina('/')
     analitica.evento('login', username='jugadorA')
-with app.test_request_context('/', headers={'User-Agent': UA_ESCRITORIO, 'X-Forwarded-For': '10.0.1.2'}):
+with app.test_request_context('/', headers={'User-Agent': UA_ESCRITORIO},
+                              environ_base={'REMOTE_ADDR': '10.0.1.2'}):
     analitica.pagina('/')
     analitica.evento('login', username='jugadorB')
     # B se une a la sala de A: arranca la partida de los dos.

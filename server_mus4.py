@@ -19,6 +19,7 @@ import base_datos
 import decks
 import mus_senas
 import analitica          # medición de audiencia (Roadmap #24); nunca lanza
+import seguridad          # validación de entrada en el borde (Roadmap #16.6)
 from mus_mecanicas_4 import PartidaMus4
 from bot_ml_4 import SmartBot4, PERSONALIDADES, PERSONALIDAD_POR_DEFECTO
 
@@ -121,6 +122,14 @@ def difundir_baraja_4(sid, config):
                           {'asiento': room['asientos'].index(sid), 'config': config},
                           room=codigo)
             return
+
+
+def _mejor_de_4(valor):
+    """«Al mejor de» saneado: impar, entre 1 y 21 (Roadmap #16.6). Gemelo del
+    `_mejor_de` de server.py; están separados porque los dos módulos se cargan
+    por su cuenta y no comparten más que `seguridad`."""
+    n = seguridad.entero(valor, 1, 21, 3)
+    return n if n % 2 else min(21, n + 1)
 
 
 def _normalizar_bots(datos):
@@ -494,10 +503,11 @@ def _asignar_asiento(room, sid, nombre, username, asiento_pedido, token):
 
 def handle_crear_sala_4(datos):
     sid = request.sid
-    nombre = (datos.get('nombre') or 'Jugador').strip()
+    datos = seguridad.dic(datos)
+    nombre = seguridad.texto(datos.get('nombre'), 20, 'Jugador')
     publico = bool(datos.get('publico', False))
-    al_mejor_de = datos.get('al_mejor_de', 3)
-    asiento = datos.get('asiento', 0)
+    al_mejor_de = _mejor_de_4(datos.get('al_mejor_de'))
+    asiento = seguridad.entero(datos.get('asiento'), 0, 3, 0)
     senas = bool(datos.get('senas', False))
     username = session.get('username')
     token = _token()
@@ -546,7 +556,7 @@ def handle_rellenar_bots_4(datos=None):
     Lo puede pedir cualquiera de los que ya están sentados (si estás esperando
     a que llegue gente que no llega, no hace falta ir a buscar al creador)."""
     sid = request.sid
-    datos = datos or {}
+    datos = seguridad.dic(datos)
     for codigo, room in salas4.items():
         if sid not in room['asientos'] or room['estado'] != 'esperando':
             continue
@@ -564,9 +574,12 @@ def handle_rellenar_bots_4(datos=None):
 
 def handle_unirse_sala_4(datos):
     sid = request.sid
-    nombre = (datos.get('nombre') or 'Jugador').strip()
-    codigo = (datos.get('codigo') or '').upper()
-    asiento = datos.get('asiento', None)
+    datos = seguridad.dic(datos)
+    nombre = seguridad.texto(datos.get('nombre'), 20, 'Jugador')
+    codigo = seguridad.codigo_sala(datos.get('codigo'))
+    # `None` = «siéntame donde haya sitio»; solo se sanea si pide uno concreto.
+    asiento = (None if datos.get('asiento') is None
+               else seguridad.entero(datos.get('asiento'), 0, 3, 0))
     username = session.get('username')
     token = _token()
 
@@ -789,6 +802,7 @@ def procesar_accion_4(seat, codigo, datos):
         return
     motor = room['motor']
     room['ultima_actividad'] = time.time()
+    datos = seguridad.dic(datos)
     accion = datos.get('accion')
 
     if accion == 'pedrete':
@@ -820,7 +834,8 @@ def procesar_accion_4(seat, codigo, datos):
             # los botones desfasados— podía envidar a unos pares que no tiene.
             if accion not in motor.acciones_legales(seat):
                 return
-            motor.accion_apuesta(seat, accion, datos.get('cantidad', 0))
+            motor.accion_apuesta(seat, accion,
+                                 seguridad.entero(datos.get('cantidad', 0), 0, 40, 0))
             # La cantidad se lee DESPUÉS de jugar: el motor recorta el envite al
             # tope legal (lo que falta para 40) y lo convierte en órdago si ya no
             # cabe, así que lo cantado no siempre es lo que se pidió.
@@ -836,8 +851,9 @@ def procesar_accion_4(seat, codigo, datos):
 
     if accion == 'descartar' and motor.fase == 'descarte':
         if not motor.estado[seat]['descartes_listos']:
-            n = len(datos.get('indices', []))
-            motor.procesar_descarte(seat, datos.get('indices', []))
+            tirar = seguridad.indices(datos.get('indices'), 4)
+            n = len(tirar)
+            motor.procesar_descarte(seat, tirar)
             _anunciar_accion_4(codigo, seat, 'descartar', n)
             enviar_estado_4(codigo)
         return
@@ -1308,8 +1324,9 @@ def _programar_fin_espera_4(codigo, marca):
 
 def handle_reanudar_partida_4(datos):
     sid = request.sid
-    codigo = (datos.get('codigo') or '').upper()
-    token = datos.get('token')
+    datos = seguridad.dic(datos)
+    codigo = seguridad.codigo_sala(datos.get('codigo'))
+    token = seguridad.texto(datos.get('token'), 64)
     username = session.get('username')
 
     room = salas4.get(codigo)

@@ -30,3 +30,7 @@ wiki/
 # es dist/, que lleva los webp finales, el zip que se sube por el panel y el
 # informe de la puerta de legibilidad.
 tools/decks/build/
+
+# Copias de seguridad diarias de las bases (Roadmap #16.8): las hace el propio
+# servidor en seguridad.py, se rotan solas y no van al repositorio.
+backups

@@ -18,6 +18,7 @@
 | [Database](Database.md) | `base_datos.py` — SQLite schema, ELO math |
 | [Analytics](Analytics.md) | `analitica.py` — cookieless audience measurement, the panel's Analítica tab, and why no cookie banner is needed |
 | [Authentication](Authentication.md) | Account system: register/verify/login/Google OAuth (partially implemented) |
+| [Security](Security.md) | `seguridad.py` — security headers and CSP, cookie flags, real client IP, `/auth/*` rate limits, input validation, daily backups, and what is left to do in nginx/Cloudflare |
 | [Frontend](Frontend.md) | `index.html`, `static/app.js`, `static/auth.js`, `static/tutorial.js`, i18n |
 | [Bot and AI](Bot-AI.md) | `bot_ml.py`, Deep CFR training pipeline, `learn/` folder, and the §4 training infrastructure (log v2, encoder, benchmark, measurement harness) |
 | [4p Bot ML Strategy](Bot-AI-4p-ML-Strategy.md) | Deep analysis: Deep CFR + RL for the 2v2 bot, Nash-distance measurement, log format v2, signs |

@@ -36,6 +36,7 @@ There is **no build step**: the frontend is plain HTML/CSS/JS served directly by
 | [admin.py](../admin.py) | Admin panel (`init_admin`): accounts, live rooms, downloads, `Config` variables, audit, plus the player-facing support and announcement endpoints |
 | [analitica.py](../analitica.py) | Usage analytics (`init_analitica`): cookieless audience measurement into its own `analitica.db`, and the panel's Analítica tab ([Analytics](Analytics.md)) |
 | [sistema.py](../sistema.py) | Machine health (`init_sistema`): RAM, swap, disk, network and request rates sampled every minute, and the panel's Servidor tab. Stdlib only (`/proc` + `statvfs`) |
+| [seguridad.py](../seguridad.py) | Hardening (`init_seguridad`): security headers and nonce CSP, per-request `Secure` cookie and HSTS, real client IP, `/auth/*` rate limits, boundary input validation, daily DB backups ([Security](Security.md)) |
 
 ### Training / offline (not needed to run the server)
 

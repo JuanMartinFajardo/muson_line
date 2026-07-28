@@ -6,7 +6,7 @@ Implementation guide for planned CallMus features, written so an agent can pick 
 - Every user-visible string goes into both `dict.es` and `dict.en` in [static/app.js](../static/app.js) and is rendered via `t()` / `data-i18n`. Server → client messages that need localization are sent as `{code, ...params}` objects.
 - New DB tables go in [base_datos.py](../base_datos.py) `init_db()` with `CREATE TABLE IF NOT EXISTS`.
 - Secrets/config via `os.environ`, never hardcoded.
-- Suggested priority order: ~~1 (login)~~ → ~~21 (bug fixes)~~ → ~~22 (settings menu)~~ → ~~23 (player codes)~~ → ~~14 (deck-exhausted notice)~~ → **9 (turn timer) → 18 (resume bot games)** → ~~2 (tutorial i18n)~~ → ~~13 (admin)~~ → **16 (security) → 19 (stats)** → ~~3 (friends/groups)~~ → ~~5 (decks)~~ → **4 (tournaments)** — then the rest.
+- Suggested priority order: ~~1 (login)~~ → ~~21 (bug fixes)~~ → ~~22 (settings menu)~~ → ~~23 (player codes)~~ → ~~14 (deck-exhausted notice)~~ → **9 (turn timer) → 18 (resume bot games)** → ~~2 (tutorial i18n)~~ → ~~13 (admin)~~ → ~~16 (security)~~ → **19 (stats)** → ~~3 (friends/groups)~~ → ~~5 (decks)~~ → **4 (tournaments)** — then the rest.
 
 ---
 
@@ -509,20 +509,93 @@ The transition-message channel (`mensaje_transicion`) was **not** used: it block
 
 ---
 
-## 16. Security hardening (Cloudflare, etc.)
+## 16. Security hardening (Cloudflare, etc.) — ✅ DONE in the app (2026-07-28)
 
-**Steps (roughly in order of value):**
-1. **Secrets to env vars** (covered in #1) — the true prerequisite.
-2. **Reverse proxy + TLS:** put the eventlet server behind **nginx** (or Caddy) with HTTPS; proxy WebSocket upgrade headers (`proxy_set_header Upgrade/Connection`). Set `SESSION_COOKIE_SECURE=True`, `SESSION_COOKIE_HTTPONLY=True`, `SESSION_COOKIE_SAMESITE='Lax'`.
-3. **Cloudflare in front:** orange-cloud the DNS record (Cloudflare supports WebSockets on all plans). Configure: SSL "Full (strict)", a WAF rate-limiting rule on `/auth/*` (e.g. 10 req/min/IP), bot-fight mode, and restore real client IPs in nginx (`CF-Connecting-IP`) for logging/rate limits.
-4. **App-level rate limiting:** Flask-Limiter on `/auth/login`, `/auth/solicitar_codigo`, `/auth/registro` (protects even if Cloudflare is bypassed; bind to the real IP).
-5. **Tighten CORS:** `SocketIO(app, cors_allowed_origins=["https://<domain>"])` instead of `"*"`.
-6. **Input validation server-side everywhere:** name lengths, room codes `^[A-Z0-9]{4}$`, bet amounts are ints in range (the engine caps them, but validate at the boundary), message/JSON size limits.
-7. **Headers:** CSP (self-host the Socket.IO client to allow a strict policy), `X-Content-Type-Options`, `Referrer-Policy`, HSTS (via nginx).
-8. **DB:** already parameterized queries throughout — keep it that way; nightly `mus.db` backup cron.
-9. Dependency hygiene: pin versions in `requirements.txt` (currently unpinned) and enable GitHub Dependabot.
+**Current state:** everything that can be done from the code is done and lives in
+one new module, [seguridad.py](../seguridad.py), described in full in
+[Security](Security.md). Two items are *network* configuration and remain open
+by design: two nginx `proxy_set_header` lines and Cloudflare.
 
-**Acceptance:** site served over HTTPS behind Cloudflare; login brute-force gets rate-limited; a security-headers scan (e.g. securityheaders.com) scores well; sockets still work through the proxy.
+The whole module was written so that **it needs no configuration to be safe and
+cannot break the site if the machine is not ready for it**: each protection
+either detects its precondition (TLS, a real client IP) and turns itself on, or
+stays dormant. That is what allowed shipping it without a coordinated nginx
+change.
+
+**What was done:**
+1. ✅ **Secrets in env vars** — already done in #1.
+2. ✅ **TLS + cookie flags.** nginx and Let's Encrypt were already in place
+   (http→https redirect included). `HttpOnly` and `SameSite=Lax` are now always
+   set; **`Secure` is decided per request** by a `SecureCookieSessionInterface`
+   subclass instead of the static `SESSION_COOKIE_SECURE`. A hardcoded `True`
+   over plain HTTP would have locked everyone out of login; this way the flag
+   appears by itself the day nginx sends `X-Forwarded-Proto`, and until then
+   behaves exactly as before. HSTS (180 days, `HSTS_MAX_AGE`) follows the same
+   rule — promising "HTTPS only" from a server that cannot yet prove it has TLS
+   is the one header that can take a site down.
+3. ⏳ **Cloudflare** — still manual. Step-by-step checklist at the end of
+   [tools/nginx-callmus.conf](../tools/nginx-callmus.conf). `ip_cliente()`
+   already prefers `CF-Connecting-IP`, so the app side is ready.
+4. ✅ **Rate limiting**, hand-rolled instead of Flask-Limiter (no new dependency
+   on a 1 GB box): 10/min and 60/h on `/auth/login`, tighter on the code and
+   reset routes, `429` + `Retry-After` + a translation code the existing
+   `auth.js` handlers already render. `/auth/sesion` and `/admin/*` are
+   deliberately excluded — both are polled by the client and limiting them
+   would break normal use without stopping brute force, which goes at
+   `/auth/login`.
+   **The bit worth remembering:** if the proxy does not forward the client IP,
+   *everyone* arrives as `127.0.0.1` and an IP-keyed limit becomes a global
+   one — ten bad logins and the site stops accepting any. So when the visible
+   address is private, the limit keys on the submitted username/email instead.
+   Weaker, but it cannot lock the whole site out.
+5. ✅ **CORS tightened**: `cors_allowed_origins` is now `callmus.com`,
+   `www.callmus.com` and localhost (`seguridad.origenes_permitidos`), with
+   `CORS_ORIGINS` to override — including `CORS_ORIGINS=*` to revert from the
+   environment if anything ever goes wrong in production.
+6. ✅ **Input validated at the boundary** in both servers: names capped and
+   stripped of control/bidi characters, room codes `^[A-Z0-9]{4}$`, seats and
+   bet amounts as bounded ints, discard indices unique and in range,
+   `al_mejor_de` forced odd 1–21, and every payload coerced to a dict (sending
+   `null` to several handlers used to raise inside the greenlet). Message and
+   upload sizes were already capped in `base_datos` and `decks.py`.
+7. ✅ **Headers + CSP with a per-request nonce.** The Socket.IO client is now
+   self-hosted (`static/vendor/socket.io-4.7.5.min.js`), which is what makes
+   `script-src 'self'` possible; the four inline blocks carry the nonce and the
+   two `onerror=` attributes moved into `auth.js`. `style-src` keeps
+   `'unsafe-inline'` — ~95 `style="…"` attributes and a nonce cannot cover
+   attributes. `CSP_MODO=report` gives a report-only mode for testing page
+   changes.
+8. ✅ **Backups**: the server copies `mus.db` and `analitica.db` into
+   `backups/` at startup and every 24 h with sqlite3's `backup()` API (safe with
+   writes in flight and with the analytics WAL, unlike `cp`), keeping 7, and
+   skipping if the disk drops below 500 MB free. No cron to install.
+9. ✅ **Dependency hygiene**: `requirements.txt` now carries bounded ranges
+   (tested minimum, ceiling below the next major) plus a `pip freeze` recipe for
+   an exact lock from the VM, and `.github/dependabot.yml` opens one grouped PR
+   a week for minor/patch bumps.
+
+**Also fixed on the way:** `admin.py` and `analitica.py` read the *first* value
+of `X-Forwarded-For` to identify the client. nginx appends the real address, so
+the first value is whatever the client sends — the analytics visitor hash was
+forgeable and any future IP limit would have been bypassable with a header.
+Both now use `seguridad.ip_cliente()` (Werkzeug `ProxyFix`, one hop).
+
+**Verified locally (2026-07-28):** headers and CSP present with matching nonces
+on both `index.html` and `admin.html`; Socket.IO connects over **websocket**
+transport from the self-hosted client with zero external scripts; a full bot
+hand played through mus, discard and betting; a 2v2 bot table created and
+dealt; resume-after-reload works with the sanitised code/token; the limiter
+returns `429` at the 11th login and keys per IP when `X-Forwarded-For` is
+present (and ignores a forged prefix in it); the `Secure` flag and HSTS appear
+only under `X-Forwarded-Proto: https`; the origin allowlist rejects a foreign
+`Origin` with `400`.
+
+**Left to do by hand (see [Security](Security.md#7-still-to-do-by-hand)):**
+the two nginx `proxy_set_header` lines, and Cloudflare.
+
+**Acceptance:** ✅ HTTPS (nginx + certbot, already live); ✅ login brute-force
+rate-limited; ✅ sockets work through the proxy; ⏳ securityheaders.com scan and
+Cloudflare pending the manual steps.
 
 ---
 

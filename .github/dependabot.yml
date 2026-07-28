@@ -1,0 +1,30 @@
+# Dependabot (Roadmap #16.9): avisa con una PR cuando una dependencia del
+# servidor publica una versión nueva, que es como uno se entera de los CVE sin
+# tener que mirarlos.
+#
+# Semanal y agrupado: en un proyecto de una persona, una PR el lunes se revisa;
+# siete sueltas a lo largo de la semana no las mira nadie. Las versiones MAYORES
+# se ignoran a propósito — requirements.txt ya pone el techo y una subida mayor
+# se hace a mano, con el servidor delante.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    groups:
+      servidor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Las acciones de GitHub que se usen en el futuro (ahora no hay ninguna): la
+  # entrada no molesta y evita tener que acordarse el día que se añada un CI.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

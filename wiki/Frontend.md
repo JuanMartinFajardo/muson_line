@@ -272,7 +272,8 @@ still inline in `index.html` (candidate for cleanup).
 
 - `static/img/card_<suit>_<NN>.webp` — suits `coins, cups, swords, clubs`, values `01–07, 10, 11, 12` (from the [spanish-playing-cards-svg](https://github.com/gjenkins20/spanish-playing-cards-svg) repo).
 - `static/img/card_back.webp`, `callmus2logo_193.jpg`, `static/favicon_io/*`.
-- Socket.IO client is loaded from the **cdnjs CDN** (v4.7.5) — the only external dependency.
+- Socket.IO client (v4.7.5) is **self-hosted** at `static/vendor/socket.io-4.7.5.min.js`. It used to come from cdnjs; it was moved so the CSP can forbid third-party scripts ([Security](Security.md#4-the-content-security-policy)). The page now loads **nothing** from outside the origin. When bumping the version, replace the file and the `<script src>` together.
+- Inline `<script>`/`<style>` need `nonce="{{ csp_nonce() }}"` and inline `on*=` handlers are blocked outright — attach listeners from a file in `/static` instead.
 
 ## Conventions for new frontend work
 
