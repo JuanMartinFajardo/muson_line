@@ -1348,7 +1348,13 @@ def procesar_accion_interna(sid_jugador, codigo, datos):
 
 
     if sid_jugador == partida_actual.turno_de:
-        if accion == 'repartir':
+        # `repartir` SOLO en espera_reparto (igual que el 4p en
+        # server_mus4.py). Sin la fase, un cliente manipulado podía mandar
+        # `repartir` en su turno de mus/apuestas y `repartir_inicial()` volvía
+        # a barajar y repartir las dos manos: barajar de nuevo hasta que te
+        # guste lo que te toca. `acciones_legales` ya lo dice (solo devuelve
+        # 'repartir' en espera_reparto); esto es que el servidor lo cumpla.
+        if accion == 'repartir' and partida_actual.fase == 'espera_reparto':
             partida_actual.repartir_inicial()
             _anunciar_accion_2p(codigo, sid_jugador, 'repartir')
             enviar_estado_a_jugadores(codigo)
